@@ -20,6 +20,7 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private final List<String> whiteList = List.of(
+            "/api/user/login",
             "/api/user/auth/login",
             "/api/user/health",
             "/api/attendance/health",

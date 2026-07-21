@@ -15,14 +15,14 @@
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" size="large" placeholder="123456" show-password />
         </el-form-item>
-        <el-button type="primary" size="large" class="login-button" @click="handleLogin">登录</el-button>
+        <el-button type="primary" size="large" class="login-button" :loading="loading" @click="handleLogin">登录</el-button>
       </el-form>
     </section>
   </div>
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -35,16 +35,20 @@ const form = reactive({
   password: '123456'
 })
 
-function handleLogin() {
-  userStore.login({
-    token: 'mock-dev-token',
-    profile: {
-      username: form.username,
-      realName: '系统管理员'
-    }
-  })
-  ElMessage.success('登录成功')
-  router.push('/dashboard')
+const loading = ref(false)
+
+async function handleLogin() {
+  if (!form.username || !form.password) {
+    ElMessage.warning('请输入用户名和密码')
+    return
+  }
+  loading.value = true
+  try {
+    await userStore.login(form)
+    ElMessage.success('登录成功')
+    router.push('/dashboard')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
-

@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS officeflow
     DEFAULT CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
+SET NAMES utf8mb4;
 USE officeflow;
 
 -- =========================================================
@@ -455,7 +456,7 @@ VALUES
 
 INSERT IGNORE INTO sys_api_permission (id, permission_name, permission_code, service_name, request_method, request_path, status)
 VALUES
-    (1, '用户登录', 'api:user:login', 'user-service', 'POST', '/api/user/auth/login', 1),
+    (1, '用户登录', 'api:user:login', 'user-service', 'POST', '/api/user/login', 1),
     (2, '员工查询', 'api:user:list', 'user-service', 'GET', '/api/user/**', 1),
     (3, '员工维护', 'api:user:write', 'user-service', 'POST', '/api/user/**', 1),
     (4, '考勤查询', 'api:attendance:list', 'attendance-service', 'GET', '/api/attendance/**', 1),
@@ -511,4 +512,3 @@ VALUES
 INSERT IGNORE INTO notice_scope (notice_id, scope_type, scope_id)
 VALUES
     (1, 'ALL', NULL);
-

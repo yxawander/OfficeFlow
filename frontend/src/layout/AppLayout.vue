@@ -74,8 +74,8 @@ const userStore = useUserStore()
 
 const pageTitle = computed(() => route.meta.title || 'OfficeFlow')
 
-function handleLogout() {
-  userStore.logout()
+async function handleLogout() {
+  await userStore.logout()
   router.push('/login')
 }
 </script>

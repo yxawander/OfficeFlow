@@ -16,7 +16,14 @@ request.interceptors.request.use((config) => {
 })
 
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const body = response.data
+    if (body && typeof body.code !== 'undefined' && body.code !== 200) {
+      ElMessage.error(body.message || '请求失败')
+      return Promise.reject(new Error(body.message || '请求失败'))
+    }
+    return body
+  },
   (error) => {
     const message = error.response?.data?.message || error.message || '请求失败'
     ElMessage.error(message)
@@ -25,4 +32,3 @@ request.interceptors.response.use(
 )
 
 export default request
-

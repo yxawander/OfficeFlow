@@ -3,6 +3,7 @@ package com.officeflow.common.exception;
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.ResultCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -18,7 +19,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             IllegalArgumentException.class,
             MethodArgumentTypeMismatchException.class,
-            HttpMessageNotReadableException.class
+            HttpMessageNotReadableException.class,
+            MethodArgumentNotValidException.class
     })
     public ApiResponse<Void> handleParamException(Exception ex) {
         return ApiResponse.fail(ResultCode.PARAM_ERROR.code(), ex.getMessage());

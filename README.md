@@ -132,17 +132,13 @@ docs/sql/init.sql
 docs/design/database-design.md
 ```
 
-后端公共框架说明位于：
+后端开发与交接说明位于：
 
 ```text
 docs/design/backend-framework-guide.md
 ```
 
-后端 1 交付说明位于：
-
-```text
-docs/design/backend-1-handoff.md
-```
+其中包含后端 1、后端 2、后端 3 的详细任务表。大家先把环境配好，再按细分工并行开发。当前阶段先不做服务之间调用，也先不做 Nacos 动态业务参数，相关参数可以先在代码里写死，把基础功能先全部实现。
 
 ## 五、后端模块说明
 
@@ -150,11 +146,11 @@ docs/design/backend-1-handoff.md
 | --- | --- | --- | --- |
 | `oa-common` | 公共返回结果、异常、JWT 工具等公共代码 | 无端口 | 后端 1 |
 | `oa-gateway` | API 网关、跨域、路由、Token 校验 | `9000` | 后端 1 |
-| `user-service` | 用户、部门、岗位、角色、菜单、权限 | `9101` | 后端 2 |
-| `attendance-service` | 上下班打卡、考勤记录查询 | `9102` | 后端 3 |
+| `user-service` | 用户、部门、岗位、角色、菜单、权限 | `9101` | 后端 1 |
+| `attendance-service` | 上下班打卡、考勤记录查询 | `9102` | 后端 2 |
 | `flow-service` | 请假申请、加班申请、一级审批 | `9103` | 后端 3 |
 | `notice-service` | 公告发布、公告已读 / 未读 | `9104` | 后端 3 |
-| `report-service` | 数据大屏统计、考勤报表导出 | `9105` | 后端 3 / 文档负责人协助 |
+| `report-service` | 数据大屏统计、考勤报表导出 | `9105` | 后端 3 |
 
 ## 六、后端启动方式
 
@@ -405,11 +401,11 @@ git push
 backend/
   oa-common/              后端 1
   oa-gateway/             后端 1
-  user-service/           后端 2
-  attendance-service/     后端 3
+  user-service/           后端 1
+  attendance-service/     后端 2
   flow-service/           后端 3
   notice-service/         后端 3
-  report-service/         后端 3 / 文档负责人协助
+  report-service/         后端 3
 ```
 
 前端：

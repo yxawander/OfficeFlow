@@ -65,7 +65,25 @@ router.beforeEach((to) => {
   if (to.path === '/login' && userStore.token) {
     return '/dashboard'
   }
+  if (to.path !== '/login' && userStore.menus?.length && !canVisit(to.path, userStore.menus)) {
+    return '/dashboard'
+  }
   return true
 })
+
+function canVisit(path, menus) {
+  if (path === '/' || path === '/dashboard') {
+    return true
+  }
+  const stack = [...menus]
+  while (stack.length) {
+    const menu = stack.shift()
+    if (menu.visible === 1 && menu.path === path) {
+      return true
+    }
+    stack.push(...(menu.children || []))
+  }
+  return false
+}
 
 export default router

@@ -10,30 +10,21 @@
       </div>
 
       <el-menu router :default-active="route.path" class="side-menu">
-        <el-menu-item index="/dashboard">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>数据大屏</span>
-        </el-menu-item>
-        <el-sub-menu index="/system">
-          <template #title>
-            <el-icon><Setting /></el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item index="/system/users">员工管理</el-menu-item>
-          <el-menu-item index="/system/roles">角色权限</el-menu-item>
-        </el-sub-menu>
-        <el-menu-item index="/attendance">
-          <el-icon><Calendar /></el-icon>
-          <span>考勤打卡</span>
-        </el-menu-item>
-        <el-menu-item index="/flow">
-          <el-icon><Tickets /></el-icon>
-          <span>审批中心</span>
-        </el-menu-item>
-        <el-menu-item index="/notice">
-          <el-icon><Bell /></el-icon>
-          <span>公告通知</span>
-        </el-menu-item>
+        <template v-for="item in visibleMenus" :key="item.id">
+          <el-sub-menu v-if="menuChildren(item).length" :index="item.path">
+            <template #title>
+              <el-icon><component :is="item.icon || 'Menu'" /></el-icon>
+              <span>{{ item.menuName }}</span>
+            </template>
+            <el-menu-item v-for="child in menuChildren(item)" :key="child.id" :index="child.path">
+              {{ child.menuName }}
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else :index="item.path">
+            <el-icon><component :is="item.icon || 'Menu'" /></el-icon>
+            <span>{{ item.menuName }}</span>
+          </el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
 
@@ -72,7 +63,12 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const visibleMenus = computed(() => (userStore.menus || []).filter((item) => item.visible === 1 && item.menuType !== 'BUTTON'))
 const pageTitle = computed(() => route.meta.title || 'OfficeFlow')
+
+function menuChildren(item) {
+  return (item.children || []).filter((child) => child.visible === 1 && child.menuType !== 'BUTTON')
+}
 
 async function handleLogout() {
   await userStore.logout()

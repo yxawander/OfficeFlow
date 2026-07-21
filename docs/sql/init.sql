@@ -477,7 +477,7 @@ VALUES
     (2, '员工查询', 'api:user:list', 'user-service', 'GET', '/api/user/**', 1),
     (3, '员工维护', 'api:user:write', 'user-service', 'POST', '/api/user/**', 1),
     (4, '考勤查询', 'api:attendance:list', 'attendance-service', 'GET', '/api/attendance/**', 1),
-    (5, '考勤打卡', 'api:attendance:check', 'attendance-service', 'POST', '/api/attendance/**', 1),
+    (5, '上班打卡', 'api:attendance:checkin', 'attendance-service', 'POST', '/api/attendance/check-in', 1),
     (6, '审批查询', 'api:flow:list', 'flow-service', 'GET', '/api/flow/**', 1),
     (7, '审批处理', 'api:flow:write', 'flow-service', 'POST', '/api/flow/**', 1),
     (8, '公告查询', 'api:notice:list', 'notice-service', 'GET', '/api/notice/**', 1),
@@ -486,7 +486,9 @@ VALUES
     (11, '考勤规则维护', 'api:attendance:rule:write', 'attendance-service', 'PUT', '/api/attendance/rules/**', 1),
     (12, '考勤规则创建', 'api:attendance:rule:create', 'attendance-service', 'POST', '/api/attendance/rules', 1),
     (13, '考勤组维护', 'api:attendance:group:write', 'attendance-service', 'PUT', '/api/attendance/groups/**', 1),
-    (14, '考勤组创建', 'api:attendance:group:create', 'attendance-service', 'POST', '/api/attendance/groups', 1);
+    (14, '考勤组创建', 'api:attendance:group:create', 'attendance-service', 'POST', '/api/attendance/groups', 1),
+    (15, '下班打卡', 'api:attendance:checkout', 'attendance-service', 'POST', '/api/attendance/check-out', 1),
+    (16, '补卡申请', 'api:attendance:recheck', 'attendance-service', 'POST', '/api/attendance/recheck', 1);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id)
 VALUES
@@ -514,8 +516,8 @@ SELECT 1, id FROM sys_api_permission;
 
 INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
 VALUES
-    (2, 2), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 10),
-    (3, 4), (3, 5), (3, 6), (3, 8), (3, 10);
+    (2, 2), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 10), (2, 15), (2, 16),
+    (3, 4), (3, 5), (3, 6), (3, 8), (3, 10), (3, 15), (3, 16);
 
 INSERT IGNORE INTO sys_config (config_key, config_value, config_group, remark, status)
 VALUES

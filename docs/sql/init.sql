@@ -431,7 +431,13 @@ VALUES
     (1, 'admin', '123456', '系统管理员', 0, '13800000001', 'admin@officeflow.local', 1, 1, NULL, '2026-07-01', 'ADMIN', 1),
     (2, 'manager', '123456', '研发主管', 1, '13800000002', 'manager@officeflow.local', 2, 2, 1, '2026-07-01', 'MANAGER', 1),
     (3, 'hr', '123456', '人事专员', 2, '13800000003', 'hr@officeflow.local', 3, 5, 1, '2026-07-01', 'EMPLOYEE', 1),
-    (4, 'employee', '123456', '普通员工', 1, '13800000004', 'employee@officeflow.local', 2, 3, 2, '2026-07-01', 'EMPLOYEE', 1);
+    (4, 'employee', '123456', '普通员工', 1, '13800000004', 'employee@officeflow.local', 2, 3, 2, '2026-07-01', 'EMPLOYEE', 1),
+    (5, 'hr_manager', '123456', '人事主管', 2, '13800000005', 'hrmanager@officeflow.local', 3, 2, 1, '2026-07-01', 'MANAGER', 1),
+    (6, 'admin_manager', '123456', '行政主管', 1, '13800000006', 'adminmanager@officeflow.local', 4, 2, 1, '2026-07-01', 'MANAGER', 1),
+    (7, 'dev_zhang', '123456', '张伟(后端)', 1, '13800000007', 'zhangwei@officeflow.local', 2, 3, 2, '2026-07-01', 'EMPLOYEE', 1),
+    (8, 'dev_li', '123456', '李娜(前端)', 2, '13800000008', 'lina@officeflow.local', 2, 4, 2, '2026-07-01', 'EMPLOYEE', 1),
+    (9, 'hr_wang', '123456', '王芳(人事)', 2, '13800000009', 'wangfang@officeflow.local', 3, 5, 5, '2026-07-01', 'EMPLOYEE', 1),
+    (10, 'admin_zhao', '123456', '赵强(行政)', 1, '13800000010', 'zhaoqiang@officeflow.local', 4, 5, 6, '2026-07-01', 'EMPLOYEE', 1);
 
 INSERT IGNORE INTO sys_role (id, role_name, role_code, data_scope, sort_order, status)
 VALUES
@@ -465,14 +471,24 @@ VALUES
     (7, '审批处理', 'api:flow:write', 'flow-service', 'POST', '/api/flow/**', 1),
     (8, '公告查询', 'api:notice:list', 'notice-service', 'GET', '/api/notice/**', 1),
     (9, '公告发布', 'api:notice:write', 'notice-service', 'POST', '/api/notice/**', 1),
-    (10, '报表查询', 'api:report:list', 'report-service', 'GET', '/api/report/**', 1);
+    (10, '报表查询', 'api:report:list', 'report-service', 'GET', '/api/report/**', 1),
+    (11, '考勤规则维护', 'api:attendance:rule:write', 'attendance-service', 'PUT', '/api/attendance/rules/**', 1),
+    (12, '考勤规则创建', 'api:attendance:rule:create', 'attendance-service', 'POST', '/api/attendance/rules', 1),
+    (13, '考勤组维护', 'api:attendance:group:write', 'attendance-service', 'PUT', '/api/attendance/groups/**', 1),
+    (14, '考勤组创建', 'api:attendance:group:create', 'attendance-service', 'POST', '/api/attendance/groups', 1);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id)
 VALUES
     (1, 1),
     (2, 2),
     (3, 3),
-    (4, 3);
+    (4, 3),
+    (5, 2),
+    (6, 2),
+    (7, 3),
+    (8, 3),
+    (9, 3),
+    (10, 3);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu;
@@ -512,3 +528,14 @@ VALUES
 INSERT IGNORE INTO notice_scope (notice_id, scope_type, scope_id)
 VALUES
     (1, 'ALL', NULL);
+
+-- 初始化今日考勤测试模拟流水数据
+INSERT IGNORE INTO attendance_record (user_id, dept_id, work_date, check_in_time, check_in_ip, check_in_remark, check_out_time, check_out_ip, check_out_remark, work_minutes, late_minutes, early_leave_minutes, status, source)
+VALUES
+    (1, 1, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:52:10'), '127.0.0.1', '管理员例行上班打卡', CONCAT(CURRENT_DATE(), ' 18:05:30'), '127.0.0.1', '正常下班', 553, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (2, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:58:00'), '127.0.0.1', '研发主管例行上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (4, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 09:25:00'), '127.0.0.1', '交通原因迟到', NULL, NULL, NULL, 0, 25, 0, 'LATE', 'USER_CHECK'),
+    (7, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:45:00'), '127.0.0.1', '后端组张伟上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (5, 3, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:55:00'), '127.0.0.1', '人事主管例行打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (9, 3, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 09:18:00'), '127.0.0.1', '面试招聘延误打卡', NULL, NULL, NULL, 0, 18, 0, 'LATE', 'USER_CHECK'),
+    (6, 4, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:50:00'), '127.0.0.1', '行政主管上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK');

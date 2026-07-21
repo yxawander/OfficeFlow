@@ -362,6 +362,7 @@ CREATE TABLE IF NOT EXISTS notice (
     expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',
     read_count INT NOT NULL DEFAULT 0 COMMENT '已读人数',
+    view_count INT NOT NULL DEFAULT 0 COMMENT '浏览次数（每次查看详情+1）',
     is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -380,14 +381,24 @@ CREATE TABLE IF NOT EXISTS notice_scope (
     KEY idx_notice_scope_type_id (scope_type, scope_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告可见范围表';
 
+-- ======================================
+-- 优化后的 notice_read 表
+-- ======================================
 CREATE TABLE IF NOT EXISTS notice_read (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '阅读记录ID',
     notice_id BIGINT NOT NULL COMMENT '公告ID',
     user_id BIGINT NOT NULL COMMENT '用户ID',
-    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '阅读时间',
-    PRIMARY KEY (notice_id, user_id),
+    read_status TINYINT NOT NULL DEFAULT 0 COMMENT '阅读状态：0未读，1已读',
+    read_at DATETIME DEFAULT NULL COMMENT '阅读时间',
+    read_ip VARCHAR(64) DEFAULT NULL COMMENT '阅读IP',
+    read_duration_seconds INT DEFAULT 0 COMMENT '阅读时长秒数',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_notice_read_notice_user (notice_id, user_id),
     KEY idx_notice_read_user (user_id),
     KEY idx_notice_read_at (read_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告已读记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告阅读记录表（优化版）';
+
 
 -- =========================================================
 -- 5. 数据大屏 / 报表模块：report-service

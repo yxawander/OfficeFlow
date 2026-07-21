@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.notice.mapper.NoticeScopeMapper">
+
+    <resultMap id="BaseResultMap" type="com.officeflow.notice.entity.NoticeScope">
+        <id column="id" property="id"/>
+        <result column="notice_id" property="noticeId"/>
+        <result column="scope_type" property="scopeType"/>
+        <result column="scope_id" property="scopeId"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.officeflow.notice.entity.NoticeScope" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notice_scope (notice_id, scope_type, scope_id, created_at)
+        VALUES (#{noticeId}, #{scopeType}, #{scopeId}, NOW())
+    </insert>
+
+    <delete id="deleteByNoticeId">
+        DELETE FROM notice_scope WHERE notice_id = #{noticeId}
+    </delete>
+
+    <select id="selectByNoticeId" resultMap="BaseResultMap">
+        SELECT id, notice_id, scope_type, scope_id, created_at
+        FROM notice_scope WHERE notice_id = #{noticeId}
+    </select>
+
+    <select id="selectScopeUsers" resultType="java.lang.String">
+        SELECT DISTINCT CONCAT('u', u.id) as userKey
+        FROM notice_scope ns
+        LEFT JOIN sys_user u ON
+            (ns.scope_type = 'USER' AND ns.scope_id = u.id)
+            OR (ns.scope_type = 'DEPT' AND ns.scope_id = u.dept_id)
+            OR (ns.scope_type = 'ALL' AND u.status = 1)
+        WHERE ns.notice_id = #{noticeId}
+        AND u.status = 1
+    </select>
+
+</mapper>

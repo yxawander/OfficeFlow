@@ -12,5 +12,7 @@ public final class CommonConstants {
     public static final String LOGIN_USER_HEADER = "X-Login-User";
     public static final String LOGIN_USER_ID_HEADER = "X-Login-User-Id";
     public static final String LOGIN_USERNAME_HEADER = "X-Login-Username";
+    public static final String LOGIN_ROLES_HEADER = "X-Login-Roles";
+    public static final String LOGIN_DEPT_ID_HEADER = "X-Login-DeptId";
 }
 

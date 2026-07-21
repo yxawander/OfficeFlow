@@ -1,19 +1,51 @@
 # OfficeFlow Frontend
 
-前端项目计划使用 Vue3 + Element Plus + Pinia + Vue Router + Axios + ECharts。
+OfficeFlow 前端项目，使用 Vue3 + Element Plus + Pinia + Vue Router + Axios + ECharts。
 
-建议创建方式：
+## 启动
+
+安装依赖：
 
 ```powershell
-pnpm create vite . --template vue
 pnpm install
-pnpm add element-plus @element-plus/icons-vue axios pinia vue-router echarts
+```
+
+启动开发服务：
+
+```powershell
 pnpm dev
 ```
 
-前端统一通过网关访问后端接口：
+构建：
+
+```powershell
+pnpm build
+```
+
+默认访问：
+
+```text
+http://localhost:5173
+```
+
+后端接口统一通过网关访问：
 
 ```text
 http://localhost:9000
+```
+
+## 分工目录
+
+```text
+src/
+  layout/                 前端 1
+  router/                 前端 1
+  stores/                 前端 1
+  views/login/            前端 1
+  views/system/           前端 1
+  views/attendance/       前端 2
+  views/flow/             前端 2
+  views/notice/           前端 2
+  views/dashboard/        前端 2
 ```
 

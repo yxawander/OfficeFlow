@@ -1,0 +1,234 @@
+:root {
+  font-family: Inter, "Microsoft YaHei", Arial, sans-serif;
+  color: #172033;
+  background: #f4f6f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.app-layout {
+  min-height: 100vh;
+  background: #f4f6f8;
+}
+
+.app-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e6eaf0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 72px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e6eaf0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.brand-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.brand-subtitle {
+  margin-top: 2px;
+  color: #7b8794;
+  font-size: 12px;
+}
+
+.side-menu {
+  border-right: 0;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  background: #ffffff;
+  border-bottom: 1px solid #e6eaf0;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.page-desc {
+  margin-top: 4px;
+  color: #7b8794;
+  font-size: 13px;
+}
+
+.app-main {
+  padding: 20px;
+}
+
+.page-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.panel,
+.metric-card {
+  border: 1px solid #e6eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-header h2,
+.panel h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.chart {
+  width: 100%;
+  height: 320px;
+}
+
+.metric-label {
+  color: #7b8794;
+  font-size: 13px;
+}
+
+.metric-value {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.metric-trend {
+  margin-top: 8px;
+  color: #2563eb;
+  font-size: 13px;
+}
+
+.action-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-panel p {
+  margin: 8px 0 0;
+  color: #7b8794;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #eef3f8;
+}
+
+.login-panel {
+  display: grid;
+  grid-template-columns: 1.1fr 420px;
+  width: min(980px, 100%);
+  min-height: 520px;
+  background: #ffffff;
+  border: 1px solid #dfe6ee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.login-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px;
+  background: #12355b;
+  color: #ffffff;
+}
+
+.brand-line {
+  font-weight: 700;
+  color: #8bd3ff;
+}
+
+.login-copy h1 {
+  margin: 16px 0;
+  font-size: 36px;
+  line-height: 1.2;
+}
+
+.login-copy p {
+  margin: 0;
+  max-width: 420px;
+  color: #d7e5f4;
+  line-height: 1.8;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px;
+}
+
+.login-form h2 {
+  margin: 0 0 28px;
+  font-size: 24px;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (max-width: 820px) {
+  .login-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .login-copy {
+    padding: 36px;
+  }
+
+  .login-copy h1 {
+    font-size: 28px;
+  }
+
+  .action-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+

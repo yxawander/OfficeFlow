@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: officeflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: officeflow
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - officeflow-mysql-data:/var/lib/mysql
+      - ./docs/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7.2
+    container_name: officeflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - officeflow-redis-data:/data
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: officeflow-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - officeflow-nacos-data:/home/nacos/data
+
+volumes:
+  officeflow-mysql-data:
+  officeflow-redis-data:
+  officeflow-nacos-data:
+

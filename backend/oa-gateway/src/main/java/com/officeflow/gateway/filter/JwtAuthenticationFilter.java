@@ -20,6 +20,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final List<String> whiteList = List.of(
             "/api/user/auth/login",
+            "/api/user/health",
+            "/api/attendance/health",
+            "/api/flow/health",
+            "/api/notice/health",
+            "/api/report/health",
             "/actuator"
     );
 
@@ -57,4 +62,3 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return -100;
     }
 }
-

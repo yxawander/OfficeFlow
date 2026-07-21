@@ -8,7 +8,7 @@ services:
       MYSQL_DATABASE: officeflow
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - officeflow-mysql-data:/var/lib/mysql
       - ./docs/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -45,4 +45,3 @@ volumes:
   officeflow-mysql-data:
   officeflow-redis-data:
   officeflow-nacos-data:
-

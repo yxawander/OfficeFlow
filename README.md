@@ -91,7 +91,7 @@ docker compose up -d
 
 | 服务 | 地址 | 说明 |
 | --- | --- | --- |
-| MySQL | `localhost:3306` | 用户名 `root`，密码 `root`，数据库 `officeflow` |
+| MySQL | `localhost:3307` | 用户名 `root`，密码 `root`，数据库 `officeflow` |
 | Redis | `localhost:6379` | 后端缓存、分布式锁预留 |
 | Nacos | `http://localhost:8848/nacos` | 注册中心、配置中心 |
 

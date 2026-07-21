@@ -58,7 +58,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         ServerWebExchange authenticatedExchange = exchange.mutate()
                 .request(builder -> builder
                         .header(CommonConstants.LOGIN_USER_ID_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USER_ID)))
-                        .header(CommonConstants.LOGIN_USERNAME_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USERNAME))))
+                        .header(CommonConstants.LOGIN_USERNAME_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USERNAME)))
+                        .header(CommonConstants.LOGIN_ROLES_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_ROLES)))
+                        .header(CommonConstants.LOGIN_DEPT_ID_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_DEPT_ID))))
                 .build();
         return chain.filter(authenticatedExchange);
     }

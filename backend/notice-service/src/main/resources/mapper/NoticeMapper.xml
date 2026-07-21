@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.notice.mapper.NoticeMapper">
+
+    <resultMap id="BaseResultMap" type="com.officeflow.notice.entity.Notice">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="notice_type" property="noticeType"/>
+        <result column="priority" property="priority"/>
+        <result column="publisher_id" property="publisherId"/>
+        <result column="publisher_name" property="publisherName"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="status" property="status"/>
+        <result column="read_count" property="readCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, title, content, notice_type, priority, publisher_id, publisher_name,
+        publish_time, expire_time, status, read_count, view_count, is_deleted,
+        created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.officeflow.notice.entity.Notice" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notice (title, content, notice_type, priority, publisher_id, publisher_name,
+        publish_time, expire_time, status, read_count, view_count, is_deleted, created_at, updated_at)
+        VALUES (#{title}, #{content}, #{noticeType}, #{priority}, #{publisherId}, #{publisherName},
+        #{publishTime}, #{expireTime}, #{status}, #{readCount}, #{viewCount}, #{isDeleted}, NOW(), NOW())
+    </insert>
+
+    <update id="updateById" parameterType="com.officeflow.notice.entity.Notice">
+        UPDATE notice SET
+        <if test="title != null">title = #{title},</if>
+        <if test="content != null">content = #{content},</if>
+        <if test="noticeType != null">notice_type = #{noticeType},</if>
+        <if test="priority != null">priority = #{priority},</if>
+        <if test="expireTime != null">expire_time = #{expireTime},</if>
+        updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        UPDATE notice SET is_deleted = 1 WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM notice WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectUserNoticeList" resultType="com.officeflow.notice.vo.NoticeListVO">
+        SELECT
+            n.id,
+            n.title,
+            LEFT(n.content, 100) as summary,
+            n.notice_type as noticeType,
+            n.priority,
+            n.publisher_id as publisherId,
+            n.publisher_name as publisherName,
+            n.publish_time as publishTime,
+            n.expire_time as expireTime,
+            COALESCE(nr.read_status, 0) as readStatus,
+            nr.read_at as readAt
+        FROM notice n
+        LEFT JOIN notice_scope ns ON n.id = ns.notice_id
+        LEFT JOIN notice_read nr ON n.id = nr.notice_id AND nr.user_id = #{userId}
+        WHERE n.is_deleted = 0
+        <if test="dto.onlyPublished">
+            AND n.status = 'PUBLISHED'
+            AND n.publish_time &lt;= NOW()
+            AND (n.expire_time IS NULL OR n.expire_time &gt;= NOW())
+        </if>
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{dto.keyword}, '%') OR n.content LIKE CONCAT('%', #{dto.keyword}, '%'))
+        </if>
+        <if test="dto.noticeType != null and dto.noticeType != ''">
+            AND n.notice_type = #{dto.noticeType}
+        </if>
+        <if test="dto.priority != null and dto.priority != ''">
+            AND n.priority = #{dto.priority}
+        </if>
+        <if test="dto.readStatus != null">
+            AND COALESCE(nr.read_status, 0) = #{dto.readStatus}
+        </if>
+        AND (
+            ns.scope_type = 'ALL'
+            OR ns.scope_type = 'USER' AND ns.scope_id = #{userId}
+            OR ns.scope_type = 'DEPT' AND ns.scope_id = #{deptId}
+        )
+        GROUP BY n.id
+        ORDER BY n.publish_time DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <select id="countUserNoticeList" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT n.id)
+        FROM notice n
+        LEFT JOIN notice_scope ns ON n.id = ns.notice_id
+        LEFT JOIN notice_read nr ON n.id = nr.notice_id AND nr.user_id = #{userId}
+        WHERE n.is_deleted = 0
+        <if test="dto.onlyPublished">
+            AND n.status = 'PUBLISHED'
+            AND n.publish_time &lt;= NOW()
+            AND (n.expire_time IS NULL OR n.expire_time &gt;= NOW())
+        </if>
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{dto.keyword}, '%') OR n.content LIKE CONCAT('%', #{dto.keyword}, '%'))
+        </if>
+        <if test="dto.noticeType != null and dto.noticeType != ''">
+            AND n.notice_type = #{dto.noticeType}
+        </if>
+        <if test="dto.priority != null and dto.priority != ''">
+            AND n.priority = #{dto.priority}
+        </if>
+        <if test="dto.readStatus != null">
+            AND COALESCE(nr.read_status, 0) = #{dto.readStatus}
+        </if>
+        AND (
+            ns.scope_type = 'ALL'
+            OR ns.scope_type = 'USER' AND ns.scope_id = #{userId}
+            OR ns.scope_type = 'DEPT' AND ns.scope_id = #{deptId}
+        )
+    </select>
+
+    <select id="selectDetailById" resultType="com.officeflow.notice.vo.NoticeDetailVO">
+        SELECT
+            n.id,
+            n.title,
+            n.content,
+            n.notice_type as noticeType,
+            n.priority,
+            n.publisher_id as publisherId,
+            n.publisher_name as publisherName,
+            n.publish_time as publishTime,
+            n.expire_time as expireTime,
+            n.view_count as viewCount,
+            n.read_count as readCount,
+            COALESCE(nr.read_status, 0) as readStatus,
+            nr.read_at as readAt,
+            n.created_at as createdAt
+        FROM notice n
+        LEFT JOIN notice_read nr ON n.id = nr.notice_id AND nr.user_id = #{userId}
+        WHERE n.id = #{id} AND n.is_deleted = 0
+    </select>
+
+    <select id="selectAdminNoticeList" resultType="com.officeflow.notice.vo.AdminNoticeListVO">
+        SELECT
+            n.id,
+            n.title,
+            n.notice_type as noticeType,
+            n.priority,
+            n.publisher_id as publisherId,
+            n.publisher_name as publisherName,
+            n.publish_time as publishTime,
+            n.status,
+            n.read_count as readCount,
+            n.view_count as viewCount,
+            CASE WHEN n.read_count = 0 THEN 0
+                 ELSE ROUND(n.read_count * 100.0 / (SELECT COUNT(DISTINCT user_id) FROM sys_user WHERE status = 1), 2)
+            END as readRate,
+            n.created_at as createdAt
+        FROM notice n
+        WHERE n.is_deleted = 0
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{dto.keyword}, '%') OR n.content LIKE CONCAT('%', #{dto.keyword}, '%'))
+        </if>
+        <if test="dto.status != null and dto.status != ''">
+            AND n.status = #{dto.status}
+        </if>
+        <if test="dto.publisherId != null">
+            AND n.publisher_id = #{dto.publisherId}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND n.publish_time &gt;= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND n.publish_time &lt;= #{dto.endDate}
+        </if>
+        ORDER BY n.publish_time DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <select id="countAdminNoticeList" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM notice n
+        WHERE n.is_deleted = 0
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{dto.keyword}, '%') OR n.content LIKE CONCAT('%', #{dto.keyword}, '%'))
+        </if>
+        <if test="dto.status != null and dto.status != ''">
+            AND n.status = #{dto.status}
+        </if>
+        <if test="dto.publisherId != null">
+            AND n.publisher_id = #{dto.publisherId}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND n.publish_time &gt;= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND n.publish_time &lt;= #{dto.endDate}
+        </if>
+    </select>
+
+    <update id="incrementViewCount">
+        UPDATE notice SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="incrementReadCount">
+        UPDATE notice SET read_count = read_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateStatusById">
+        UPDATE notice SET
+        <if test="status == 'PUBLISHED'">
+            publish_time = NOW(),
+        </if>
+        status = #{status}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectExpiredNotices" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM notice
+        WHERE status = 'PUBLISHED'
+        AND expire_time IS NOT NULL
+        AND expire_time &lt;= NOW()
+        AND is_deleted = 0
+    </select>
+
+</mapper>

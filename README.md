@@ -170,7 +170,13 @@ cd backend
 mvn validate
 ```
 
-编译全部模块：
+首次启动前先安装全部后端模块到本地 Maven 仓库，保证各服务能解析到本地公共模块 `oa-common`：
+
+```powershell
+mvn clean install -DskipTests
+```
+
+日常开发时快速编译全部模块：
 
 ```powershell
 mvn compile
@@ -317,10 +323,10 @@ git clone <仓库地址>
 cd OfficeFlow
 docker compose up -d
 cd backend
-mvn compile
+mvn clean install -DskipTests
 ```
 
-后端编译通过后，分别在多个终端启动：
+后端安装通过后，分别在多个终端启动：
 
 ```powershell
 cd backend

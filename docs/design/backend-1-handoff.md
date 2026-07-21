@@ -66,7 +66,7 @@ docker compose up -d
 
 ```powershell
 cd backend
-mvn compile
+mvn clean install -DskipTests
 ```
 
 启动网关：

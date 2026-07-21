@@ -1,0 +1,53 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: oa-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+    gateway:
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowed-origin-patterns: "*"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+        - id: attendance-service
+          uri: lb://attendance-service
+          predicates:
+            - Path=/api/attendance/**
+        - id: flow-service
+          uri: lb://flow-service
+          predicates:
+            - Path=/api/flow/**
+        - id: notice-service
+          uri: lb://notice-service
+          predicates:
+            - Path=/api/notice/**
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/report/**
+
+officeflow:
+  jwt:
+    secret: officeflow-secret-key-must-be-at-least-32-bytes
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

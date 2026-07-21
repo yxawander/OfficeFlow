@@ -1,0 +1,21 @@
+package com.officeflow.common.api;
+
+public record ApiResponse<T>(int code, String message, T data) {
+
+    public static <T> ApiResponse<T> ok(T data) {
+        return new ApiResponse<>(ResultCode.SUCCESS.code(), ResultCode.SUCCESS.message(), data);
+    }
+
+    public static ApiResponse<Void> ok() {
+        return new ApiResponse<>(ResultCode.SUCCESS.code(), ResultCode.SUCCESS.message(), null);
+    }
+
+    public static ApiResponse<Void> fail(String message) {
+        return new ApiResponse<>(ResultCode.FAIL.code(), message, null);
+    }
+
+    public static ApiResponse<Void> fail(ResultCode resultCode) {
+        return new ApiResponse<>(resultCode.code(), resultCode.message(), null);
+    }
+}
+

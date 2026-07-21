@@ -1,0 +1,103 @@
+CREATE DATABASE IF NOT EXISTS officeflow DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE officeflow;
+
+CREATE TABLE IF NOT EXISTS sys_user (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    password VARCHAR(128) NOT NULL,
+    real_name VARCHAR(64) NOT NULL,
+    dept_id BIGINT,
+    post_id BIGINT,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sys_dept (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    parent_id BIGINT NOT NULL DEFAULT 0,
+    dept_name VARCHAR(64) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS sys_post (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    post_name VARCHAR(64) NOT NULL,
+    status TINYINT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS sys_role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(64) NOT NULL,
+    role_code VARCHAR(64) NOT NULL UNIQUE,
+    status TINYINT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS sys_menu (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    parent_id BIGINT NOT NULL DEFAULT 0,
+    menu_name VARCHAR(64) NOT NULL,
+    path VARCHAR(128),
+    permission VARCHAR(128),
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS sys_user_role (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role_menu (
+    role_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, menu_id)
+);
+
+CREATE TABLE IF NOT EXISTS attendance_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    work_date DATE NOT NULL,
+    check_in_time DATETIME,
+    check_out_time DATETIME,
+    status VARCHAR(32) NOT NULL DEFAULT 'NORMAL',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS flow_apply (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    applicant_id BIGINT NOT NULL,
+    approver_id BIGINT NOT NULL,
+    apply_type VARCHAR(32) NOT NULL,
+    reason VARCHAR(500),
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    approve_comment VARCHAR(500),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notice (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(128) NOT NULL,
+    content TEXT NOT NULL,
+    publisher_id BIGINT NOT NULL,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notice_read (
+    notice_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (notice_id, user_id)
+);
+
+INSERT INTO sys_user (username, password, real_name, status)
+VALUES ('admin', '123456', '系统管理员', 1)
+ON DUPLICATE KEY UPDATE real_name = VALUES(real_name);
+

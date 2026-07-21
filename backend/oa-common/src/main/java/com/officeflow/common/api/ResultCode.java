@@ -2,10 +2,13 @@ package com.officeflow.common.api;
 
 public enum ResultCode {
     SUCCESS(200, "success"),
-    FAIL(500, "fail"),
+    PARAM_ERROR(400, "param error"),
     UNAUTHORIZED(401, "unauthorized"),
     FORBIDDEN(403, "forbidden"),
-    PARAM_ERROR(400, "param error");
+    NOT_FOUND(404, "not found"),
+    CONFLICT(409, "conflict"),
+    FAIL(500, "fail"),
+    SERVICE_UNAVAILABLE(503, "service unavailable");
 
     private final int code;
     private final String message;
@@ -23,4 +26,3 @@ public enum ResultCode {
         return message;
     }
 }
-

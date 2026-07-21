@@ -14,8 +14,11 @@ public record ApiResponse<T>(int code, String message, T data) {
         return new ApiResponse<>(ResultCode.FAIL.code(), message, null);
     }
 
+    public static ApiResponse<Void> fail(int code, String message) {
+        return new ApiResponse<>(code, message, null);
+    }
+
     public static ApiResponse<Void> fail(ResultCode resultCode) {
         return new ApiResponse<>(resultCode.code(), resultCode.message(), null);
     }
 }
-

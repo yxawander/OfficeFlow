@@ -1,6 +1,9 @@
 package com.officeflow.gateway.filter;
 
+import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.common.security.JwtUtil;
+import com.officeflow.common.security.SecurityConstants;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -16,8 +19,6 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
-    private static final String BEARER_PREFIX = "Bearer ";
-
     private final List<String> whiteList = List.of(
             "/api/user/auth/login",
             "/api/user/health",
@@ -39,18 +40,26 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String authorization = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+        if (authorization == null || !authorization.startsWith(CommonConstants.TOKEN_PREFIX)) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        String token = authorization.substring(BEARER_PREFIX.length());
-        if (!JwtUtil.isValid(token, jwtSecret)) {
+        String token = authorization.substring(CommonConstants.TOKEN_PREFIX.length());
+        Claims claims;
+        try {
+            claims = JwtUtil.parseClaims(token, jwtSecret);
+        } catch (RuntimeException ex) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        return chain.filter(exchange);
+        ServerWebExchange authenticatedExchange = exchange.mutate()
+                .request(builder -> builder
+                        .header(CommonConstants.LOGIN_USER_ID_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USER_ID)))
+                        .header(CommonConstants.LOGIN_USERNAME_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USERNAME))))
+                .build();
+        return chain.filter(authenticatedExchange);
     }
 
     private boolean isWhitePath(String path) {

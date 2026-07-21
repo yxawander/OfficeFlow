@@ -126,6 +126,24 @@ docker compose up -d
 docs/sql/init.sql
 ```
 
+完整数据库设计说明位于：
+
+```text
+docs/design/database-design.md
+```
+
+后端公共框架说明位于：
+
+```text
+docs/design/backend-framework-guide.md
+```
+
+后端 1 交付说明位于：
+
+```text
+docs/design/backend-1-handoff.md
+```
+
 ## 五、后端模块说明
 
 | 模块 | 说明 | 端口 | 负责人 |
@@ -422,4 +440,3 @@ docs/
 - 每个服务必须注册到 Nacos。
 - 数据库表结构统一维护在 `docs/sql/init.sql`。
 - 答辩前必须提前启动项目，准备好测试账号和演示数据。
-

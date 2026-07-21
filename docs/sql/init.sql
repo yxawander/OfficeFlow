@@ -1,103 +1,514 @@
-CREATE DATABASE IF NOT EXISTS officeflow DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS officeflow
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
 USE officeflow;
 
-CREATE TABLE IF NOT EXISTS sys_user (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(64) NOT NULL UNIQUE,
-    password VARCHAR(128) NOT NULL,
-    real_name VARCHAR(64) NOT NULL,
-    dept_id BIGINT,
-    post_id BIGINT,
-    status TINYINT NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+-- =========================================================
+-- 1. 用户、组织、RBAC 权限模块：user-service
+-- =========================================================
 
 CREATE TABLE IF NOT EXISTS sys_dept (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    parent_id BIGINT NOT NULL DEFAULT 0,
-    dept_name VARCHAR(64) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    status TINYINT NOT NULL DEFAULT 1
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '部门ID',
+    parent_id BIGINT NOT NULL DEFAULT 0 COMMENT '父部门ID，0表示根部门',
+    dept_name VARCHAR(64) NOT NULL COMMENT '部门名称',
+    dept_code VARCHAR(64) NOT NULL COMMENT '部门编码',
+    leader_id BIGINT DEFAULT NULL COMMENT '部门负责人用户ID',
+    phone VARCHAR(32) DEFAULT NULL COMMENT '联系电话',
+    email VARCHAR(128) DEFAULT NULL COMMENT '部门邮箱',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_dept_code (dept_code),
+    KEY idx_sys_dept_parent (parent_id),
+    KEY idx_sys_dept_status (status, is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部门表';
 
 CREATE TABLE IF NOT EXISTS sys_post (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    post_name VARCHAR(64) NOT NULL,
-    status TINYINT NOT NULL DEFAULT 1
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '岗位ID',
+    post_name VARCHAR(64) NOT NULL COMMENT '岗位名称',
+    post_code VARCHAR(64) NOT NULL COMMENT '岗位编码',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_post_code (post_code),
+    KEY idx_sys_post_status (status, is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='岗位表';
+
+CREATE TABLE IF NOT EXISTS sys_user (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '用户ID',
+    username VARCHAR(64) NOT NULL COMMENT '登录账号',
+    password VARCHAR(128) NOT NULL COMMENT '登录密码，开发阶段可先明文，后续改BCrypt',
+    real_name VARCHAR(64) NOT NULL COMMENT '真实姓名',
+    gender TINYINT DEFAULT 0 COMMENT '性别：0未知，1男，2女',
+    phone VARCHAR(32) DEFAULT NULL COMMENT '手机号',
+    email VARCHAR(128) DEFAULT NULL COMMENT '邮箱',
+    avatar VARCHAR(255) DEFAULT NULL COMMENT '头像地址',
+    dept_id BIGINT DEFAULT NULL COMMENT '部门ID',
+    post_id BIGINT DEFAULT NULL COMMENT '岗位ID',
+    manager_id BIGINT DEFAULT NULL COMMENT '直属领导用户ID，用于一级审批',
+    hire_date DATE DEFAULT NULL COMMENT '入职日期',
+    user_type VARCHAR(32) NOT NULL DEFAULT 'EMPLOYEE' COMMENT '用户类型：ADMIN/EMPLOYEE/MANAGER',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    last_login_at DATETIME DEFAULT NULL COMMENT '最后登录时间',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_user_username (username),
+    UNIQUE KEY uk_sys_user_phone (phone),
+    KEY idx_sys_user_dept (dept_id),
+    KEY idx_sys_user_post (post_id),
+    KEY idx_sys_user_manager (manager_id),
+    KEY idx_sys_user_status (status, is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工用户表';
 
 CREATE TABLE IF NOT EXISTS sys_role (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    role_name VARCHAR(64) NOT NULL,
-    role_code VARCHAR(64) NOT NULL UNIQUE,
-    status TINYINT NOT NULL DEFAULT 1
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '角色ID',
+    role_name VARCHAR(64) NOT NULL COMMENT '角色名称',
+    role_code VARCHAR(64) NOT NULL COMMENT '角色编码',
+    data_scope VARCHAR(32) NOT NULL DEFAULT 'SELF' COMMENT '数据范围：ALL/DEPT/DEPT_AND_CHILD/SELF',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_role_code (role_code),
+    KEY idx_sys_role_status (status, is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
 CREATE TABLE IF NOT EXISTS sys_menu (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    parent_id BIGINT NOT NULL DEFAULT 0,
-    menu_name VARCHAR(64) NOT NULL,
-    path VARCHAR(128),
-    permission VARCHAR(128),
-    sort_order INT NOT NULL DEFAULT 0,
-    status TINYINT NOT NULL DEFAULT 1
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '菜单ID',
+    parent_id BIGINT NOT NULL DEFAULT 0 COMMENT '父菜单ID',
+    menu_name VARCHAR(64) NOT NULL COMMENT '菜单名称',
+    menu_type VARCHAR(16) NOT NULL DEFAULT 'MENU' COMMENT '菜单类型：CATALOG/MENU/BUTTON',
+    path VARCHAR(128) DEFAULT NULL COMMENT '前端路由路径',
+    component VARCHAR(128) DEFAULT NULL COMMENT '前端组件路径',
+    permission VARCHAR(128) DEFAULT NULL COMMENT '前端按钮权限标识',
+    icon VARCHAR(64) DEFAULT NULL COMMENT '图标',
+    visible TINYINT NOT NULL DEFAULT 1 COMMENT '是否显示：1显示，0隐藏',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_sys_menu_parent (parent_id),
+    KEY idx_sys_menu_permission (permission),
+    KEY idx_sys_menu_status (status, is_deleted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单权限表';
+
+CREATE TABLE IF NOT EXISTS sys_api_permission (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '接口权限ID',
+    permission_name VARCHAR(64) NOT NULL COMMENT '接口权限名称',
+    permission_code VARCHAR(128) NOT NULL COMMENT '接口权限编码',
+    service_name VARCHAR(64) NOT NULL COMMENT '所属服务',
+    request_method VARCHAR(16) NOT NULL COMMENT 'HTTP方法',
+    request_path VARCHAR(255) NOT NULL COMMENT '接口路径',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_api_permission_code (permission_code),
+    KEY idx_sys_api_permission_service (service_name),
+    KEY idx_sys_api_permission_path (request_method, request_path)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='接口权限表';
 
 CREATE TABLE IF NOT EXISTS sys_user_role (
-    user_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
-    PRIMARY KEY (user_id, role_id)
-);
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    role_id BIGINT NOT NULL COMMENT '角色ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, role_id),
+    KEY idx_sys_user_role_role (role_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
 
 CREATE TABLE IF NOT EXISTS sys_role_menu (
-    role_id BIGINT NOT NULL,
-    menu_id BIGINT NOT NULL,
-    PRIMARY KEY (role_id, menu_id)
-);
+    role_id BIGINT NOT NULL COMMENT '角色ID',
+    menu_id BIGINT NOT NULL COMMENT '菜单ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, menu_id),
+    KEY idx_sys_role_menu_menu (menu_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色菜单关联表';
+
+CREATE TABLE IF NOT EXISTS sys_role_api_permission (
+    role_id BIGINT NOT NULL COMMENT '角色ID',
+    api_permission_id BIGINT NOT NULL COMMENT '接口权限ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (role_id, api_permission_id),
+    KEY idx_sys_role_api_permission_api (api_permission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色接口权限关联表';
+
+CREATE TABLE IF NOT EXISTS sys_config (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '配置ID',
+    config_key VARCHAR(128) NOT NULL COMMENT '配置键',
+    config_value VARCHAR(512) NOT NULL COMMENT '配置值',
+    config_group VARCHAR(64) NOT NULL DEFAULT 'DEFAULT' COMMENT '配置分组',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '说明',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_config_key (config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表，本地兜底配置，主要配置仍放Nacos';
+
+CREATE TABLE IF NOT EXISTS sys_login_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '登录日志ID',
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
+    username VARCHAR(64) NOT NULL COMMENT '登录账号',
+    login_ip VARCHAR(64) DEFAULT NULL COMMENT '登录IP',
+    user_agent VARCHAR(512) DEFAULT NULL COMMENT '浏览器UA',
+    login_status VARCHAR(32) NOT NULL COMMENT '登录状态：SUCCESS/FAIL',
+    message VARCHAR(255) DEFAULT NULL COMMENT '登录结果说明',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_sys_login_log_user (user_id),
+    KEY idx_sys_login_log_username (username),
+    KEY idx_sys_login_log_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
+
+CREATE TABLE IF NOT EXISTS sys_operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '操作日志ID',
+    user_id BIGINT DEFAULT NULL COMMENT '操作人ID',
+    username VARCHAR(64) DEFAULT NULL COMMENT '操作账号',
+    module_name VARCHAR(64) NOT NULL COMMENT '业务模块',
+    operation_type VARCHAR(64) NOT NULL COMMENT '操作类型：CREATE/UPDATE/DELETE/APPROVE/EXPORT',
+    request_method VARCHAR(16) DEFAULT NULL COMMENT 'HTTP方法',
+    request_path VARCHAR(255) DEFAULT NULL COMMENT '请求路径',
+    request_params TEXT DEFAULT NULL COMMENT '请求参数',
+    response_code INT DEFAULT NULL COMMENT '响应码',
+    success TINYINT NOT NULL DEFAULT 1 COMMENT '是否成功：1成功，0失败',
+    error_message VARCHAR(1000) DEFAULT NULL COMMENT '错误信息',
+    cost_ms BIGINT DEFAULT NULL COMMENT '耗时毫秒',
+    ip VARCHAR(64) DEFAULT NULL COMMENT '操作IP',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_sys_operation_log_user (user_id),
+    KEY idx_sys_operation_log_module (module_name),
+    KEY idx_sys_operation_log_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='基础操作日志表';
+
+-- =========================================================
+-- 2. 考勤模块：attendance-service
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS attendance_rule (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '考勤规则ID',
+    rule_name VARCHAR(64) NOT NULL COMMENT '规则名称',
+    work_start_time TIME NOT NULL DEFAULT '09:00:00' COMMENT '上班时间',
+    work_end_time TIME NOT NULL DEFAULT '18:00:00' COMMENT '下班时间',
+    late_threshold_minutes INT NOT NULL DEFAULT 10 COMMENT '迟到阈值分钟',
+    early_leave_threshold_minutes INT NOT NULL DEFAULT 10 COMMENT '早退阈值分钟',
+    absent_threshold_minutes INT NOT NULL DEFAULT 240 COMMENT '旷工阈值分钟',
+    check_lock_seconds INT NOT NULL DEFAULT 10 COMMENT '打卡分布式锁过期秒数',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_attendance_rule_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考勤规则表';
+
+CREATE TABLE IF NOT EXISTS attendance_group (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '考勤组ID',
+    group_name VARCHAR(64) NOT NULL COMMENT '考勤组名称',
+    rule_id BIGINT NOT NULL COMMENT '考勤规则ID',
+    dept_id BIGINT DEFAULT NULL COMMENT '绑定部门ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_attendance_group_rule (rule_id),
+    KEY idx_attendance_group_dept (dept_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考勤组表';
 
 CREATE TABLE IF NOT EXISTS attendance_record (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
-    work_date DATE NOT NULL,
-    check_in_time DATETIME,
-    check_out_time DATETIME,
-    status VARCHAR(32) NOT NULL DEFAULT 'NORMAL',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '考勤记录ID',
+    user_id BIGINT NOT NULL COMMENT '员工ID',
+    dept_id BIGINT DEFAULT NULL COMMENT '打卡时所属部门ID',
+    work_date DATE NOT NULL COMMENT '考勤日期',
+    check_in_time DATETIME DEFAULT NULL COMMENT '上班打卡时间',
+    check_in_ip VARCHAR(64) DEFAULT NULL COMMENT '上班打卡IP',
+    check_in_remark VARCHAR(255) DEFAULT NULL COMMENT '上班打卡备注',
+    check_out_time DATETIME DEFAULT NULL COMMENT '下班打卡时间',
+    check_out_ip VARCHAR(64) DEFAULT NULL COMMENT '下班打卡IP',
+    check_out_remark VARCHAR(255) DEFAULT NULL COMMENT '下班打卡备注',
+    work_minutes INT NOT NULL DEFAULT 0 COMMENT '实际工作分钟数',
+    late_minutes INT NOT NULL DEFAULT 0 COMMENT '迟到分钟数',
+    early_leave_minutes INT NOT NULL DEFAULT 0 COMMENT '早退分钟数',
+    status VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '状态：NORMAL/LATE/EARLY_LEAVE/ABSENT/MISSING_CARD',
+    source VARCHAR(32) NOT NULL DEFAULT 'USER_CHECK' COMMENT '来源：USER_CHECK/MANUAL/RECALCULATE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_attendance_record_user_date (user_id, work_date),
+    KEY idx_attendance_record_dept_date (dept_id, work_date),
+    KEY idx_attendance_record_status (status),
+    KEY idx_attendance_record_work_date (work_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='每日考勤记录表';
+
+CREATE TABLE IF NOT EXISTS attendance_correction_apply (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '补卡申请ID',
+    user_id BIGINT NOT NULL COMMENT '申请人ID',
+    attendance_record_id BIGINT DEFAULT NULL COMMENT '关联考勤记录ID',
+    correction_type VARCHAR(32) NOT NULL COMMENT '补卡类型：CHECK_IN/CHECK_OUT',
+    correction_time DATETIME NOT NULL COMMENT '申请补卡时间',
+    reason VARCHAR(500) NOT NULL COMMENT '补卡原因',
+    flow_apply_id BIGINT DEFAULT NULL COMMENT '关联审批单ID',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/APPROVED/REJECTED/CANCELED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_attendance_correction_user (user_id),
+    KEY idx_attendance_correction_flow (flow_apply_id),
+    KEY idx_attendance_correction_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='补卡申请表，作为拓展审批场景预留';
+
+CREATE TABLE IF NOT EXISTS attendance_monthly_report (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '月度考勤报表ID',
+    user_id BIGINT NOT NULL COMMENT '员工ID',
+    dept_id BIGINT DEFAULT NULL COMMENT '部门ID',
+    report_month CHAR(7) NOT NULL COMMENT '统计月份，格式YYYY-MM',
+    should_work_days INT NOT NULL DEFAULT 0 COMMENT '应出勤天数',
+    actual_work_days INT NOT NULL DEFAULT 0 COMMENT '实际出勤天数',
+    late_count INT NOT NULL DEFAULT 0 COMMENT '迟到次数',
+    early_leave_count INT NOT NULL DEFAULT 0 COMMENT '早退次数',
+    absent_count INT NOT NULL DEFAULT 0 COMMENT '旷工次数',
+    missing_card_count INT NOT NULL DEFAULT 0 COMMENT '缺卡次数',
+    leave_days DECIMAL(6,2) NOT NULL DEFAULT 0 COMMENT '请假天数',
+    overtime_hours DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '加班小时',
+    generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '统计生成时间',
+    UNIQUE KEY uk_attendance_monthly_user_month (user_id, report_month),
+    KEY idx_attendance_monthly_dept_month (dept_id, report_month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='月度考勤统计表，用于大屏和Excel导出';
+
+-- =========================================================
+-- 3. 审批模块：flow-service
+-- =========================================================
 
 CREATE TABLE IF NOT EXISTS flow_apply (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    applicant_id BIGINT NOT NULL,
-    approver_id BIGINT NOT NULL,
-    apply_type VARCHAR(32) NOT NULL,
-    reason VARCHAR(500),
-    start_time DATETIME NOT NULL,
-    end_time DATETIME NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    approve_comment VARCHAR(500),
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '审批单ID',
+    apply_no VARCHAR(64) NOT NULL COMMENT '申请单号',
+    applicant_id BIGINT NOT NULL COMMENT '申请人ID',
+    applicant_dept_id BIGINT DEFAULT NULL COMMENT '申请人部门ID',
+    approver_id BIGINT NOT NULL COMMENT '直属审批人ID',
+    apply_type VARCHAR(32) NOT NULL COMMENT '申请类型：LEAVE/OVERTIME/CORRECTION',
+    title VARCHAR(128) NOT NULL COMMENT '申请标题',
+    reason VARCHAR(500) NOT NULL COMMENT '申请原因',
+    start_time DATETIME NOT NULL COMMENT '开始时间',
+    end_time DATETIME NOT NULL COMMENT '结束时间',
+    duration_hours DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '时长小时',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/APPROVED/REJECTED/CANCELED',
+    current_node VARCHAR(64) DEFAULT 'DIRECT_MANAGER' COMMENT '当前节点',
+    approved_at DATETIME DEFAULT NULL COMMENT '最终审批时间',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_flow_apply_no (apply_no),
+    KEY idx_flow_apply_applicant (applicant_id),
+    KEY idx_flow_apply_approver_status (approver_id, status),
+    KEY idx_flow_apply_type_status (apply_type, status),
+    KEY idx_flow_apply_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批申请主表';
+
+CREATE TABLE IF NOT EXISTS flow_approve_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '审批记录ID',
+    flow_apply_id BIGINT NOT NULL COMMENT '审批单ID',
+    approver_id BIGINT NOT NULL COMMENT '审批人ID',
+    action VARCHAR(32) NOT NULL COMMENT '动作：APPROVE/REJECT/CANCEL/SUBMIT',
+    comment VARCHAR(500) DEFAULT NULL COMMENT '审批意见',
+    approved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    KEY idx_flow_approve_record_apply (flow_apply_id),
+    KEY idx_flow_approve_record_approver (approver_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批流转记录表';
+
+CREATE TABLE IF NOT EXISTS flow_cc (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '抄送ID',
+    flow_apply_id BIGINT NOT NULL COMMENT '审批单ID',
+    user_id BIGINT NOT NULL COMMENT '抄送人ID',
+    read_status TINYINT NOT NULL DEFAULT 0 COMMENT '阅读状态：0未读，1已读',
+    read_at DATETIME DEFAULT NULL COMMENT '阅读时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_flow_cc_apply_user (flow_apply_id, user_id),
+    KEY idx_flow_cc_user_read (user_id, read_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批抄送表，拓展工作流预留';
+
+CREATE TABLE IF NOT EXISTS flow_attachment (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '附件ID',
+    flow_apply_id BIGINT NOT NULL COMMENT '审批单ID',
+    file_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
+    file_url VARCHAR(500) NOT NULL COMMENT '文件访问地址',
+    file_size BIGINT DEFAULT NULL COMMENT '文件大小字节',
+    uploaded_by BIGINT NOT NULL COMMENT '上传人ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_flow_attachment_apply (flow_apply_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批附件表，拓展上传材料预留';
+
+-- =========================================================
+-- 4. 公告通知模块：notice-service
+-- =========================================================
 
 CREATE TABLE IF NOT EXISTS notice (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    title VARCHAR(128) NOT NULL,
-    content TEXT NOT NULL,
-    publisher_id BIGINT NOT NULL,
-    status TINYINT NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '公告ID',
+    title VARCHAR(128) NOT NULL COMMENT '公告标题',
+    content TEXT NOT NULL COMMENT '公告内容',
+    notice_type VARCHAR(32) NOT NULL DEFAULT 'COMPANY' COMMENT '类型：COMPANY/DEPT/SYSTEM',
+    priority VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '优先级：NORMAL/IMPORTANT/URGENT',
+    publisher_id BIGINT NOT NULL COMMENT '发布人ID',
+    publish_time DATETIME DEFAULT NULL COMMENT '发布时间',
+    expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',
+    read_count INT NOT NULL DEFAULT 0 COMMENT '已读人数',
+    is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_notice_status_publish (status, publish_time),
+    KEY idx_notice_publisher (publisher_id),
+    FULLTEXT KEY ft_notice_title_content (title, content)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
+
+CREATE TABLE IF NOT EXISTS notice_scope (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '公告可见范围ID',
+    notice_id BIGINT NOT NULL COMMENT '公告ID',
+    scope_type VARCHAR(32) NOT NULL COMMENT '范围类型：ALL/DEPT/USER/ROLE',
+    scope_id BIGINT DEFAULT NULL COMMENT '范围ID，ALL时为空',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_notice_scope_notice (notice_id),
+    KEY idx_notice_scope_type_id (scope_type, scope_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告可见范围表';
 
 CREATE TABLE IF NOT EXISTS notice_read (
-    notice_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (notice_id, user_id)
-);
+    notice_id BIGINT NOT NULL COMMENT '公告ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '阅读时间',
+    PRIMARY KEY (notice_id, user_id),
+    KEY idx_notice_read_user (user_id),
+    KEY idx_notice_read_at (read_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告已读记录表';
 
-INSERT INTO sys_user (username, password, real_name, status)
-VALUES ('admin', '123456', '系统管理员', 1)
-ON DUPLICATE KEY UPDATE real_name = VALUES(real_name);
+-- =========================================================
+-- 5. 数据大屏 / 报表模块：report-service
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS report_dashboard_snapshot (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '快照ID',
+    snapshot_date DATE NOT NULL COMMENT '快照日期',
+    total_user_count INT NOT NULL DEFAULT 0 COMMENT '员工总数',
+    active_user_count INT NOT NULL DEFAULT 0 COMMENT '启用员工数',
+    today_check_count INT NOT NULL DEFAULT 0 COMMENT '今日打卡人数',
+    today_late_count INT NOT NULL DEFAULT 0 COMMENT '今日迟到人数',
+    pending_flow_count INT NOT NULL DEFAULT 0 COMMENT '待审批数量',
+    published_notice_count INT NOT NULL DEFAULT 0 COMMENT '已发布公告数量',
+    notice_read_rate DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT '公告阅读率',
+    generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '生成时间',
+    UNIQUE KEY uk_report_dashboard_snapshot_date (snapshot_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='首页数据大屏快照表';
+
+-- =========================================================
+-- 6. 初始化测试数据
+-- =========================================================
+
+INSERT IGNORE INTO sys_dept (id, parent_id, dept_name, dept_code, leader_id, sort_order, status)
+VALUES
+    (1, 0, '总经办', 'HQ', 1, 1, 1),
+    (2, 1, '研发部', 'RD', 2, 2, 1),
+    (3, 1, '人事部', 'HR', 3, 3, 1),
+    (4, 1, '行政部', 'ADMIN_DEPT', 4, 4, 1);
+
+INSERT IGNORE INTO sys_post (id, post_name, post_code, sort_order, status)
+VALUES
+    (1, '系统管理员', 'SYS_ADMIN', 1, 1),
+    (2, '部门主管', 'DEPT_MANAGER', 2, 1),
+    (3, '后端工程师', 'BACKEND_DEV', 3, 1),
+    (4, '前端工程师', 'FRONTEND_DEV', 4, 1),
+    (5, '人事专员', 'HR_SPECIALIST', 5, 1);
+
+INSERT IGNORE INTO sys_user (id, username, password, real_name, gender, phone, email, dept_id, post_id, manager_id, hire_date, user_type, status)
+VALUES
+    (1, 'admin', '123456', '系统管理员', 0, '13800000001', 'admin@officeflow.local', 1, 1, NULL, '2026-07-01', 'ADMIN', 1),
+    (2, 'manager', '123456', '研发主管', 1, '13800000002', 'manager@officeflow.local', 2, 2, 1, '2026-07-01', 'MANAGER', 1),
+    (3, 'hr', '123456', '人事专员', 2, '13800000003', 'hr@officeflow.local', 3, 5, 1, '2026-07-01', 'EMPLOYEE', 1),
+    (4, 'employee', '123456', '普通员工', 1, '13800000004', 'employee@officeflow.local', 2, 3, 2, '2026-07-01', 'EMPLOYEE', 1);
+
+INSERT IGNORE INTO sys_role (id, role_name, role_code, data_scope, sort_order, status)
+VALUES
+    (1, '系统管理员', 'ADMIN', 'ALL', 1, 1),
+    (2, '部门主管', 'MANAGER', 'DEPT_AND_CHILD', 2, 1),
+    (3, '普通员工', 'EMPLOYEE', 'SELF', 3, 1);
+
+INSERT IGNORE INTO sys_menu (id, parent_id, menu_name, menu_type, path, component, permission, icon, visible, sort_order, status)
+VALUES
+    (1, 0, '数据大屏', 'MENU', '/dashboard', 'views/dashboard/DashboardView.vue', 'dashboard:view', 'DataAnalysis', 1, 1, 1),
+    (2, 0, '系统管理', 'CATALOG', '/system', NULL, 'system:view', 'Setting', 1, 2, 1),
+    (3, 2, '员工管理', 'MENU', '/system/users', 'views/system/UserView.vue', 'system:user:view', 'User', 1, 1, 1),
+    (4, 2, '角色权限', 'MENU', '/system/roles', 'views/system/RoleView.vue', 'system:role:view', 'Lock', 1, 2, 1),
+    (5, 0, '考勤打卡', 'MENU', '/attendance', 'views/attendance/AttendanceView.vue', 'attendance:view', 'Calendar', 1, 3, 1),
+    (6, 0, '审批中心', 'MENU', '/flow', 'views/flow/FlowView.vue', 'flow:view', 'Tickets', 1, 4, 1),
+    (7, 0, '公告通知', 'MENU', '/notice', 'views/notice/NoticeView.vue', 'notice:view', 'Bell', 1, 5, 1),
+    (8, 3, '新增员工', 'BUTTON', NULL, NULL, 'system:user:create', NULL, 0, 1, 1),
+    (9, 3, '编辑员工', 'BUTTON', NULL, NULL, 'system:user:update', NULL, 0, 2, 1),
+    (10, 3, '删除员工', 'BUTTON', NULL, NULL, 'system:user:delete', NULL, 0, 3, 1),
+    (11, 6, '审批同意', 'BUTTON', NULL, NULL, 'flow:approve', NULL, 0, 1, 1),
+    (12, 6, '审批驳回', 'BUTTON', NULL, NULL, 'flow:reject', NULL, 0, 2, 1);
+
+INSERT IGNORE INTO sys_api_permission (id, permission_name, permission_code, service_name, request_method, request_path, status)
+VALUES
+    (1, '用户登录', 'api:user:login', 'user-service', 'POST', '/api/user/auth/login', 1),
+    (2, '员工查询', 'api:user:list', 'user-service', 'GET', '/api/user/**', 1),
+    (3, '员工维护', 'api:user:write', 'user-service', 'POST', '/api/user/**', 1),
+    (4, '考勤查询', 'api:attendance:list', 'attendance-service', 'GET', '/api/attendance/**', 1),
+    (5, '考勤打卡', 'api:attendance:check', 'attendance-service', 'POST', '/api/attendance/**', 1),
+    (6, '审批查询', 'api:flow:list', 'flow-service', 'GET', '/api/flow/**', 1),
+    (7, '审批处理', 'api:flow:write', 'flow-service', 'POST', '/api/flow/**', 1),
+    (8, '公告查询', 'api:notice:list', 'notice-service', 'GET', '/api/notice/**', 1),
+    (9, '公告发布', 'api:notice:write', 'notice-service', 'POST', '/api/notice/**', 1),
+    (10, '报表查询', 'api:report:list', 'report-service', 'GET', '/api/report/**', 1);
+
+INSERT IGNORE INTO sys_user_role (user_id, role_id)
+VALUES
+    (1, 1),
+    (2, 2),
+    (3, 3),
+    (4, 3);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT 1, id FROM sys_menu;
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+VALUES
+    (2, 1), (2, 5), (2, 6), (2, 7), (2, 11), (2, 12),
+    (3, 1), (3, 5), (3, 6), (3, 7);
+
+INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
+SELECT 1, id FROM sys_api_permission;
+
+INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
+VALUES
+    (2, 2), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 10),
+    (3, 4), (3, 5), (3, 6), (3, 8), (3, 10);
+
+INSERT IGNORE INTO sys_config (config_key, config_value, config_group, remark, status)
+VALUES
+    ('attendance.late-threshold-minutes', '10', 'ATTENDANCE', '迟到阈值分钟，正式以Nacos配置为准', 1),
+    ('attendance.check-lock-seconds', '10', 'ATTENDANCE', '打卡分布式锁过期秒数，正式以Nacos配置为准', 1),
+    ('jwt.expire-seconds', '86400', 'SECURITY', 'JWT过期秒数，正式以Nacos配置为准', 1);
+
+INSERT IGNORE INTO attendance_rule (id, rule_name, work_start_time, work_end_time, late_threshold_minutes, early_leave_threshold_minutes, absent_threshold_minutes, check_lock_seconds, status)
+VALUES
+    (1, '默认工作日考勤规则', '09:00:00', '18:00:00', 10, 10, 240, 10, 1);
+
+INSERT IGNORE INTO attendance_group (id, group_name, rule_id, dept_id, status)
+VALUES
+    (1, '研发部考勤组', 1, 2, 1),
+    (2, '人事行政考勤组', 1, 3, 1);
+
+INSERT IGNORE INTO notice (id, title, content, notice_type, priority, publisher_id, publish_time, status)
+VALUES
+    (1, 'OfficeFlow 项目启动通知', '请各成员按照分工完成对应模块开发，并保持每日提交。', 'COMPANY', 'IMPORTANT', 1, NOW(), 'PUBLISHED');
+
+INSERT IGNORE INTO notice_scope (notice_id, scope_type, scope_id)
+VALUES
+    (1, 'ALL', NULL);
 

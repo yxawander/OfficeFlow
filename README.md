@@ -153,7 +153,50 @@ docs/design/backend-framework-guide.md
 
 其中包含后端 1、后端 2、后端 3 的详细任务表。大家先把环境配好，再按细分工并行开发。当前阶段先不做服务之间调用，也先不做 Nacos 动态业务参数，相关参数可以先在代码里写死，把基础功能先全部实现。
 
-## 五、后端模块说明
+## 五、一键启动脚本
+
+项目根目录提供了一键启动脚本，会自动启动 Docker 中间件、安装后端模块、安装前端依赖，并分别打开窗口启动后端服务和前端服务。
+
+在 `OfficeFlow` 根目录执行：
+
+```powershell
+.\start-all.cmd
+```
+
+启动后访问：
+
+```text
+http://127.0.0.1:5173/
+```
+
+停止前后端服务：
+
+```powershell
+.\stop-all.cmd
+```
+
+如果需要连 Docker 中间件一起停止：
+
+```powershell
+.\stop-all.cmd -WithDocker
+```
+
+常用参数：
+
+```powershell
+.\start-all.cmd -SkipBuild
+.\start-all.cmd -BackendOnly
+.\start-all.cmd -NoDocker
+```
+
+说明：
+
+- `-SkipBuild`：跳过 `mvn clean install -DskipTests`，适合已经构建过、只想快速启动。
+- `-BackendOnly`：只启动后端服务，不启动前端。
+- `-NoDocker`：不执行 `docker compose up -d`，适合 Docker 中间件已经启动的情况。
+- 如果端口已经被占用，脚本会跳过对应服务。需要重启服务时，先执行 `.\stop-all.cmd`。
+
+## 六、后端模块说明
 
 | 模块 | 说明 | 端口 | 负责人 |
 | --- | --- | --- | --- |
@@ -165,7 +208,7 @@ docs/design/backend-framework-guide.md
 | `notice-service` | 公告发布、公告已读 / 未读 | `9104` | 后端 3 |
 | `report-service` | 数据大屏统计、考勤报表导出 | `9105` | 后端 3 |
 
-## 六、后端启动方式
+## 七、后端启动方式
 
 进入后端目录：
 
@@ -257,7 +300,7 @@ mvn -pl report-service spring-boot:run
 
 例如只开发用户权限模块，启动 `oa-gateway` 和 `user-service` 即可。
 
-## 七、后端验证
+## 八、后端验证
 
 所有前端请求统一访问网关：
 
@@ -285,7 +328,7 @@ http://localhost:9000
 | 公告服务 | `http://localhost:9104/api/notice/health` |
 | 统计服务 | `http://localhost:9105/api/report/health` |
 
-## 八、前端启动方式
+## 九、前端启动方式
 
 进入前端目录：
 
@@ -323,13 +366,25 @@ pnpm build
 http://localhost:9000
 ```
 
-## 九、完整启动流程
+## 十、完整启动流程
 
 新成员第一次拉取代码后，按这个顺序执行：
 
 ```powershell
 git clone <仓库地址>
 cd OfficeFlow
+.\start-all.cmd
+```
+
+脚本会自动执行中间件启动、后端安装和前后端服务启动。浏览器访问：
+
+```text
+http://127.0.0.1:5173/
+```
+
+如果不使用一键脚本，也可以手动启动。先启动中间件并安装后端：
+
+```powershell
 docker compose up -d
 cd backend
 mvn clean install -DskipTests
@@ -381,7 +436,7 @@ pnpm dev
 http://127.0.0.1:5173/
 ```
 
-## 十、Git 协作方式
+## 十一、Git 协作方式
 
 本项目周期短，建议全组先统一在 `main` 分支开发，减少分支合并成本。
 
@@ -406,7 +461,7 @@ git push
 - 每个人尽量只修改自己负责的目录。
 - 如果 VS Code 提示有冲突，先不要乱点覆盖，确认冲突文件是谁负责的。
 
-## 十一、分工目录
+## 十二、分工目录
 
 后端：
 
@@ -446,7 +501,7 @@ docs/
   ppt/                    答辩 PPT、演示录屏、截图
 ```
 
-## 十二、开发约定
+## 十三、开发约定
 
 - 后端统一返回 `ApiResponse<T>`。
 - 后端业务异常统一使用 `BusinessException`。

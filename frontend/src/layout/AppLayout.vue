@@ -1,15 +1,15 @@
 <template>
   <el-container class="app-layout">
-    <el-aside width="232px" class="app-sidebar">
+    <el-aside :width="sidebarCollapsed ? '72px' : '232px'" class="app-sidebar">
       <div class="brand">
         <div class="brand-mark">OF</div>
-        <div>
+        <div v-show="!sidebarCollapsed" class="brand-copy">
           <div class="brand-title">OfficeFlow</div>
           <div class="brand-subtitle">智慧 OA 管理系统</div>
         </div>
       </div>
 
-      <el-menu router :default-active="route.path" class="side-menu">
+      <el-menu router :default-active="route.path" class="side-menu" :collapse="sidebarCollapsed" :collapse-transition="false">
         <template v-for="item in visibleMenus" :key="item.id">
           <el-sub-menu v-if="menuChildren(item).length" :index="item.path">
             <template #title>
@@ -42,9 +42,17 @@
 
     <el-container>
       <el-header class="app-header">
-        <div>
-          <div class="page-title">{{ pageTitle }}</div>
-          <div class="page-desc">统一网关、权限拦截、前后端分离</div>
+        <div class="header-left">
+          <el-button
+            class="sidebar-toggle"
+            :icon="sidebarCollapsed ? Expand : Fold"
+            circle
+            @click="toggleSidebar"
+          />
+          <div>
+            <div class="page-title">{{ pageTitle }}</div>
+            <div class="page-desc">统一网关、权限拦截、前后端分离</div>
+          </div>
         </div>
         <el-dropdown>
           <el-button>
@@ -53,6 +61,7 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item @click="goProfile">个人中心</el-dropdown-item>
               <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -67,20 +76,29 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ChatDotRound, DataAnalysis, Money } from '@element-plus/icons-vue'
+import { ChatDotRound, DataAnalysis, Expand, Fold, Money } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const sidebarCollapsed = ref(false)
 
 const visibleMenus = computed(() => (userStore.menus || []).filter((item) => item.visible === 1 && item.menuType !== 'BUTTON'))
 const pageTitle = computed(() => route.meta.title || 'OfficeFlow')
 
 function menuChildren(item) {
   return (item.children || []).filter((child) => child.visible === 1 && child.menuType !== 'BUTTON')
+}
+
+function goProfile() {
+  router.push('/profile')
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 async function handleLogout() {

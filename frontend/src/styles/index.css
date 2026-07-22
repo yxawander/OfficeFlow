@@ -24,15 +24,22 @@ body {
 .app-sidebar {
   background: #ffffff;
   border-right: 1px solid #e6eaf0;
+  overflow-x: hidden;
+  transition: width 0.2s ease;
 }
 
 .brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   height: 72px;
   padding: 0 18px;
   border-bottom: 1px solid #e6eaf0;
+}
+
+.brand-copy {
+  min-width: 0;
 }
 
 .brand-mark {
@@ -49,16 +56,23 @@ body {
 .brand-title {
   font-size: 17px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .brand-subtitle {
   margin-top: 2px;
   color: #7b8794;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .side-menu {
+  width: 100%;
   border-right: 0;
+}
+
+.side-menu.el-menu--collapse {
+  width: 100%;
 }
 
 .app-header {
@@ -68,6 +82,17 @@ body {
   height: 72px;
   background: #ffffff;
   border-bottom: 1px solid #e6eaf0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sidebar-toggle {
+  flex-shrink: 0;
 }
 
 .page-title {

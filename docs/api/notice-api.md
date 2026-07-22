@@ -10,7 +10,7 @@
 
 ## 1. 健康检查
 
-### GET /health
+### GET /api/notice/health
 健康检查接口
 
 **请求参数**：无

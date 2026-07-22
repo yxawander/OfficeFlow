@@ -48,7 +48,6 @@
   "startTime": "2026-07-22 09:00:00",
   "endTime": "2026-07-24 18:00:00",
   "durationHours": 24.00,
-  "approverId": 2,
   "ccUserIds": [3, 4]
 }
 ```
@@ -61,8 +60,9 @@
 | startTime | String | 是 | 开始时间，格式 yyyy-MM-dd HH:mm:ss |
 | endTime | String | 是 | 结束时间，格式 yyyy-MM-dd HH:mm:ss |
 | durationHours | BigDecimal | 是 | 时长（小时数） |
-| approverId | Long | 是 | 审批人用户 ID（直属领导） |
 | ccUserIds | Long[] | 否 | 抄送人用户 ID 列表 |
+
+> 审批人由服务端根据 `sys_user.manager_id` 自动确定，无需前端传递。
 
 **响应示例**：
 ```json
@@ -243,6 +243,90 @@
 
 ---
 
+### 2.5 编辑申请
+
+### PUT /api/flow/applies/{id}
+编辑申请（仅申请人可操作，仅 PENDING 状态）
+
+**路径参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | Long | 是 | 申请单 ID |
+
+**请求头**：
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| X-Login-User-Id | 是 | 当前登录用户 ID |
+
+**请求体**：
+```json
+{
+  "title": "修改后的标题",
+  "reason": "修改后的原因",
+  "startTime": "2026-07-23 09:00:00",
+  "endTime": "2026-07-25 18:00:00",
+  "durationHours": 24.00
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| title | String | 是 | 申请标题 |
+| reason | String | 是 | 申请原因 |
+| startTime | String | 是 | 开始时间 |
+| endTime | String | 是 | 结束时间 |
+| durationHours | BigDecimal | 是 | 时长（小时数） |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误情况**：
+| 错误信息 | 说明 |
+|---|---|
+| 审批申请不存在 | 申请单 ID 无效或已删除 |
+| 仅申请人可编辑自己的申请 | 当前用户不是该申请的申请人 |
+| 仅待审批状态可编辑 | 申请状态不是 PENDING |
+
+---
+
+### 2.6 删除申请
+
+### DELETE /api/flow/applies/{id}
+删除申请（仅申请人可操作，软删除）
+
+**路径参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | Long | 是 | 申请单 ID |
+
+**请求头**：
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| X-Login-User-Id | 是 | 当前登录用户 ID |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误情况**：
+| 错误信息 | 说明 |
+|---|---|
+| 审批申请不存在 | 申请单 ID 无效或已删除 |
+| 仅申请人可删除自己的申请 | 当前用户不是该申请的申请人 |
+
+---
+
 ## 3. 审批端接口
 
 > **权限要求**：`/api/flow/admin/**` 路径需要 ADMIN 或 MANAGER 角色。
@@ -257,6 +341,7 @@
 | 参数 | 必填 | 说明 |
 |---|---|---|
 | X-Login-User-Id | 是 | 当前审批人用户 ID |
+| X-Login-Dept-Id | 否 | 当前用户部门 ID（部门主管按此筛选本部门申请） |
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -302,6 +387,7 @@
 | 参数 | 必填 | 说明 |
 |---|---|---|
 | X-Login-User-Id | 是 | 当前审批人用户 ID |
+| X-Login-Dept-Id | 否 | 当前用户部门 ID（部门主管按此筛选本部门申请） |
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -426,6 +512,58 @@
 
 ---
 
+### 3.5 所有已审批申请
+
+### GET /api/flow/admin/applies/approved
+获取所有已审批通过的申请列表（分页，无需审批人身份）
+
+**请求头**：
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| X-Login-User-Id | 是 | 当前登录用户 ID |
+| X-Login-Dept-Id | 否 | 当前用户部门 ID（部门主管按此筛选本部门申请） |
+
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| pageNum | Integer | 否 | 页码，默认1 |
+| pageSize | Integer | 否 | 每页条数，默认10 |
+| applyType | String | 否 | 按类型筛选：LEAVE / OVERTIME / CORRECTION |
+| startDate | String | 否 | 审批开始日期筛选，yyyy-MM-dd |
+| endDate | String | 否 | 审批结束日期筛选，yyyy-MM-dd |
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "total": 25,
+    "pageNum": 1,
+    "pageSize": 10,
+    "records": [
+      {
+        "id": 1,
+        "applyNo": "FL20260721000001",
+        "applyType": "LEAVE",
+        "title": "年假申请",
+        "reason": "个人原因休假",
+        "durationHours": 24.00,
+        "applicantName": "普通员工",
+        "applicantDeptName": "研发部",
+        "approverName": "研发主管",
+        "startTime": "2026-07-22 09:00:00",
+        "endTime": "2026-07-24 18:00:00",
+        "approvedAt": "2026-07-21 15:00:00",
+        "createdAt": "2026-07-21 14:30:00"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 4. 枚举值参考
 
 ### 4.1 申请类型（applyType）
@@ -500,6 +638,10 @@ createApply() → PENDING ─┬─ approveApply() → APPROVED
 | 500 | 您不是该申请的审批人 | 审批操作权限不足 |
 | 500 | 该申请已被处理 | 申请已不是待审批状态 |
 | 500 | 用户未登录 | 请求头缺少 X-Login-User-Id |
+| 500 | 未找到直属领导，无法提交申请 | 该员工未设置直属领导 |
+| 500 | 仅申请人可编辑自己的申请 | 编辑操作权限不足 |
+| 500 | 仅待审批状态可编辑 | 状态不允许编辑 |
+| 500 | 仅申请人可删除自己的申请 | 删除操作权限不足 |
 
 ---
 

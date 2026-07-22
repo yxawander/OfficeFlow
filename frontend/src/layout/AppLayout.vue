@@ -25,6 +25,10 @@
             <span>{{ item.menuName }}</span>
           </el-menu-item>
         </template>
+        <el-menu-item index="/ai-chat">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>AI 问答</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -58,6 +62,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { ChatDotRound } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

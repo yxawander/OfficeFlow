@@ -19,6 +19,7 @@
         <module>flow-service</module>
         <module>notice-service</module>
         <module>report-service</module>
+        <module>ai-service</module>
     </modules>
 
     <properties>
@@ -74,8 +75,34 @@
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
             </dependency>
+            <!-- Spring AI Alibaba -->
+            <dependency>
+                <groupId>com.alibaba.cloud.ai</groupId>
+                <artifactId>spring-ai-alibaba-starter</artifactId>
+                <version>1.0.0-M6.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- Spring AI 相关依赖尚未发布到 Maven Central，需要 Spring 官方仓库 -->
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>

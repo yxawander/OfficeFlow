@@ -40,6 +40,10 @@ spring:
           uri: lb://report-service
           predicates:
             - Path=/api/report/**
+        - id: ai-service
+          uri: lb://ai-service
+          predicates:
+            - Path=/api/ai/**
 
 officeflow:
   jwt:

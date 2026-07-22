@@ -1,0 +1,42 @@
+server:
+  port: 9106
+
+# ---- Document auto-loading ----
+app:
+  document:
+    path: D:/Desktop/Project/os/OfficeFlow/docs/pdf
+
+spring:
+  application:
+    name: ai-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+
+  # ---- DashScope (Tongyi Qianwen) ----
+  ai:
+    dashscope:
+      api-key: sk-e9fefcf7010241ca99356cd501c9ca1b
+      chat:
+        options:
+          model: qwen-plus
+          temperature: 0.7
+          top-p: 0.8
+      embedding:
+        options:
+          model: text-embedding-v3
+
+  # ---- PostgreSQL DataSource (pgvector) ----
+  datasource:
+    url: jdbc:postgresql://localhost:5433/officeflow_ai
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-pgvector.sql

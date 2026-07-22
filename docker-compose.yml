@@ -15,6 +15,8 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --character-set-client-handshake=FALSE
+      - --init-connect=SET NAMES utf8mb4
 
   redis:
     image: redis:7.2
@@ -41,7 +43,22 @@ services:
     volumes:
       - officeflow-nacos-data:/home/nacos/data
 
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: officeflow-pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: officeflow_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: Asia/Shanghai
+    ports:
+      - "5433:5432"
+    volumes:
+      - officeflow-pgvector-data:/var/lib/postgresql/data
+
 volumes:
   officeflow-mysql-data:
   officeflow-redis-data:
   officeflow-nacos-data:
+  officeflow-pgvector-data:

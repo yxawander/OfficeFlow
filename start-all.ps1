@@ -98,7 +98,8 @@ $services = @(
     @{ name = "attendance-service"; port = 9102; workdir = $BackendDir; command = "mvn -pl attendance-service spring-boot:run" },
     @{ name = "flow-service"; port = 9103; workdir = $BackendDir; command = "mvn -pl flow-service spring-boot:run" },
     @{ name = "notice-service"; port = 9104; workdir = $BackendDir; command = "mvn -pl notice-service spring-boot:run" },
-    @{ name = "report-service"; port = 9105; workdir = $BackendDir; command = "mvn -pl report-service spring-boot:run" }
+    @{ name = "report-service"; port = 9105; workdir = $BackendDir; command = "mvn -pl report-service spring-boot:run" },
+    @{ name = "ai-service"; port = 9106; workdir = $BackendDir; command = "mvn -pl ai-service spring-boot:run" }
 )
 
 if (-not $NoFrontend -and -not $BackendOnly) {

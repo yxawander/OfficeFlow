@@ -47,6 +47,12 @@ const routes = [
         name: 'notice',
         component: () => import('@/views/notice/NoticeView.vue'),
         meta: { title: '公告通知', icon: 'Bell' }
+      },
+      {
+        path: 'ai-chat',
+        name: 'ai-chat',
+        component: () => import('@/views/ai/AiChatView.vue'),
+        meta: { title: 'AI 问答', icon: 'ChatDotRound' }
       }
     ]
   }
@@ -72,7 +78,7 @@ router.beforeEach((to) => {
 })
 
 function canVisit(path, menus) {
-  if (path === '/' || path === '/dashboard') {
+  if (path === '/' || path === '/dashboard' || path === '/ai-chat') {
     return true
   }
   const stack = [...menus]

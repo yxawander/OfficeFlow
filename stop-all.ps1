@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Continue"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Ports = @(9000, 9101, 9102, 9103, 9104, 9105, 5173)
+$Ports = @(9000, 9101, 9102, 9103, 9104, 9105, 9106, 5173)
 
 Set-Location -LiteralPath $Root
 

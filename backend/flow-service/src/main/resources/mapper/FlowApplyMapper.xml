@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.flow.mapper.FlowApplyMapper">
+
+    <resultMap id="BaseResultMap" type="com.officeflow.flow.entity.FlowApply">
+        <id column="id" property="id"/>
+        <result column="apply_no" property="applyNo"/>
+        <result column="applicant_id" property="applicantId"/>
+        <result column="applicant_dept_id" property="applicantDeptId"/>
+        <result column="approver_id" property="approverId"/>
+        <result column="apply_type" property="applyType"/>
+        <result column="title" property="title"/>
+        <result column="reason" property="reason"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="duration_hours" property="durationHours"/>
+        <result column="status" property="status"/>
+        <result column="current_node" property="currentNode"/>
+        <result column="approved_at" property="approvedAt"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, apply_no, applicant_id, applicant_dept_id, approver_id, apply_type,
+        title, reason, start_time, end_time, duration_hours,
+        status, current_node, approved_at, is_deleted, created_at, updated_at
+    </sql>
+
+    <insert id="insert" parameterType="com.officeflow.flow.entity.FlowApply"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO flow_apply (apply_no, applicant_id, applicant_dept_id, approver_id,
+                                apply_type, title, reason, start_time, end_time,
+                                duration_hours, status, current_node, approved_at,
+                                is_deleted, created_at, updated_at)
+        VALUES (#{applyNo}, #{applicantId}, #{applicantDeptId}, #{approverId},
+                #{applyType}, #{title}, #{reason}, #{startTime}, #{endTime},
+                #{durationHours}, #{status}, #{currentNode}, #{approvedAt},
+                #{isDeleted}, NOW(), NOW())
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM flow_apply
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectManagerIdByUserId" resultType="java.lang.Long">
+        SELECT manager_id FROM sys_user WHERE id = #{userId} AND is_deleted = 0
+    </select>
+
+    <select id="selectByApplyNo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM flow_apply
+        WHERE apply_no = #{applyNo} AND is_deleted = 0
+    </select>
+
+    <update id="updateStatus">
+        UPDATE flow_apply
+        SET status = #{status},
+            approved_at = #{approvedAt},
+            updated_at = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <select id="selectUserApplies" resultType="com.officeflow.flow.vo.FlowApplyListVO">
+        SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
+               fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.status, fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.created_at AS createdAt,
+               COALESCE(su.real_name, su.username) AS approverName
+        FROM flow_apply fa
+        LEFT JOIN sys_user su ON fa.approver_id = su.id
+        WHERE fa.applicant_id = #{userId} AND fa.is_deleted = 0
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        <if test="dto.status != null and dto.status != ''">
+            AND fa.status = #{dto.status}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND fa.created_at >= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND fa.created_at &lt;= #{dto.endDate}
+        </if>
+        ORDER BY fa.created_at DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <select id="countUserApplies" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM flow_apply fa
+        WHERE fa.applicant_id = #{userId} AND fa.is_deleted = 0
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        <if test="dto.status != null and dto.status != ''">
+            AND fa.status = #{dto.status}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND fa.created_at >= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND fa.created_at &lt;= #{dto.endDate}
+        </if>
+    </select>
+
+    <select id="selectDetailById" resultType="com.officeflow.flow.vo.FlowApplyDetailVO">
+        SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
+               fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.status, fa.current_node AS currentNode,
+               fa.applicant_id AS applicantId,
+               COALESCE(au.real_name, au.username) AS applicantName,
+               COALESCE(ad.dept_name, '') AS applicantDeptName,
+               fa.approver_id AS approverId,
+               COALESCE(pu.real_name, pu.username) AS approverName,
+               fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.approved_at AS approvedAt, fa.created_at AS createdAt
+        FROM flow_apply fa
+        LEFT JOIN sys_user au ON fa.applicant_id = au.id
+        LEFT JOIN sys_user pu ON fa.approver_id = pu.id
+        LEFT JOIN sys_dept ad ON fa.applicant_dept_id = ad.id
+        WHERE fa.id = #{id} AND fa.is_deleted = 0
+    </select>
+
+    <select id="selectPendingApplies" resultType="com.officeflow.flow.vo.FlowPendingVO">
+        SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
+               fa.title, fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.created_at AS createdAt,
+               COALESCE(su.real_name, su.username) AS applicantName,
+               COALESCE(sd.dept_name, '') AS applicantDeptName
+        FROM flow_apply fa
+        LEFT JOIN sys_user su ON fa.applicant_id = su.id
+        LEFT JOIN sys_dept sd ON fa.applicant_dept_id = sd.id
+        WHERE fa.approver_id = #{approverId}
+          AND fa.status = 'PENDING'
+          AND fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        ORDER BY fa.created_at DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <select id="countPendingApplies" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM flow_apply fa
+        WHERE fa.approver_id = #{approverId}
+          AND fa.status = 'PENDING'
+          AND fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+    </select>
+
+    <select id="selectProcessedApplies" resultType="com.officeflow.flow.vo.FlowProcessedVO">
+        SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
+               fa.title, fa.status,
+               COALESCE(su.real_name, su.username) AS applicantName,
+               far.action AS myAction,
+               far.approved_at AS approvedAt,
+               fa.created_at AS createdAt
+        FROM flow_apply fa
+        INNER JOIN flow_approve_record far ON far.flow_apply_id = fa.id
+            AND far.approver_id = #{approverId}
+            AND far.action IN ('APPROVE', 'REJECT')
+        LEFT JOIN sys_user su ON fa.applicant_id = su.id
+        WHERE fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        ORDER BY far.approved_at DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <select id="countProcessedApplies" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM flow_apply fa
+        INNER JOIN flow_approve_record far ON far.flow_apply_id = fa.id
+            AND far.approver_id = #{approverId}
+            AND far.action IN ('APPROVE', 'REJECT')
+        WHERE fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+    </select>
+
+    <select id="selectAllApproved" resultType="com.officeflow.flow.vo.FlowApprovedVO">
+        SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
+               fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.approved_at AS approvedAt, fa.created_at AS createdAt,
+               COALESCE(au.real_name, au.username) AS applicantName,
+               COALESCE(ad.dept_name, '') AS applicantDeptName,
+               COALESCE(pu.real_name, pu.username) AS approverName
+        FROM flow_apply fa
+        LEFT JOIN sys_user au ON fa.applicant_id = au.id
+        LEFT JOIN sys_user pu ON fa.approver_id = pu.id
+        LEFT JOIN sys_dept ad ON fa.applicant_dept_id = ad.id
+        WHERE fa.status = 'APPROVED'
+          AND fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND fa.approved_at >= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND fa.approved_at &lt;= #{dto.endDate}
+        </if>
+        ORDER BY fa.approved_at DESC
+        LIMIT #{dto.pageSize} OFFSET #{dto.offset}
+    </select>
+
+    <update id="update" parameterType="com.officeflow.flow.entity.FlowApply">
+        UPDATE flow_apply
+        SET title = #{title},
+            reason = #{reason},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            duration_hours = #{durationHours},
+            updated_at = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE flow_apply
+        SET is_deleted = 1, updated_at = NOW()
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <select id="countAllApproved" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM flow_apply fa
+        WHERE fa.status = 'APPROVED'
+          AND fa.is_deleted = 0
+        <if test="deptId != null">
+            AND fa.applicant_dept_id = #{deptId}
+        </if>
+        <if test="dto.applyType != null and dto.applyType != ''">
+            AND fa.apply_type = #{dto.applyType}
+        </if>
+        <if test="dto.startDate != null and dto.startDate != ''">
+            AND fa.approved_at >= #{dto.startDate}
+        </if>
+        <if test="dto.endDate != null and dto.endDate != ''">
+            AND fa.approved_at &lt;= #{dto.endDate}
+        </if>
+    </select>
+
+</mapper>

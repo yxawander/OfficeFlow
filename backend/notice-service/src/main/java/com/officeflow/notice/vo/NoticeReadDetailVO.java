@@ -8,9 +8,9 @@ import java.util.List;
 @Data
 public class NoticeReadDetailVO {
     private Long noticeId;
-    private Integer totalUsers;
-    private Integer readUsers;
-    private Integer unreadUsers;
+    private Long totalUsers;
+    private Long readUsers;
+    private Long unreadUsers;
     private BigDecimal readRate;
     private List<DeptStatVO> deptStats;
 
@@ -18,9 +18,9 @@ public class NoticeReadDetailVO {
     public static class DeptStatVO {
         private Long deptId;
         private String deptName;
-        private Integer totalUsers;
-        private Integer readUsers;
-        private Integer unreadUsers;
+        private Long totalUsers;
+        private Long readUsers;
+        private Long unreadUsers;
         private BigDecimal readRate;
     }
 }

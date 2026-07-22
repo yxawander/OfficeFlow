@@ -331,6 +331,7 @@ CREATE TABLE IF NOT EXISTS flow_cc (
     user_id BIGINT NOT NULL COMMENT '抄送人ID',
     read_status TINYINT NOT NULL DEFAULT 0 COMMENT '阅读状态：0未读，1已读',
     read_at DATETIME DEFAULT NULL COMMENT '阅读时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_flow_cc_apply_user (flow_apply_id, user_id),
     KEY idx_flow_cc_user_read (user_id, read_status)
@@ -342,6 +343,7 @@ CREATE TABLE IF NOT EXISTS flow_attachment (
     file_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
     file_url VARCHAR(500) NOT NULL COMMENT '文件访问地址',
     file_size BIGINT DEFAULT NULL COMMENT '文件大小字节',
+    file_type VARCHAR(64) DEFAULT NULL COMMENT '文件MIME类型，如 image/png, application/pdf',
     uploaded_by BIGINT NOT NULL COMMENT '上传人ID',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_flow_attachment_apply (flow_apply_id)
@@ -358,6 +360,7 @@ CREATE TABLE IF NOT EXISTS notice (
     notice_type VARCHAR(32) NOT NULL DEFAULT 'COMPANY' COMMENT '类型：COMPANY/DEPT/SYSTEM',
     priority VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '优先级：NORMAL/IMPORTANT/URGENT',
     publisher_id BIGINT NOT NULL COMMENT '发布人ID',
+    publisher_name VARCHAR(64) DEFAULT NULL COMMENT '发布人姓名缓存'
     publish_time DATETIME DEFAULT NULL COMMENT '发布时间',
     expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',

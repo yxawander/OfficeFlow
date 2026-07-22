@@ -168,9 +168,9 @@ class NoticeControllerTest {
     @DisplayName("获取未读数量 - 成功")
     void getUnreadCount_Success() throws Exception {
         UnreadCountVO vo = new UnreadCountVO();
-        vo.setTotal(5);
-        Map<String, Integer> byType = new HashMap<>();
-        byType.put("COMPANY", 2);
+        vo.setTotal(5L);
+        Map<String, Long> byType = new HashMap<>();
+        byType.put("COMPANY", 2L);
         vo.setByType(byType);
         vo.setByPriority(new HashMap<>());
 
@@ -187,7 +187,7 @@ class NoticeControllerTest {
     @DisplayName("获取未读数量 - 带筛选条件")
     void getUnreadCount_WithFilters() throws Exception {
         UnreadCountVO vo = new UnreadCountVO();
-        vo.setTotal(2);
+        vo.setTotal(2L);
         vo.setByType(new HashMap<>());
         vo.setByPriority(new HashMap<>());
 

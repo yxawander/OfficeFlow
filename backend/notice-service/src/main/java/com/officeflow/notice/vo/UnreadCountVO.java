@@ -6,7 +6,7 @@ import java.util.Map;
 
 @Data
 public class UnreadCountVO {
-    private Integer total;
-    private Map<String, Integer> byType;
-    private Map<String, Integer> byPriority;
+    private Long total;
+    private Map<String, Long> byType;
+    private Map<String, Long> byPriority;
 }

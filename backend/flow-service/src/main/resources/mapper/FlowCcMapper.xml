@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.flow.mapper.FlowCcMapper">
+
+    <insert id="insert" parameterType="com.officeflow.flow.entity.FlowCc"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO flow_cc (flow_apply_id, user_id, read_status, read_at, created_at, updated_at)
+        VALUES (#{flowApplyId}, #{userId}, #{readStatus}, #{readAt}, NOW(), NOW())
+    </insert>
+
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO flow_cc (flow_apply_id, user_id, read_status, read_at, created_at, updated_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.flowApplyId}, #{item.userId}, #{item.readStatus}, #{item.readAt}, NOW(), NOW())
+        </foreach>
+    </insert>
+
+    <update id="updateReadStatus">
+        UPDATE flow_cc
+        SET read_status = 1, read_at = #{readAt}, updated_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <update id="batchUpdateReadStatus">
+        UPDATE flow_cc
+        SET read_status = 1, read_at = #{readAt}, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND user_id = #{userId}
+    </update>
+
+    <select id="selectByFlowApplyId" resultType="com.officeflow.flow.entity.FlowCc">
+        SELECT id, flow_apply_id AS flowApplyId, user_id AS userId,
+               read_status AS readStatus, read_at AS readAt,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM flow_cc
+        WHERE flow_apply_id = #{flowApplyId}
+    </select>
+
+</mapper>

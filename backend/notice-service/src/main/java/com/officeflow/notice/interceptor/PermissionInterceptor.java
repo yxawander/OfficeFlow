@@ -43,7 +43,10 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        List<String> roles = Arrays.asList(rolesStr.split(","));
+        String cleaned = rolesStr.replace("[", "").replace("]", "").trim();
+        List<String> roles = Arrays.stream(cleaned.split(","))
+                .map(String::trim)
+                .toList();
 
         boolean hasAdminRole = ADMIN_ROLES.stream().anyMatch(roles::contains);
 

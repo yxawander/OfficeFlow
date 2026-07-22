@@ -16,19 +16,19 @@ public interface NoticeReadMapper {
 
     NoticeRead selectByNoticeIdAndUserId(@Param("noticeId") Long noticeId, @Param("userId") Long userId);
 
-    Integer countUnreadByUserId(Long userId);
+    Long countUnreadByUserId(Long userId);
 
-    Integer countUnreadByUserIdAndFilters(@Param("userId") Long userId, @Param("noticeType") String noticeType, @Param("priority") String priority);
+    Long countUnreadByUserIdAndFilters(@Param("userId") Long userId, @Param("noticeType") String noticeType, @Param("priority") String priority);
 
-    Map<String, Integer> countUnreadByType(Long userId);
+    Map<String, Long> countUnreadByType(Long userId);
 
-    Map<String, Integer> countUnreadByPriority(Long userId);
+    Map<String, Long> countUnreadByPriority(Long userId);
 
     NoticeReadDetailVO selectReadDetailById(Long noticeId);
 
-    Integer countTotalUsersForNotice(Long noticeId);
+    Long countTotalUsersForNotice(Long noticeId);
 
-    Integer countReadUsersForNotice(Long noticeId);
+    Long countReadUsersForNotice(Long noticeId);
 
     List<NoticeReadDetailVO.DeptStatVO> selectDeptStatsForNotice(Long noticeId);
 

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.flow.mapper.FlowAttachmentMapper">
+
+    <insert id="insert" parameterType="com.officeflow.flow.entity.FlowAttachment"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO flow_attachment (flow_apply_id, file_name, file_url, file_size, file_type,
+                                      uploaded_by, created_at)
+        VALUES (#{flowApplyId}, #{fileName}, #{fileUrl}, #{fileSize}, #{fileType},
+                #{uploadedBy}, NOW())
+    </insert>
+
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO flow_attachment (flow_apply_id, file_name, file_url, file_size, file_type,
+                                      uploaded_by, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.flowApplyId}, #{item.fileName}, #{item.fileUrl}, #{item.fileSize}, #{item.fileType},
+             #{item.uploadedBy}, NOW())
+        </foreach>
+    </insert>
+
+    <update id="updateFlowApplyId">
+        UPDATE flow_attachment
+        SET flow_apply_id = #{flowApplyId}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <select id="selectByApplyId" resultType="com.officeflow.flow.entity.FlowAttachment">
+        SELECT id, flow_apply_id AS flowApplyId, file_name AS fileName,
+               file_url AS fileUrl, file_size AS fileSize, file_type AS fileType,
+               uploaded_by AS uploadedBy, created_at AS createdAt
+        FROM flow_attachment
+        WHERE flow_apply_id = #{flowApplyId}
+    </select>
+
+</mapper>

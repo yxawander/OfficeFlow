@@ -98,7 +98,7 @@
         LIMIT #{dto.pageSize} OFFSET #{dto.offset}
     </select>
 
-    <select id="countUserNoticeList" resultType="java.lang.Integer">
+    <select id="countUserNoticeList" resultType="java.lang.Long">
         SELECT COUNT(DISTINCT n.id)
         FROM notice n
         LEFT JOIN notice_scope ns ON n.id = ns.notice_id
@@ -162,7 +162,7 @@
             n.read_count as readCount,
             n.view_count as viewCount,
             CASE WHEN n.read_count = 0 THEN 0
-                 ELSE ROUND(n.read_count * 100.0 / (SELECT COUNT(DISTINCT user_id) FROM sys_user WHERE status = 1), 2)
+                 ELSE ROUND(n.read_count * 100.0 / (SELECT COUNT(DISTINCT id) FROM sys_user WHERE status = 1), 2)
             END as readRate,
             n.created_at as createdAt
         FROM notice n
@@ -186,7 +186,7 @@
         LIMIT #{dto.pageSize} OFFSET #{dto.offset}
     </select>
 
-    <select id="countAdminNoticeList" resultType="java.lang.Integer">
+    <select id="countAdminNoticeList" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM notice n
         WHERE n.is_deleted = 0

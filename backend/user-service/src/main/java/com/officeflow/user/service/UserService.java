@@ -6,7 +6,9 @@ import com.officeflow.common.security.JwtUtil;
 import com.officeflow.common.security.SecurityConstants;
 import com.officeflow.user.dto.ApiPermissionRequest;
 import com.officeflow.user.dto.DeptRequest;
+import com.officeflow.user.dto.PasswordChangeRequest;
 import com.officeflow.user.dto.PostRequest;
+import com.officeflow.user.dto.ProfileUpdateRequest;
 import com.officeflow.user.dto.RoleRequest;
 import com.officeflow.user.dto.UserRequest;
 import com.officeflow.user.mapper.ApiPermissionMapper;
@@ -111,6 +113,32 @@ public class UserService {
         profile.put("roleIds", roleMapper.listRoleIdsByUserId(userId));
         profile.put("permissions", menuMapper.listPermissionsByUserId(userId));
         return profile;
+    }
+
+    @Transactional
+    public void updateProfile(Long userId, ProfileUpdateRequest request) {
+        requireLogin(userId);
+        if (userMapper.updateProfile(userId, request) == 0) {
+            throw new BusinessException("当前用户不存在");
+        }
+    }
+
+    @Transactional
+    public void changePassword(Long userId, PasswordChangeRequest request) {
+        requireLogin(userId);
+        String currentPassword = userMapper.findPasswordById(userId);
+        if (currentPassword == null) {
+            throw new BusinessException("当前用户不存在");
+        }
+        if (!Objects.equals(currentPassword, request.oldPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+        if (Objects.equals(request.oldPassword(), request.newPassword())) {
+            throw new BusinessException("新密码不能与原密码相同");
+        }
+        if (userMapper.resetPassword(userId, request.newPassword()) == 0) {
+            throw new BusinessException("密码修改失败");
+        }
     }
 
     public List<Map<String, Object>> currentMenus(Long userId) {

@@ -100,7 +100,7 @@ class NoticeServiceImplTest {
 
         List<NoticeListVO> mockList = List.of(new NoticeListVO());
         when(noticeMapper.selectUserNoticeList(any(), anyLong(), anyLong(), any())).thenReturn(mockList);
-        when(noticeMapper.countUserNoticeList(any(), anyLong(), anyLong(), any())).thenReturn(1);
+        when(noticeMapper.countUserNoticeList(any(), anyLong(), anyLong(), any())).thenReturn(1L);
 
         PageResult<NoticeListVO> result = noticeService.getNoticeList(dto, 100L, 1L, List.of("EMPLOYEE"));
 
@@ -221,21 +221,21 @@ class NoticeServiceImplTest {
     @Test
     @DisplayName("获取未读数量 - 无筛选条件")
     void getUnreadCount_NoFilters() {
-        when(noticeReadMapper.countUnreadByUserId(100L)).thenReturn(5);
+        when(noticeReadMapper.countUnreadByUserId(100L)).thenReturn(5L);
 
-        Map<String, Integer> byType = new HashMap<>();
-        byType.put("COMPANY", 2);
-        byType.put("DEPT", 3);
+        Map<String, Long> byType = new HashMap<>();
+        byType.put("COMPANY", 2L);
+        byType.put("DEPT", 3L);
         when(noticeReadMapper.countUnreadByType(100L)).thenReturn(byType);
 
-        Map<String, Integer> byPriority = new HashMap<>();
-        byPriority.put("HIGH", 1);
-        byPriority.put("NORMAL", 4);
+        Map<String, Long> byPriority = new HashMap<>();
+        byPriority.put("HIGH", 1L);
+        byPriority.put("NORMAL", 4L);
         when(noticeReadMapper.countUnreadByPriority(100L)).thenReturn(byPriority);
 
         UnreadCountVO result = noticeService.getUnreadCount(100L, null, null);
 
-        assertThat(result.getTotal()).isEqualTo(5);
+        assertThat(result.getTotal()).isEqualTo(5L);
         assertThat(result.getByType()).isEqualTo(byType);
         assertThat(result.getByPriority()).isEqualTo(byPriority);
 
@@ -247,11 +247,11 @@ class NoticeServiceImplTest {
     @Test
     @DisplayName("获取未读数量 - 带筛选条件")
     void getUnreadCount_WithFilters() {
-        when(noticeReadMapper.countUnreadByUserIdAndFilters(100L, "COMPANY", "HIGH")).thenReturn(2);
+        when(noticeReadMapper.countUnreadByUserIdAndFilters(100L, "COMPANY", "HIGH")).thenReturn(2L);
 
         UnreadCountVO result = noticeService.getUnreadCount(100L, "COMPANY", "HIGH");
 
-        assertThat(result.getTotal()).isEqualTo(2);
+        assertThat(result.getTotal()).isEqualTo(2L);
         assertThat(result.getByType()).isEmpty();
         assertThat(result.getByPriority()).isEmpty();
 
@@ -435,7 +435,7 @@ class NoticeServiceImplTest {
 
         List<AdminNoticeListVO> mockList = List.of(new AdminNoticeListVO());
         when(noticeMapper.selectAdminNoticeList(any())).thenReturn(mockList);
-        when(noticeMapper.countAdminNoticeList(any())).thenReturn(1);
+        when(noticeMapper.countAdminNoticeList(any())).thenReturn(1L);
 
         PageResult<AdminNoticeListVO> result = noticeService.getAdminNoticeList(dto);
 

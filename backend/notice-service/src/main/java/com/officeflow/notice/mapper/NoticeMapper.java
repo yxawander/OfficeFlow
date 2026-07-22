@@ -22,13 +22,13 @@ public interface NoticeMapper {
 
     List<NoticeListVO> selectUserNoticeList(@Param("dto") NoticeQueryDTO dto, @Param("userId") Long userId, @Param("deptId") Long deptId, @Param("roles") List<String> roles);
 
-    Integer countUserNoticeList(@Param("dto") NoticeQueryDTO dto, @Param("userId") Long userId, @Param("deptId") Long deptId, @Param("roles") List<String> roles);
+    Long countUserNoticeList(@Param("dto") NoticeQueryDTO dto, @Param("userId") Long userId, @Param("deptId") Long deptId, @Param("roles") List<String> roles);
 
     NoticeDetailVO selectDetailById(@Param("id") Long id, @Param("userId") Long userId);
 
     List<AdminNoticeListVO> selectAdminNoticeList(@Param("dto") NoticeQueryDTO dto);
 
-    Integer countAdminNoticeList(@Param("dto") NoticeQueryDTO dto);
+    Long countAdminNoticeList(@Param("dto") NoticeQueryDTO dto);
 
     int incrementViewCount(Long id);
 

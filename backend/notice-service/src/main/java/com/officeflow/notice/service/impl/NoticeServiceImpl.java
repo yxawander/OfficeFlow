@@ -44,7 +44,7 @@ public class NoticeServiceImpl implements NoticeService {
         dto.setOffset(offset);
 
         List<NoticeListVO> records = noticeMapper.selectUserNoticeList(dto, userId, deptId, roles);
-        Integer total = noticeMapper.countUserNoticeList(dto, userId, deptId, roles);
+        Long total = noticeMapper.countUserNoticeList(dto, userId, deptId, roles);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
     }
@@ -255,7 +255,7 @@ public class NoticeServiceImpl implements NoticeService {
         dto.setOffset(offset);
 
         List<AdminNoticeListVO> records = noticeMapper.selectAdminNoticeList(dto);
-        Integer total = noticeMapper.countAdminNoticeList(dto);
+        Long total = noticeMapper.countAdminNoticeList(dto);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
     }

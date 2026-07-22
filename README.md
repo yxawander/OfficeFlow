@@ -113,12 +113,25 @@ docker compose ps
 docker compose down
 ```
 
-如果需要同时删除本地数据卷，重新初始化数据库：
+### 重新初始化数据库
+
+如果其他成员修改并提交了 `docs/sql/init.sql` 里的表结构，或者你拉取代码后发现本地数据库表字段和代码不一致，需要删除旧数据库数据卷并重建数据库。
+
+在 `OfficeFlow` 根目录执行：
 
 ```powershell
 docker compose down -v
 docker compose up -d
 ```
+
+说明：
+
+- `docker compose down -v` 会停止中间件，并删除本项目的 Docker 数据卷。
+- 删除数据卷后，MySQL 里的 `officeflow` 数据库会被清空。
+- `docker compose up -d` 会重新创建 MySQL、Redis、Nacos，并按最新 `docs/sql/init.sql` 初始化数据库。
+- 这个操作会删除本地测试数据。没有重要测试数据时，拉取到新的表结构后推荐直接这样重建。
+
+重建数据库后，需要重新启动后端服务，并重新登录前端。
 
 数据库初始化脚本位于：
 

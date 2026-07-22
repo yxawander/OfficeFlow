@@ -280,13 +280,13 @@ async function saveUserRoles() {
   await assignUserRolesApi(roleDialog.userId, roleDialog.ids)
   ElMessage.success('分配成功')
   roleDialog.visible = false
-  await loadUsers()
+  await Promise.all([loadUsers(), loadBaseOptions()])
 }
 
 async function toggleUserStatus(row) {
   await updateUserStatusApi(row.id, row.status === 1 ? 0 : 1)
   ElMessage.success('状态已更新')
-  await loadUsers()
+  await Promise.all([loadUsers(), loadBaseOptions()])
 }
 
 async function resetPassword(row) {

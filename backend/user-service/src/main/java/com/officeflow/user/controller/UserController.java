@@ -53,35 +53,35 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody UserRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<Void> update(@PathVariable(name = "id") Long id, @Valid @RequestBody UserRequest request, HttpServletRequest httpRequest) {
         userService.updateUser(id, request);
         userService.operationLog(RequestUser.userId(httpRequest), RequestUser.username(httpRequest), "员工管理", "UPDATE", httpRequest);
         return ApiResponse.ok();
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest) {
+    public ApiResponse<Void> delete(@PathVariable(name = "id") Long id, HttpServletRequest httpRequest) {
         userService.deleteUser(id);
         userService.operationLog(RequestUser.userId(httpRequest), RequestUser.username(httpRequest), "员工管理", "DELETE", httpRequest);
         return ApiResponse.ok();
     }
 
     @PutMapping("/{id}/status")
-    public ApiResponse<Void> status(@PathVariable Long id, @Valid @RequestBody StatusRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<Void> status(@PathVariable(name = "id") Long id, @Valid @RequestBody StatusRequest request, HttpServletRequest httpRequest) {
         userService.updateUserStatus(id, request.status());
         userService.operationLog(RequestUser.userId(httpRequest), RequestUser.username(httpRequest), "员工管理", "UPDATE_STATUS", httpRequest);
         return ApiResponse.ok();
     }
 
     @PutMapping("/{id}/password")
-    public ApiResponse<Void> resetPassword(@PathVariable Long id, @Valid @RequestBody PasswordResetRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<Void> resetPassword(@PathVariable(name = "id") Long id, @Valid @RequestBody PasswordResetRequest request, HttpServletRequest httpRequest) {
         userService.resetPassword(id, request.password());
         userService.operationLog(RequestUser.userId(httpRequest), RequestUser.username(httpRequest), "员工管理", "RESET_PASSWORD", httpRequest);
         return ApiResponse.ok();
     }
 
     @PutMapping("/{id}/roles")
-    public ApiResponse<Void> assignRoles(@PathVariable Long id, @Valid @RequestBody IdListRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<Void> assignRoles(@PathVariable(name = "id") Long id, @Valid @RequestBody IdListRequest request, HttpServletRequest httpRequest) {
         userService.assignUserRoles(id, request.ids());
         userService.operationLog(RequestUser.userId(httpRequest), RequestUser.username(httpRequest), "员工角色", "ASSIGN", httpRequest);
         return ApiResponse.ok();

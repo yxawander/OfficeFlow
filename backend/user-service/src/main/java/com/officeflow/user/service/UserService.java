@@ -155,7 +155,29 @@ public class UserService {
 
     @Transactional
     public void updateUser(Long id, UserRequest request) {
-        if (userMapper.updateUser(id, request, defaultText(request.userType(), "EMPLOYEE"), defaultInt(request.status(), 1)) == 0) {
+        String userType = defaultText(request.userType(), "EMPLOYEE");
+        Long managerId = request.managerId();
+        if ("MANAGER".equalsIgnoreCase(userType)) {
+            managerId = 1L; // 部门主管的直属领导自动归属为系统管理员(1)
+        } else if ("ADMIN".equalsIgnoreCase(userType)) {
+            managerId = null;
+        }
+        UserRequest updatedRequest = new UserRequest(
+                request.username(),
+                request.password(),
+                request.realName(),
+                request.gender(),
+                request.phone(),
+                request.email(),
+                request.avatar(),
+                request.deptId(),
+                request.postId(),
+                managerId,
+                request.hireDate(),
+                userType,
+                request.status()
+        );
+        if (userMapper.updateUser(id, updatedRequest, userType, defaultInt(request.status(), 1)) == 0) {
             throw new BusinessException("员工不存在");
         }
     }
@@ -186,6 +208,16 @@ public class UserService {
         userMapper.deleteUserRoles(userId);
         if (roleIds != null && !roleIds.isEmpty()) {
             userMapper.insertUserRoles(userId, roleIds);
+
+            // 自动同步更新 user_type 字段与 manager_id 直属领导字段
+            if (roleIds.contains(1L)) {
+                userMapper.updateUserTypeAndManager(userId, "ADMIN", null);
+            } else if (roleIds.contains(2L)) {
+                userMapper.updateUserTypeAndManager(userId, "MANAGER", 1L); // 升级为主管，直属领导自动设为管理员(1)
+            } else {
+                // 普通员工
+                userMapper.updateUserTypeAndManager(userId, "EMPLOYEE", 2L);
+            }
         }
     }
 

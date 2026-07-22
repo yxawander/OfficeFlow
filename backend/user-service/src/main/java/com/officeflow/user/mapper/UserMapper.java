@@ -128,4 +128,7 @@ public interface UserMapper {
             </script>
             """)
     int insertUserRoles(@Param("userId") Long userId, @Param("roleIds") List<Long> roleIds);
+
+    @Update("UPDATE sys_user SET user_type = #{userType}, manager_id = #{managerId} WHERE id = #{id} AND is_deleted = 0")
+    int updateUserTypeAndManager(@Param("id") Long id, @Param("userType") String userType, @Param("managerId") Long managerId);
 }

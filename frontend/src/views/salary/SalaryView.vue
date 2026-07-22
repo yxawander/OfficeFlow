@@ -5,7 +5,7 @@
         <h1 class="page-title">工资结算与档案</h1>
         <p class="page-subtitle">根据月度考勤明细与岗位薪资标准，精准自动核算基本薪资、加班费及考勤扣款</p>
       </div>
-      <div class="action-buttons" v-if="isAdminOrHr">
+      <div class="action-buttons" v-if="isAdminOrManager">
         <el-button type="success" size="large" icon="Money" :loading="generating" @click="handleGenerateSalary">
           一键全员月度工资结算
         </el-button>
@@ -101,8 +101,8 @@
         </div>
       </el-tab-pane>
 
-      <!-- 管理员/HR 全员薪资档案 -->
-      <el-tab-pane label="全员薪资结算档案" name="all" v-if="isAdminOrHr">
+      <!-- 管理员/主管全员薪资档案 -->
+      <el-tab-pane label="全员薪资结算档案" name="all" v-if="isAdminOrManager">
         <div class="filter-card">
           <div class="filter-item">
             <span class="filter-label">结算月份：</span>
@@ -233,7 +233,7 @@ const loadingAll = ref(false)
 const generating = ref(false)
 const allSalaryList = ref([])
 
-const isAdminOrHr = computed(() => {
+const isAdminOrManager = computed(() => {
   const user = userStore.profile
   if (!user) return false
   const userType = user.userType || ''
@@ -300,7 +300,7 @@ const formatMoney = (val) => {
 
 onMounted(() => {
   fetchMySalary()
-  if (isAdminOrHr.value) {
+  if (isAdminOrManager.value) {
     fetchAllSalary()
   }
 })

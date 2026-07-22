@@ -41,7 +41,8 @@ public class FlowServiceImpl implements FlowService {
     @Override
     @Transactional
     public FlowApplyDetailVO createApply(FlowApplyCreateDTO dto, Long applicantId, Long deptId) {
-        validateApplyRequest(dto.getApplyType(), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
+        String applyType = normalizeApplyType(dto.getApplyType());
+        validateApplyRequest(applyType, dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
 
         FlowApply apply = new FlowApply();
         apply.setApplyNo(generateApplyNo());
@@ -53,7 +54,7 @@ public class FlowServiceImpl implements FlowService {
             throw new BusinessException("未找到直属领导，无法提交申请");
         }
         apply.setApproverId(managerId);
-        apply.setApplyType(dto.getApplyType());
+        apply.setApplyType(applyType);
         apply.setTitle(dto.getTitle());
         apply.setReason(dto.getReason());
         apply.setStartTime(dto.getStartTime());
@@ -173,7 +174,7 @@ public class FlowServiceImpl implements FlowService {
         if (!apply.getApplicantId().equals(userId)) {
             throw new BusinessException("仅申请人可编辑自己的申请");
         }
-        validateApplyRequest(apply.getApplyType(), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
+        validateApplyRequest(normalizeApplyType(apply.getApplyType()), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
 
         apply.setTitle(dto.getTitle());
         apply.setReason(dto.getReason());
@@ -249,7 +250,7 @@ public class FlowServiceImpl implements FlowService {
                 flowApplyMapper.recalculateAttendanceRecordAfterCorrection(userId, corrTime);
             }
         } else if ("LEAVE".equalsIgnoreCase(apply.getApplyType())) {
-            if (apply.getStartTime() != null && apply.getEndTime() != null) {
+            if (isFullDayLeave(apply) && apply.getStartTime() != null && apply.getEndTime() != null) {
                 java.time.LocalDate cur = apply.getStartTime().toLocalDate();
                 java.time.LocalDate end = apply.getEndTime().toLocalDate();
                 while (!cur.isAfter(end)) {
@@ -296,8 +297,16 @@ public class FlowServiceImpl implements FlowService {
         return "FL" + today + String.format("%06d", seq != null ? seq : 1);
     }
 
+    private String normalizeApplyType(String applyType) {
+        return applyType == null ? "" : applyType.trim().toUpperCase();
+    }
+
+    private boolean isFullDayLeave(FlowApply apply) {
+        return apply.getDurationHours() != null && apply.getDurationHours().compareTo(BigDecimal.valueOf(8)) >= 0;
+    }
+
     private void validateApplyRequest(String applyType, LocalDateTime startTime, LocalDateTime endTime, BigDecimal durationHours) {
-        if (!"LEAVE".equalsIgnoreCase(applyType) && !"OVERTIME".equalsIgnoreCase(applyType)) {
+        if (!"LEAVE".equals(applyType) && !"OVERTIME".equals(applyType)) {
             throw new BusinessException("仅支持请假和加班申请，补卡申请请在考勤记录中发起");
         }
         if (startTime == null || endTime == null) {

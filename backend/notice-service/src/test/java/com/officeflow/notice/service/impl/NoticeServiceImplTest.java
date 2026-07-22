@@ -1,5 +1,10 @@
 package com.officeflow.notice.service.impl;
 
+import com.officeflow.api.user.client.UserAdminClient;
+import com.officeflow.api.user.vo.DeptVO;
+import com.officeflow.api.user.vo.UserOptionVO;
+import com.officeflow.api.user.vo.UserVO;
+import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
 import com.officeflow.notice.dto.*;
@@ -46,6 +51,9 @@ class NoticeServiceImplTest {
 
     @Mock
     private NoticeReadMapper noticeReadMapper;
+
+    @Mock
+    private UserAdminClient userAdminClient;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -433,8 +441,11 @@ class NoticeServiceImplTest {
         dto.setPageNum(1);
         dto.setPageSize(10);
 
+        when(userAdminClient.getUserPage(null, null, 1, 1, 1))
+                .thenReturn(ApiResponse.ok(PageResult.of(100L, 1L, 1L, List.of())));
+
         List<AdminNoticeListVO> mockList = List.of(new AdminNoticeListVO());
-        when(noticeMapper.selectAdminNoticeList(any())).thenReturn(mockList);
+        when(noticeMapper.selectAdminNoticeList(any(), anyLong())).thenReturn(mockList);
         when(noticeMapper.countAdminNoticeList(any())).thenReturn(1L);
 
         PageResult<AdminNoticeListVO> result = noticeService.getAdminNoticeList(dto);
@@ -443,7 +454,7 @@ class NoticeServiceImplTest {
         assertThat(result.records()).hasSize(1);
         assertThat(result.total()).isEqualTo(1);
 
-        verify(noticeMapper).selectAdminNoticeList(any());
+        verify(noticeMapper).selectAdminNoticeList(any(), anyLong());
         verify(noticeMapper).countAdminNoticeList(any());
     }
 
@@ -453,10 +464,21 @@ class NoticeServiceImplTest {
         NoticeReadDetailVO detailVO = new NoticeReadDetailVO();
         detailVO.setNoticeId(1L);
 
-        List<NoticeReadDetailVO.DeptStatVO> deptStats = List.of(new NoticeReadDetailVO.DeptStatVO());
+        when(userAdminClient.getUserPage(null, null, 1, 1, 1))
+                .thenReturn(ApiResponse.ok(PageResult.of(100L, 1L, 1L, List.of())));
 
-        when(noticeReadMapper.selectReadDetailById(1L)).thenReturn(detailVO);
-        when(noticeReadMapper.selectDeptStatsForNotice(1L)).thenReturn(deptStats);
+        DeptVO dept = new DeptVO();
+        dept.setId(1L);
+        dept.setDeptName("技术部");
+        when(userAdminClient.getDeptList()).thenReturn(ApiResponse.ok(List.of(dept)));
+
+        UserOptionVO user = new UserOptionVO();
+        user.setId(100L);
+        user.setDeptId(1L);
+        when(userAdminClient.getUserOptions()).thenReturn(ApiResponse.ok(List.of(user)));
+
+        when(noticeReadMapper.selectReadDetailById(eq(1L), anyLong())).thenReturn(detailVO);
+        when(noticeReadMapper.selectReadUserIdsByNoticeId(1L)).thenReturn(List.of());
 
         NoticeReadDetailVO result = noticeService.getNoticeReadDetail(1L);
 
@@ -464,14 +486,17 @@ class NoticeServiceImplTest {
         assertThat(result.getNoticeId()).isEqualTo(1L);
         assertThat(result.getDeptStats()).isNotNull();
 
-        verify(noticeReadMapper).selectReadDetailById(1L);
-        verify(noticeReadMapper).selectDeptStatsForNotice(1L);
+        verify(noticeReadMapper).selectReadDetailById(eq(1L), anyLong());
+        verify(noticeReadMapper).selectReadUserIdsByNoticeId(1L);
     }
 
     @Test
     @DisplayName("获取公告阅读详情 - 公告不存在")
     void getNoticeReadDetail_NotExists() {
-        when(noticeReadMapper.selectReadDetailById(999L)).thenReturn(null);
+        when(userAdminClient.getUserPage(null, null, 1, 1, 1))
+                .thenReturn(ApiResponse.ok(PageResult.of(100L, 1L, 1L, List.of())));
+
+        when(noticeReadMapper.selectReadDetailById(eq(999L), anyLong())).thenReturn(null);
 
         assertThatThrownBy(() -> noticeService.getNoticeReadDetail(999L))
                 .isInstanceOf(BusinessException.class)

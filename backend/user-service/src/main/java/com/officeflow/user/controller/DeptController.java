@@ -29,6 +29,11 @@ public class DeptController {
         return ApiResponse.ok(userService.deptTree());
     }
 
+    @GetMapping
+    public ApiResponse<Object> list() {
+        return ApiResponse.ok(userService.deptList());
+    }
+
     @PostMapping
     public ApiResponse<Void> create(@Valid @RequestBody DeptRequest request, HttpServletRequest httpRequest) {
         userService.createDept(request);

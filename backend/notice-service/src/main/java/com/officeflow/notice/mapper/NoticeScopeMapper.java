@@ -14,6 +14,4 @@ public interface NoticeScopeMapper {
     int deleteByNoticeId(Long noticeId);
 
     List<NoticeScope> selectByNoticeId(Long noticeId);
-
-    List<String> selectScopeUsers(@Param("noticeId") Long noticeId);
 }

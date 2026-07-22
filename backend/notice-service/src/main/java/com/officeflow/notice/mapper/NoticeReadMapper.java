@@ -24,13 +24,11 @@ public interface NoticeReadMapper {
 
     Map<String, Long> countUnreadByPriority(Long userId);
 
-    NoticeReadDetailVO selectReadDetailById(Long noticeId);
-
-    Long countTotalUsersForNotice(Long noticeId);
+    NoticeReadDetailVO selectReadDetailById(@Param("noticeId") Long noticeId, @Param("totalActiveUsers") Long totalActiveUsers);
 
     Long countReadUsersForNotice(Long noticeId);
 
-    List<NoticeReadDetailVO.DeptStatVO> selectDeptStatsForNotice(Long noticeId);
+    List<Long> selectReadUserIdsByNoticeId(Long noticeId);
 
     int batchInsert(@Param("list") List<NoticeRead> list);
 }

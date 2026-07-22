@@ -20,6 +20,7 @@
         <module>notice-service</module>
         <module>report-service</module>
         <module>ai-service</module>
+        <module>oa-api</module>
     </modules>
 
     <properties>

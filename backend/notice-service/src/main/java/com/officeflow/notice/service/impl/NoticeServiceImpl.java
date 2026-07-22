@@ -1,5 +1,9 @@
 package com.officeflow.notice.service.impl;
 
+import com.officeflow.api.user.client.UserAdminClient;
+import com.officeflow.api.user.vo.DeptVO;
+import com.officeflow.api.user.vo.UserOptionVO;
+import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
 import com.officeflow.common.api.ResultCode;
@@ -23,11 +27,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,7 +45,7 @@ public class NoticeServiceImpl implements NoticeService {
     private final NoticeMapper noticeMapper;
     private final NoticeScopeMapper noticeScopeMapper;
     private final NoticeReadMapper noticeReadMapper;
-
+    private final UserAdminClient userAdminClient;
     @Override
     public PageResult<NoticeListVO> getNoticeList(NoticeQueryDTO dto, Long userId, Long deptId, List<String> roles) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
@@ -254,7 +262,8 @@ public class NoticeServiceImpl implements NoticeService {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
         dto.setOffset(offset);
 
-        List<AdminNoticeListVO> records = noticeMapper.selectAdminNoticeList(dto);
+        Long totalActiveUsers = getTotalActiveUsers();
+        List<AdminNoticeListVO> records = noticeMapper.selectAdminNoticeList(dto, totalActiveUsers);
         Long total = noticeMapper.countAdminNoticeList(dto);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
@@ -262,12 +271,78 @@ public class NoticeServiceImpl implements NoticeService {
 
     @Override
     public NoticeReadDetailVO getNoticeReadDetail(Long id) {
-        NoticeReadDetailVO detail = noticeReadMapper.selectReadDetailById(id);
+        Long totalActiveUsers = getTotalActiveUsers();
+        NoticeReadDetailVO detail = noticeReadMapper.selectReadDetailById(id, totalActiveUsers);
         if (detail == null) {
             throw new BusinessException("公告不存在");
         }
 
-        detail.setDeptStats(noticeReadMapper.selectDeptStatsForNotice(id));
+        detail.setDeptStats(computeDeptStats(id));
         return detail;
+    }
+
+    private Long getTotalActiveUsers() {
+        try {
+            ApiResponse<PageResult<com.officeflow.api.user.vo.UserVO>> response =
+                    userAdminClient.getUserPage(null, null, 1, 1, 1);
+            if (response != null && response.data() != null) {
+                return response.data().total();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get total active users from user-service, using fallback", e);
+        }
+        return 1L;
+    }
+
+    private List<NoticeReadDetailVO.DeptStatVO> computeDeptStats(Long noticeId) {
+        try {
+            ApiResponse<List<DeptVO>> deptResponse = userAdminClient.getDeptList();
+            List<DeptVO> depts = (deptResponse != null && deptResponse.data() != null)
+                    ? deptResponse.data() : List.of();
+
+            ApiResponse<List<UserOptionVO>> userResponse = userAdminClient.getUserOptions();
+            List<UserOptionVO> users = (userResponse != null && userResponse.data() != null)
+                    ? userResponse.data() : List.of();
+
+            Map<Long, Long> deptTotalUsers = new HashMap<>();
+            for (UserOptionVO user : users) {
+                if (user.getDeptId() != null) {
+                    deptTotalUsers.merge(user.getDeptId(), 1L, Long::sum);
+                }
+            }
+
+            List<Long> readUserIds = noticeReadMapper.selectReadUserIdsByNoticeId(noticeId);
+            Set<Long> readUserSet = new HashSet<>(readUserIds);
+
+            Map<Long, Long> deptReadUsers = new HashMap<>();
+            for (UserOptionVO user : users) {
+                if (user.getDeptId() != null && readUserSet.contains(user.getId())) {
+                    deptReadUsers.merge(user.getDeptId(), 1L, Long::sum);
+                }
+            }
+
+            List<NoticeReadDetailVO.DeptStatVO> stats = new ArrayList<>();
+            for (DeptVO dept : depts) {
+                NoticeReadDetailVO.DeptStatVO stat = new NoticeReadDetailVO.DeptStatVO();
+                stat.setDeptId(dept.getId());
+                stat.setDeptName(dept.getDeptName());
+                long total = deptTotalUsers.getOrDefault(dept.getId(), 0L);
+                long read = deptReadUsers.getOrDefault(dept.getId(), 0L);
+                stat.setTotalUsers(total);
+                stat.setReadUsers(read);
+                stat.setUnreadUsers(total - read);
+                if (total == 0) {
+                    stat.setReadRate(BigDecimal.ZERO);
+                } else {
+                    stat.setReadRate(BigDecimal.valueOf(read * 100.0 / total)
+                            .setScale(2, RoundingMode.HALF_UP));
+                }
+                stats.add(stat);
+            }
+            return stats;
+        } catch (Exception e) {
+            log.warn("Failed to compute department stats via user-service, returning empty list", e);
+            return List.of();
+        }
     }
 }

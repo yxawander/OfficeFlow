@@ -26,7 +26,7 @@ public interface NoticeMapper {
 
     NoticeDetailVO selectDetailById(@Param("id") Long id, @Param("userId") Long userId);
 
-    List<AdminNoticeListVO> selectAdminNoticeList(@Param("dto") NoticeQueryDTO dto);
+    List<AdminNoticeListVO> selectAdminNoticeList(@Param("dto") NoticeQueryDTO dto, @Param("totalActiveUsers") Long totalActiveUsers);
 
     Long countAdminNoticeList(@Param("dto") NoticeQueryDTO dto);
 

@@ -25,15 +25,4 @@
         FROM notice_scope WHERE notice_id = #{noticeId}
     </select>
 
-    <select id="selectScopeUsers" resultType="java.lang.String">
-        SELECT DISTINCT CONCAT('u', u.id) as userKey
-        FROM notice_scope ns
-        LEFT JOIN sys_user u ON
-            (ns.scope_type = 'USER' AND ns.scope_id = u.id)
-            OR (ns.scope_type = 'DEPT' AND ns.scope_id = u.dept_id)
-            OR (ns.scope_type = 'ALL' AND u.status = 1)
-        WHERE ns.notice_id = #{noticeId}
-        AND u.status = 1
-    </select>
-
 </mapper>

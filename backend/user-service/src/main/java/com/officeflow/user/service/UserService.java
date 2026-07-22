@@ -158,6 +158,10 @@ public class UserService {
         return buildTree(deptMapper.listAll());
     }
 
+    public List<Map<String, Object>> deptList() {
+        return deptMapper.listAll();
+    }
+
     public List<Map<String, Object>> postList() {
         return postMapper.listAll();
     }

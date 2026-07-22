@@ -632,7 +632,7 @@ const submitCorrection = async () => {
     correctionDialogVisible.value = false
     fetchMyRecords()
   } catch (error) {
-    ElMessage.error(error.message || '提交失败')
+    console.error('提交补卡申请失败', error)
   } finally {
     submittingCorrection.value = false
   }

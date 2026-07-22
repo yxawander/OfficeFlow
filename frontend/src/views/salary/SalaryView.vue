@@ -33,7 +33,9 @@
             <div class="payslip-header">
               <div class="payslip-title">
                 <h2>{{ mySalary?.settleMonth || myMonth }} 月份薪资明细单</h2>
-                <el-tag type="success" effect="dark">已结清发放</el-tag>
+                <el-tag :type="mySalary ? 'success' : 'info'" effect="dark">
+                  {{ mySalary ? '已结清发放' : '未生成' }}
+                </el-tag>
               </div>
               <div class="payslip-emp-info">
                 <span>姓名：<strong>{{ mySalary?.realName || userStore.profile?.realName }}</strong></span>
@@ -42,56 +44,59 @@
               </div>
             </div>
 
-            <div class="payslip-body">
-              <div class="net-salary-box">
-                <div class="net-label">本月实发工资 (元)</div>
-                <div class="net-value">￥{{ formatMoney(mySalary?.actualSalary) }}</div>
-              </div>
-
-              <div class="salary-breakdown-grid">
-                <!-- 收入项 -->
-                <div class="breakdown-column income-col">
-                  <div class="column-title">
-                    <el-icon><Plus /></el-icon> 应发收入明细
-                  </div>
-                  <div class="item-row">
-                    <span>基本工资</span>
-                    <span class="amount">￥{{ formatMoney(mySalary?.baseSalary) }}</span>
-                  </div>
-                  <div class="item-row">
-                    <span>岗位津贴/补贴</span>
-                    <span class="amount">￥{{ formatMoney(mySalary?.allowance) }}</span>
-                  </div>
-                  <div class="item-row">
-                    <span>加班费补贴 (按1.5倍计)</span>
-                    <span class="amount highlight-income">￥{{ formatMoney(mySalary?.overtimePay) }}</span>
-                  </div>
+            <template v-if="mySalary">
+              <div class="payslip-body">
+                <div class="net-salary-box">
+                  <div class="net-label">本月实发工资 (元)</div>
+                  <div class="net-value">￥{{ formatMoney(mySalary?.actualSalary) }}</div>
                 </div>
 
-                <!-- 扣款项 -->
-                <div class="breakdown-column deduction-col">
-                  <div class="column-title">
-                    <el-icon><Minus /></el-icon> 考勤扣款明细
+                <div class="salary-breakdown-grid">
+                  <!-- 收入项 -->
+                  <div class="breakdown-column income-col">
+                    <div class="column-title">
+                      <el-icon><Plus /></el-icon> 应发收入明细
+                    </div>
+                    <div class="item-row">
+                      <span>基本工资</span>
+                      <span class="amount">￥{{ formatMoney(mySalary?.baseSalary) }}</span>
+                    </div>
+                    <div class="item-row">
+                      <span>岗位津贴/补贴</span>
+                      <span class="amount">￥{{ formatMoney(mySalary?.allowance) }}</span>
+                    </div>
+                    <div class="item-row">
+                      <span>加班费补贴 (按1.5倍计)</span>
+                      <span class="amount highlight-income">￥{{ formatMoney(mySalary?.overtimePay) }}</span>
+                    </div>
                   </div>
-                  <div class="item-row">
-                    <span>迟到早退扣款</span>
-                    <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.lateDeduction) }}</span>
-                  </div>
-                  <div class="item-row">
-                    <span>旷工扣款 (按双倍日薪)</span>
-                    <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.absentDeduction) }}</span>
-                  </div>
-                  <div class="item-row">
-                    <span>请假扣款</span>
-                    <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.leaveDeduction) }}</span>
+
+                  <!-- 扣款项 -->
+                  <div class="breakdown-column deduction-col">
+                    <div class="column-title">
+                      <el-icon><Minus /></el-icon> 考勤扣款明细
+                    </div>
+                    <div class="item-row">
+                      <span>迟到早退扣款</span>
+                      <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.lateDeduction) }}</span>
+                    </div>
+                    <div class="item-row">
+                      <span>旷工扣款 (按双倍日薪)</span>
+                      <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.absentDeduction) }}</span>
+                    </div>
+                    <div class="item-row">
+                      <span>请假扣款</span>
+                      <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.leaveDeduction) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="payslip-footer">
-              <p>注：工资核算依据当月考勤打卡及流程审批数据自动生成，如有异议请联系人事部门。</p>
-            </div>
+              <div class="payslip-footer">
+                <p>注：工资核算依据当月考勤打卡及流程审批数据自动生成，如有异议请联系人事部门。</p>
+              </div>
+            </template>
+            <el-empty v-else description="本月工资条尚未生成，请等待管理员结算" />
           </div>
         </div>
       </el-tab-pane>
@@ -282,7 +287,7 @@ const handleGenerateSalary = async () => {
       fetchMySalary()
     }
   } catch (error) {
-    ElMessage.error(error.message || '计算工资失败')
+    console.error('计算工资失败', error)
   } finally {
     generating.value = false
   }

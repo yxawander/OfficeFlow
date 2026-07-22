@@ -21,6 +21,8 @@ import org.springframework.util.CollectionUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +41,8 @@ public class FlowServiceImpl implements FlowService {
     @Override
     @Transactional
     public FlowApplyDetailVO createApply(FlowApplyCreateDTO dto, Long applicantId, Long deptId) {
+        validateApplyRequest(dto.getApplyType(), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
+
         FlowApply apply = new FlowApply();
         apply.setApplyNo(generateApplyNo());
         apply.setApplicantId(applicantId);
@@ -169,6 +173,7 @@ public class FlowServiceImpl implements FlowService {
         if (!apply.getApplicantId().equals(userId)) {
             throw new BusinessException("仅申请人可编辑自己的申请");
         }
+        validateApplyRequest(apply.getApplyType(), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
 
         apply.setTitle(dto.getTitle());
         apply.setReason(dto.getReason());
@@ -237,7 +242,11 @@ public class FlowServiceImpl implements FlowService {
                 Long userId = corr.get("userId") != null ? Long.parseLong(corr.get("userId").toString()) : apply.getApplicantId();
                 String corrType = String.valueOf(corr.get("correctionType"));
                 LocalDateTime corrTime = (LocalDateTime) corr.get("correctionTime");
-                flowApplyMapper.updateAttendanceRecordForCorrection(recordId, userId, corrType, corrTime);
+                int updated = flowApplyMapper.updateAttendanceRecordForCorrection(recordId, userId, corrType, corrTime);
+                if (updated == 0) {
+                    flowApplyMapper.insertAttendanceRecordForCorrection(userId, apply.getApplicantDeptId(), corrType, corrTime);
+                }
+                flowApplyMapper.recalculateAttendanceRecordAfterCorrection(userId, corrTime);
             }
         } else if ("LEAVE".equalsIgnoreCase(apply.getApplyType())) {
             if (apply.getStartTime() != null && apply.getEndTime() != null) {
@@ -285,5 +294,26 @@ public class FlowServiceImpl implements FlowService {
         String key = "flow:apply:seq:" + today;
         Long seq = stringRedisTemplate.opsForValue().increment(key);
         return "FL" + today + String.format("%06d", seq != null ? seq : 1);
+    }
+
+    private void validateApplyRequest(String applyType, LocalDateTime startTime, LocalDateTime endTime, BigDecimal durationHours) {
+        if (!"LEAVE".equalsIgnoreCase(applyType) && !"OVERTIME".equalsIgnoreCase(applyType)) {
+            throw new BusinessException("仅支持请假和加班申请，补卡申请请在考勤记录中发起");
+        }
+        if (startTime == null || endTime == null) {
+            throw new BusinessException("申请开始时间和结束时间不能为空");
+        }
+        if (!endTime.isAfter(startTime)) {
+            throw new BusinessException("结束时间必须晚于开始时间");
+        }
+        if (durationHours == null || durationHours.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("申请时长必须大于0");
+        }
+
+        BigDecimal rangeHours = BigDecimal.valueOf(java.time.Duration.between(startTime, endTime).toMinutes())
+                .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        if (durationHours.compareTo(rangeHours) > 0) {
+            throw new BusinessException("申请时长不能超过开始和结束时间范围");
+        }
     }
 }

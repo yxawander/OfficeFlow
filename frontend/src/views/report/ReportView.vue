@@ -189,7 +189,7 @@ const handleGenerate = async () => {
     ElMessage.success(`${queryForm.month} 月度考勤报表重新汇总成功！`)
     fetchReports()
   } catch (error) {
-    ElMessage.error(error.message || '生成报表失败')
+    console.error('生成报表失败', error)
   } finally {
     generating.value = false
   }

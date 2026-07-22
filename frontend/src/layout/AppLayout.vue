@@ -25,18 +25,6 @@
             <span>{{ item.menuName }}</span>
           </el-menu-item>
         </template>
-        <el-menu-item index="/report">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>月度报表</span>
-        </el-menu-item>
-        <el-menu-item index="/salary">
-          <el-icon><Money /></el-icon>
-          <span>工资结算</span>
-        </el-menu-item>
-        <el-menu-item index="/ai-chat">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>AI 问答</span>
-        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -79,7 +67,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ChatDotRound, DataAnalysis, Expand, Fold, Money } from '@element-plus/icons-vue'
+import { Expand, Fold } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

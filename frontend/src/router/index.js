@@ -96,7 +96,7 @@ router.beforeEach((to) => {
 })
 
 function canVisit(path, menus) {
-  if (path === '/' || path === '/dashboard' || path === '/profile' || path === '/ai-chat' || path === '/report' || path === '/salary') {
+  if (path === '/' || path === '/profile') {
     return true
   }
   const stack = [...menus]

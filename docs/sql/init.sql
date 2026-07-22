@@ -496,7 +496,10 @@ VALUES
     (9, 3, '编辑员工', 'BUTTON', NULL, NULL, 'system:user:update', NULL, 0, 2, 1),
     (10, 3, '删除员工', 'BUTTON', NULL, NULL, 'system:user:delete', NULL, 0, 3, 1),
     (11, 6, '审批同意', 'BUTTON', NULL, NULL, 'flow:approve', NULL, 0, 1, 1),
-    (12, 6, '审批驳回', 'BUTTON', NULL, NULL, 'flow:reject', NULL, 0, 2, 1);
+    (12, 6, '审批驳回', 'BUTTON', NULL, NULL, 'flow:reject', NULL, 0, 2, 1),
+    (13, 0, '月度报表', 'MENU', '/report', 'views/report/ReportView.vue', 'report:view', 'DataAnalysis', 1, 6, 1),
+    (14, 0, '工资结算', 'MENU', '/salary', 'views/salary/SalaryView.vue', 'salary:view', 'Money', 1, 7, 1),
+    (15, 0, 'AI 问答', 'MENU', '/ai-chat', 'views/ai/AiChatView.vue', 'ai:view', 'ChatDotRound', 1, 8, 1);
 
 INSERT IGNORE INTO sys_api_permission (id, permission_name, permission_code, service_name, request_method, request_path, status)
 VALUES
@@ -534,7 +537,12 @@ VALUES
     (32, '工资结算生成', 'api:attendance:salary:generate', 'attendance-service', 'POST', '/api/attendance/salary/generate', 1),
     (33, '部门考勤监控', 'api:attendance:dept-today', 'attendance-service', 'GET', '/api/attendance/dept-today', 1),
     (34, '考勤规则查询', 'api:attendance:rule:list', 'attendance-service', 'GET', '/api/attendance/rules', 1),
-    (35, '考勤组查询', 'api:attendance:group:list', 'attendance-service', 'GET', '/api/attendance/groups', 1);
+    (35, '考勤组查询', 'api:attendance:group:list', 'attendance-service', 'GET', '/api/attendance/groups', 1),
+    (36, 'AI 问答查询', 'api:ai:rag:query', 'ai-service', 'GET', '/api/ai/rag/query', 1),
+    (37, 'AI 知识库状态', 'api:ai:rag:status', 'ai-service', 'GET', '/api/ai/rag/status', 1),
+    (38, 'AI 测试对话', 'api:ai:chat', 'ai-service', 'GET', '/api/ai/chat', 1),
+    (39, 'AI 知识库上传', 'api:ai:rag:upload', 'ai-service', 'POST', '/api/ai/rag/upload', 1),
+    (40, 'AI 知识库清空', 'api:ai:rag:clear', 'ai-service', 'DELETE', '/api/ai/rag/knowledge', 1);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id)
 VALUES
@@ -554,7 +562,7 @@ SELECT 1, id FROM sys_menu;
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 VALUES
-    (2, 1), (2, 5), (2, 6), (2, 7), (2, 11), (2, 12),
+    (2, 1), (2, 5), (2, 6), (2, 7), (2, 11), (2, 12), (2, 13), (2, 14), (2, 15),
     (3, 1), (3, 5), (3, 6), (3, 7);
 
 INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
@@ -564,6 +572,7 @@ INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
 VALUES
     (2, 2), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 10), (2, 15), (2, 16),
     (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24), (2, 28), (2, 29), (2, 30), (2, 31), (2, 32), (2, 33), (2, 34), (2, 35),
+    (2, 36), (2, 37), (2, 38), (2, 39),
     (3, 4), (3, 5), (3, 6), (3, 8), (3, 10), (3, 15), (3, 16),
     (3, 19), (3, 20), (3, 21), (3, 24), (3, 31);
 

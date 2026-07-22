@@ -30,7 +30,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/flow/health",
             "/api/notice/health",
             "/api/report/health",
-            "/api/ai/",
+            "/api/ai/health",
             "/actuator"
     );
 

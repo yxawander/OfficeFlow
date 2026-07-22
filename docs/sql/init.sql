@@ -515,7 +515,26 @@ VALUES
     (13, '考勤组维护', 'api:attendance:group:write', 'attendance-service', 'PUT', '/api/attendance/groups/**', 1),
     (14, '考勤组创建', 'api:attendance:group:create', 'attendance-service', 'POST', '/api/attendance/groups', 1),
     (15, '下班打卡', 'api:attendance:checkout', 'attendance-service', 'POST', '/api/attendance/check-out', 1),
-    (16, '补卡申请', 'api:attendance:recheck', 'attendance-service', 'POST', '/api/attendance/recheck', 1);
+    (16, '补卡申请', 'api:attendance:recheck', 'attendance-service', 'POST', '/api/attendance/recheck', 1),
+    (17, '员工维护', 'api:user:update', 'user-service', 'PUT', '/api/user/**', 1),
+    (18, '员工删除', 'api:user:delete', 'user-service', 'DELETE', '/api/user/**', 1),
+    (19, '提交审批申请', 'api:flow:apply:create', 'flow-service', 'POST', '/api/flow/applies', 1),
+    (20, '维护本人审批申请', 'api:flow:apply:update', 'flow-service', 'PUT', '/api/flow/applies/**', 1),
+    (21, '删除本人审批申请', 'api:flow:apply:delete', 'flow-service', 'DELETE', '/api/flow/applies/**', 1),
+    (22, '审批管理查询', 'api:flow:admin:list', 'flow-service', 'GET', '/api/flow/admin/**', 1),
+    (23, '审批同意驳回', 'api:flow:admin:approve', 'flow-service', 'POST', '/api/flow/admin/applies/**', 1),
+    (24, '公告已读维护', 'api:notice:read-status', 'notice-service', 'POST', '/api/notice/notices/**', 1),
+    (25, '公告管理发布', 'api:notice:admin:create', 'notice-service', 'POST', '/api/notice/admin/**', 1),
+    (26, '公告管理修改', 'api:notice:admin:update', 'notice-service', 'PUT', '/api/notice/admin/**', 1),
+    (27, '公告管理删除', 'api:notice:admin:delete', 'notice-service', 'DELETE', '/api/notice/admin/**', 1),
+    (28, '月度考勤报表查询', 'api:attendance:monthly-report:list', 'attendance-service', 'GET', '/api/attendance/monthly-reports', 1),
+    (29, '月度考勤报表生成', 'api:attendance:monthly-report:generate', 'attendance-service', 'POST', '/api/attendance/monthly-reports/generate', 1),
+    (30, '工资结算管理查询', 'api:attendance:salary:list', 'attendance-service', 'GET', '/api/attendance/salary/statements', 1),
+    (31, '个人工资查询', 'api:attendance:salary:my', 'attendance-service', 'GET', '/api/attendance/salary/my', 1),
+    (32, '工资结算生成', 'api:attendance:salary:generate', 'attendance-service', 'POST', '/api/attendance/salary/generate', 1),
+    (33, '部门考勤监控', 'api:attendance:dept-today', 'attendance-service', 'GET', '/api/attendance/dept-today', 1),
+    (34, '考勤规则查询', 'api:attendance:rule:list', 'attendance-service', 'GET', '/api/attendance/rules', 1),
+    (35, '考勤组查询', 'api:attendance:group:list', 'attendance-service', 'GET', '/api/attendance/groups', 1);
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id)
 VALUES
@@ -544,7 +563,9 @@ SELECT 1, id FROM sys_api_permission;
 INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
 VALUES
     (2, 2), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 10), (2, 15), (2, 16),
-    (3, 4), (3, 5), (3, 6), (3, 8), (3, 10), (3, 15), (3, 16);
+    (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24), (2, 28), (2, 29), (2, 30), (2, 31), (2, 32), (2, 33), (2, 34), (2, 35),
+    (3, 4), (3, 5), (3, 6), (3, 8), (3, 10), (3, 15), (3, 16),
+    (3, 19), (3, 20), (3, 21), (3, 24), (3, 31);
 
 INSERT IGNORE INTO sys_config (config_key, config_value, config_group, remark, status)
 VALUES
@@ -609,7 +630,7 @@ VALUES
     (10, 9000.00, 500.00);
 
 -- 初始化待审批测试单据 (供研发主管登录测试审批功能)
-INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
+INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, applicant_dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
 VALUES
     (101, 'LEAVE2026072201', 4, 2, 'LEAVE', '普通员工事假申请', '家中急事需请假半天', '2026-07-23 09:00:00', '2026-07-23 13:00:00', 4.0, 2, 'PENDING'),
     (102, 'OT2026072201', 4, 2, 'OVERTIME', '项目紧急冲刺加班', '后端接口性能调优上线', '2026-07-22 18:30:00', '2026-07-22 21:30:00', 3.0, 2, 'PENDING');

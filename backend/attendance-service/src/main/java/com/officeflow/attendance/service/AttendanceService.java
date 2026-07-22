@@ -25,6 +25,7 @@ public class AttendanceService {
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final AttendanceRuleMapper attendanceRuleMapper;
     private final com.officeflow.attendance.mapper.AttendanceGroupMapper attendanceGroupMapper;
+    private final com.officeflow.attendance.mapper.AttendanceCorrectionApplyMapper attendanceCorrectionApplyMapper;
 
     // 规定上班时间：09:00
     private static final LocalTime WORK_START_TIME = LocalTime.of(9, 0);
@@ -37,10 +38,12 @@ public class AttendanceService {
 
     public AttendanceService(AttendanceRecordMapper attendanceRecordMapper,
                              AttendanceRuleMapper attendanceRuleMapper,
-                             com.officeflow.attendance.mapper.AttendanceGroupMapper attendanceGroupMapper) {
+                             com.officeflow.attendance.mapper.AttendanceGroupMapper attendanceGroupMapper,
+                             com.officeflow.attendance.mapper.AttendanceCorrectionApplyMapper attendanceCorrectionApplyMapper) {
         this.attendanceRecordMapper = attendanceRecordMapper;
         this.attendanceRuleMapper = attendanceRuleMapper;
         this.attendanceGroupMapper = attendanceGroupMapper;
+        this.attendanceCorrectionApplyMapper = attendanceCorrectionApplyMapper;
     }
 
     @Transactional
@@ -122,7 +125,9 @@ public class AttendanceService {
             // 保持旷工状态
         } else if (currentTime.isBefore(workEndTime.minusMinutes(earlyLeaveThresholdMinutes))) {
             earlyLeaveMinutes = (int) Duration.between(currentTime, workEndTime).toMinutes();
-            if (!"LATE".equals(status)) {
+            if ("LATE".equals(status)) {
+                status = "LATE_AND_EARLY"; // 既迟到又早退！
+            } else if (!"LATE_AND_EARLY".equals(status)) {
                 status = "EARLY_LEAVE";
             }
         }
@@ -268,6 +273,67 @@ public class AttendanceService {
             throw new BusinessException("指定考勤组不存在");
         }
         attendanceGroupMapper.updateGroup(id, request);
+    }
+
+    @Transactional
+    public void recheck(Long userId, com.officeflow.attendance.dto.CorrectionRequest request) {
+        if (userId == null) {
+            throw new BusinessException("未获取到当前登录用户");
+        }
+        if (request.correctionTime() == null) {
+            throw new BusinessException("补卡时间不能为空");
+        }
+        if (request.correctionType() == null || request.reason() == null || request.reason().isBlank()) {
+            throw new BusinessException("补卡类型和原因不能为空");
+        }
+
+        // 防重复与防止对已驳回记录重复申请
+        LocalDate targetWorkDate = request.workDate() != null ? request.workDate() : request.correctionTime().toLocalDate();
+        int existingCount = attendanceCorrectionApplyMapper.countActiveOrRejectedCorrection(userId, request.attendanceRecordId(), targetWorkDate);
+        if (existingCount > 0) {
+            throw new BusinessException("该日期已在审批中或已被驳回，不可重复发起补卡申请");
+        }
+
+        Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
+        Long managerId = attendanceCorrectionApplyMapper.selectManagerIdByUserId(userId);
+        if (managerId == null) {
+            managerId = 1L; // 默认超级管理员
+        }
+
+        // 1. 生成 flow_apply
+        String applyNo = "CORR" + System.currentTimeMillis();
+        com.officeflow.attendance.dto.FlowApplyInsertParams flowParams = new com.officeflow.attendance.dto.FlowApplyInsertParams();
+        flowParams.setApplyNo(applyNo);
+        flowParams.setApplicantId(userId);
+        flowParams.setDeptId(deptId);
+        flowParams.setApproverId(managerId);
+        flowParams.setApplyType("CORRECTION");
+        flowParams.setTitle("考勤补卡申请 (" + ("CHECK_IN".equalsIgnoreCase(request.correctionType()) ? "上班补卡" : "下班补卡") + ")");
+        flowParams.setReason(request.reason());
+        flowParams.setStartTime(request.correctionTime());
+        flowParams.setEndTime(request.correctionTime());
+        flowParams.setDurationHours(java.math.BigDecimal.ZERO);
+        flowParams.setStatus("PENDING");
+        flowParams.setCurrentNode("DIRECT_MANAGER");
+
+        attendanceCorrectionApplyMapper.insertFlowApply(flowParams);
+        attendanceCorrectionApplyMapper.insertApproveRecord(flowParams.getId(), userId);
+
+        // 2. 生成 attendance_correction_apply 记录
+        com.officeflow.attendance.entity.AttendanceCorrectionApply apply = new com.officeflow.attendance.entity.AttendanceCorrectionApply();
+        apply.setUserId(userId);
+        apply.setAttendanceRecordId(request.attendanceRecordId());
+        apply.setCorrectionType(request.correctionType());
+        apply.setCorrectionTime(request.correctionTime());
+        apply.setReason(request.reason());
+        apply.setFlowApplyId(flowParams.getId());
+        apply.setStatus("PENDING");
+
+        attendanceCorrectionApplyMapper.insert(apply);
+    }
+
+    public List<com.officeflow.attendance.entity.AttendanceCorrectionApply> getMyCorrections(Long userId) {
+        return attendanceCorrectionApplyMapper.listByUserId(userId);
     }
 
     private Map<String, Object> getEffectiveRule(Long deptId) {

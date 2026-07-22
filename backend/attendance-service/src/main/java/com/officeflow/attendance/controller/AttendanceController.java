@@ -48,6 +48,26 @@ public class AttendanceController {
     }
 
     /**
+     * 提交补卡申请
+     */
+    @PostMapping("/recheck")
+    public ApiResponse<Void> recheck(@RequestBody com.officeflow.attendance.dto.CorrectionRequest request,
+                                     HttpServletRequest httpRequest) {
+        Long userId = RequestUser.userId(httpRequest);
+        attendanceService.recheck(userId, request);
+        return ApiResponse.ok();
+    }
+
+    /**
+     * 查询个人补卡申请历史
+     */
+    @GetMapping("/corrections")
+    public ApiResponse<java.util.List<com.officeflow.attendance.entity.AttendanceCorrectionApply>> myCorrections(HttpServletRequest httpRequest) {
+        Long userId = RequestUser.userId(httpRequest);
+        return ApiResponse.ok(attendanceService.getMyCorrections(userId));
+    }
+
+    /**
      * 获取当前登录用户今日打卡状态
      */
     @GetMapping("/today")

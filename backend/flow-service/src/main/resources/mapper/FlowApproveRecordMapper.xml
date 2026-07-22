@@ -4,10 +4,8 @@
 
     <insert id="insert" parameterType="com.officeflow.flow.entity.FlowApproveRecord"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO flow_approve_record (flow_apply_id, approver_id, action, comment,
-                                          approved_at, created_at, updated_at)
-        VALUES (#{flowApplyId}, #{approverId}, #{action}, #{comment},
-                #{approvedAt}, NOW(), NOW())
+        INSERT INTO flow_approve_record (flow_apply_id, approver_id, action, comment, approved_at)
+        VALUES (#{flowApplyId}, #{approverId}, #{action}, #{comment}, COALESCE(#{approvedAt}, NOW()))
     </insert>
 
     <select id="selectByApplyId" resultType="com.officeflow.flow.vo.FlowApproveRecordVO">

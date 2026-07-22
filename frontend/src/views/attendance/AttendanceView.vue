@@ -195,6 +195,28 @@
               <span>{{ row.checkInRemark || row.checkOutRemark || '-' }}</span>
             </template>
           </el-table-column>
+
+          <el-table-column label="操作" width="130" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-tag v-if="row.correctionStatus === 'PENDING'" type="warning" effect="dark" size="small">
+                <el-icon class="el-icon--left"><Clock /></el-icon>补卡审核中
+              </el-tag>
+              <el-tag v-else-if="row.correctionStatus === 'REJECTED'" type="danger" effect="plain" size="small">
+                <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
+              </el-tag>
+              <el-button
+                v-else-if="row.status === 'LATE' || row.status === 'EARLY_LEAVE' || row.status === 'LATE_AND_EARLY' || row.status === 'ABSENT' || row.status === 'MISSING_CARD'"
+                type="warning"
+                plain
+                size="small"
+                icon="Edit"
+                @click="openCorrectionDialog(row)"
+              >
+                申请补卡
+              </el-button>
+              <span v-else class="text-muted">-</span>
+            </template>
+          </el-table-column>
         </el-table>
 
         <div class="pagination-container">
@@ -506,6 +528,43 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 考勤补卡申请对话框 -->
+    <el-dialog v-model="correctionDialogVisible" title="发起考勤补卡申请" width="500px" destroy-on-close>
+      <el-form label-width="100px">
+        <el-form-item label="考勤日期">
+          <el-input :value="correctionForm.workDate" disabled />
+        </el-form-item>
+        <el-form-item label="补卡类型">
+          <el-radio-group v-model="correctionForm.correctionType" @change="onCorrectionTypeChange">
+            <el-radio label="CHECK_IN">上班打卡补卡</el-radio>
+            <el-radio label="CHECK_OUT">下班打卡补卡</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="补打卡时间">
+          <el-date-picker
+            v-model="correctionForm.correctionTime"
+            type="datetime"
+            placeholder="选择补打卡精确时间"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="补卡原因">
+          <el-input
+            v-model="correctionForm.reason"
+            type="textarea"
+            :rows="3"
+            placeholder="说明忘记打卡或设备异常的原因"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="correctionDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submittingCorrection" @click="submitCorrection">提交补卡申请</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -525,11 +584,59 @@ import {
   updateRuleApi,
   getGroupsApi,
   createGroupApi,
-  updateGroupApi
+  updateGroupApi,
+  recheckApi
 } from '@/api/attendance'
 
 const userStore = useUserStore()
 const activeTab = ref('my')
+
+// 补卡申请弹窗状态
+const correctionDialogVisible = ref(false)
+const submittingCorrection = ref(false)
+const correctionForm = ref({
+  attendanceRecordId: null,
+  workDate: '',
+  correctionType: 'CHECK_IN',
+  correctionTime: '',
+  reason: ''
+})
+
+const openCorrectionDialog = (row) => {
+  correctionForm.value.attendanceRecordId = row.id
+  correctionForm.value.workDate = row.workDate
+  correctionForm.value.correctionType = row.checkInTime ? 'CHECK_OUT' : 'CHECK_IN'
+  correctionForm.value.correctionTime = `${row.workDate} ${correctionForm.value.correctionType === 'CHECK_IN' ? '09:00:00' : '18:00:00'}`
+  correctionForm.value.reason = ''
+  correctionDialogVisible.value = true
+}
+
+const submitCorrection = async () => {
+  if (!correctionForm.value.correctionTime) {
+    ElMessage.warning('请选择补打卡时间')
+    return
+  }
+  if (!correctionForm.value.reason.trim()) {
+    ElMessage.warning('请输入补卡原因')
+    return
+  }
+  submittingCorrection.value = true
+  try {
+    await recheckApi({
+      attendanceRecordId: correctionForm.value.attendanceRecordId,
+      correctionType: correctionForm.value.correctionType,
+      correctionTime: correctionForm.value.correctionTime,
+      reason: correctionForm.value.reason
+    })
+    ElMessage.success('补卡申请提交成功，请等待主管审批！')
+    correctionDialogVisible.value = false
+    fetchMyRecords()
+  } catch (error) {
+    ElMessage.error(error.message || '提交失败')
+  } finally {
+    submittingCorrection.value = false
+  }
+}
 
 // 角色判定：管理员与主管权限分离
 const isAdmin = computed(() => {
@@ -633,7 +740,7 @@ const remark = ref('')
 // 计算统计
 const normalRate = computed(() => {
   if (!records.value.length) return 100
-  const normalCount = records.value.filter(r => r.status === 'NORMAL').length
+  const normalCount = records.value.filter(r => r.status === 'NORMAL' || r.status === 'RECHECKED').length
   return Math.round((normalCount / records.value.length) * 100)
 })
 
@@ -854,8 +961,11 @@ const formatMinutes = (mins) => {
 const getStatusTagType = (status) => {
   switch (status) {
     case 'NORMAL': return 'success'
+    case 'RECHECKED': return 'primary'
+    case 'ON_LEAVE': return 'warning'
     case 'LATE': return 'danger'
     case 'EARLY_LEAVE': return 'warning'
+    case 'LATE_AND_EARLY': return 'danger'
     case 'ABSENT': return 'danger'
     case 'MISSING_CARD': return 'warning'
     default: return 'info'
@@ -865,10 +975,13 @@ const getStatusTagType = (status) => {
 const formatStatusText = (status, lateMins, earlyMins) => {
   switch (status) {
     case 'NORMAL': return '正常打卡'
+    case 'RECHECKED': return '已补卡'
+    case 'ON_LEAVE': return '休假中'
     case 'LATE': return `迟到 (${formatMinutes(lateMins)})`
     case 'EARLY_LEAVE': return `早退 (${formatMinutes(earlyMins)})`
+    case 'LATE_AND_EARLY': return `迟到(${formatMinutes(lateMins)}) + 早退(${formatMinutes(earlyMins)})`
     case 'ABSENT': return `旷工 (${formatMinutes(lateMins)})`
-    case 'MISSING_CARD': return '下班缺卡'
+    case 'MISSING_CARD': return '缺卡'
     default: return status || '正常'
   }
 }
@@ -876,8 +989,11 @@ const formatStatusText = (status, lateMins, earlyMins) => {
 const getDeptStatusTagType = (status) => {
   switch (status) {
     case 'NORMAL': return 'success'
+    case 'RECHECKED': return 'primary'
+    case 'ON_LEAVE': return 'warning'
     case 'LATE': return 'danger'
     case 'EARLY_LEAVE': return 'warning'
+    case 'LATE_AND_EARLY': return 'danger'
     case 'ABSENT': return 'danger'
     case 'MISSING_CARD': return 'warning'
     case 'NOT_CHECKED': return 'info'
@@ -888,8 +1004,11 @@ const getDeptStatusTagType = (status) => {
 const formatDeptStatusText = (status, lateMins) => {
   switch (status) {
     case 'NORMAL': return '正常打卡'
+    case 'RECHECKED': return '已补卡'
+    case 'ON_LEAVE': return '休假中'
     case 'LATE': return `迟到 (${formatMinutes(lateMins)})`
     case 'EARLY_LEAVE': return '早退'
+    case 'LATE_AND_EARLY': return `迟到且早退 (${formatMinutes(lateMins)})`
     case 'ABSENT': return `旷工 (${formatMinutes(lateMins)})`
     case 'MISSING_CARD': return '缺卡'
     case 'NOT_CHECKED': return '未打卡'

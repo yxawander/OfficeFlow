@@ -59,3 +59,13 @@ export function createGroupApi(data) {
 export function updateGroupApi(id, data) {
   return request.put(`/api/attendance/groups/${id}`, data)
 }
+
+// 提交补卡申请
+export function recheckApi(data) {
+  return request.post('/api/attendance/recheck', data)
+}
+
+// 查询个人补卡申请历史
+export function getMyCorrectionsApi() {
+  return request.get('/api/attendance/corrections')
+}

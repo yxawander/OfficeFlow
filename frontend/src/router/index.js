@@ -49,6 +49,18 @@ const routes = [
         meta: { title: '公告通知', icon: 'Bell' }
       },
       {
+        path: 'report',
+        name: 'report',
+        component: () => import('@/views/report/ReportView.vue'),
+        meta: { title: '月度报表', icon: 'DataAnalysis' }
+      },
+      {
+        path: 'salary',
+        name: 'salary',
+        component: () => import('@/views/salary/SalaryView.vue'),
+        meta: { title: '工资结算', icon: 'Money' }
+      },
+      {
         path: 'ai-chat',
         name: 'ai-chat',
         component: () => import('@/views/ai/AiChatView.vue'),
@@ -78,7 +90,7 @@ router.beforeEach((to) => {
 })
 
 function canVisit(path, menus) {
-  if (path === '/' || path === '/dashboard' || path === '/ai-chat') {
+  if (path === '/' || path === '/dashboard' || path === '/ai-chat' || path === '/report' || path === '/salary') {
     return true
   }
   const stack = [...menus]

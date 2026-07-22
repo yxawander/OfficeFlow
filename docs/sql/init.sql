@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS sys_post (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '岗位ID',
     post_name VARCHAR(64) NOT NULL COMMENT '岗位名称',
     post_code VARCHAR(64) NOT NULL COMMENT '岗位编码',
+    base_salary DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '岗位基础薪资',
     sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
     is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否，1是',
@@ -196,6 +197,29 @@ CREATE TABLE IF NOT EXISTS sys_operation_log (
     KEY idx_sys_operation_log_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='基础操作日志表';
 
+CREATE TABLE IF NOT EXISTS sys_user_salary (
+    user_id BIGINT PRIMARY KEY COMMENT '员工ID',
+    base_salary DECIMAL(10,2) NOT NULL COMMENT '基本工资',
+    allowance DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '补贴/津贴',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工薪资档案';
+
+CREATE TABLE IF NOT EXISTS salary_monthly_statement (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL COMMENT '员工ID',
+    settle_month CHAR(7) NOT NULL COMMENT '结算月份 YYYY-MM',
+    base_salary DECIMAL(10,2) NOT NULL COMMENT '基本工资',
+    overtime_pay DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '加班费',
+    allowance DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '各种津贴',
+    late_deduction DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '迟到早退扣款',
+    absent_deduction DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '旷工扣款',
+    leave_deduction DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '请假扣款',
+    actual_salary DECIMAL(10,2) NOT NULL COMMENT '实发工资',
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT, PUBLISHED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_salary_statement_user_month (user_id, settle_month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='月度工资结算表';
+
 -- =========================================================
 -- 2. 考勤模块：attendance-service
 -- =========================================================
@@ -241,7 +265,7 @@ CREATE TABLE IF NOT EXISTS attendance_record (
     work_minutes INT NOT NULL DEFAULT 0 COMMENT '实际工作分钟数',
     late_minutes INT NOT NULL DEFAULT 0 COMMENT '迟到分钟数',
     early_leave_minutes INT NOT NULL DEFAULT 0 COMMENT '早退分钟数',
-    status VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '状态：NORMAL/LATE/EARLY_LEAVE/ABSENT/MISSING_CARD',
+    status VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '状态：NORMAL(正常打卡), RECHECKED(已补卡), ON_LEAVE(休假中), LATE(迟到), EARLY_LEAVE(早退), LATE_AND_EARLY(迟到且早退), ABSENT(旷工), MISSING_CARD(缺卡)',
     source VARCHAR(32) NOT NULL DEFAULT 'USER_CHECK' COMMENT '来源：USER_CHECK/MANUAL/RECALCULATE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -360,7 +384,7 @@ CREATE TABLE IF NOT EXISTS notice (
     notice_type VARCHAR(32) NOT NULL DEFAULT 'COMPANY' COMMENT '类型：COMPANY/DEPT/SYSTEM',
     priority VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '优先级：NORMAL/IMPORTANT/URGENT',
     publisher_id BIGINT NOT NULL COMMENT '发布人ID',
-    publisher_name VARCHAR(64) DEFAULT NULL COMMENT '发布人姓名缓存'
+    publisher_name VARCHAR(64) DEFAULT NULL COMMENT '发布人姓名缓存',
     publish_time DATETIME DEFAULT NULL COMMENT '发布时间',
     expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',
@@ -432,13 +456,13 @@ VALUES
     (3, 1, '人事部', 'HR', 3, 3, 1),
     (4, 1, '行政部', 'ADMIN_DEPT', 4, 4, 1);
 
-INSERT IGNORE INTO sys_post (id, post_name, post_code, sort_order, status)
+INSERT IGNORE INTO sys_post (id, post_name, post_code, base_salary, sort_order, status)
 VALUES
-    (1, '系统管理员', 'SYS_ADMIN', 1, 1),
-    (2, '部门主管', 'DEPT_MANAGER', 2, 1),
-    (3, '后端工程师', 'BACKEND_DEV', 3, 1),
-    (4, '前端工程师', 'FRONTEND_DEV', 4, 1),
-    (5, '人事专员', 'HR_SPECIALIST', 5, 1);
+    (1, '系统管理员', 'SYS_ADMIN', 15000.00, 1, 1),
+    (2, '部门主管', 'DEPT_MANAGER', 25000.00, 2, 1),
+    (3, '后端工程师', 'BACKEND_DEV', 18000.00, 3, 1),
+    (4, '前端工程师', 'FRONTEND_DEV', 16000.00, 4, 1),
+    (5, '人事专员', 'HR_SPECIALIST', 10000.00, 5, 1);
 
 INSERT IGNORE INTO sys_user (id, username, password, real_name, gender, phone, email, dept_id, post_id, manager_id, hire_date, user_type, status)
 VALUES
@@ -545,13 +569,48 @@ INSERT IGNORE INTO notice_scope (notice_id, scope_type, scope_id)
 VALUES
     (1, 'ALL', NULL);
 
--- 初始化今日考勤测试模拟流水数据
+-- 初始化考勤多维度全状态模拟测试数据 (涵盖 NORMAL, RECHECKED, ON_LEAVE, LATE, EARLY_LEAVE, MISSING_CARD, ABSENT)
 INSERT IGNORE INTO attendance_record (user_id, dept_id, work_date, check_in_time, check_in_ip, check_in_remark, check_out_time, check_out_ip, check_out_remark, work_minutes, late_minutes, early_leave_minutes, status, source)
 VALUES
-    (1, 1, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:52:10'), '127.0.0.1', '管理员例行上班打卡', CONCAT(CURRENT_DATE(), ' 18:05:30'), '127.0.0.1', '正常下班', 553, 0, 0, 'NORMAL', 'USER_CHECK'),
-    (2, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:58:00'), '127.0.0.1', '研发主管例行上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
-    (4, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 09:25:00'), '127.0.0.1', '交通原因迟到', NULL, NULL, NULL, 0, 25, 0, 'LATE', 'USER_CHECK'),
-    (7, 2, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:45:00'), '127.0.0.1', '后端组张伟上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
-    (5, 3, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:55:00'), '127.0.0.1', '人事主管例行打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
-    (9, 3, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 09:18:00'), '127.0.0.1', '面试招聘延误打卡', NULL, NULL, NULL, 0, 18, 0, 'LATE', 'USER_CHECK'),
-    (6, 4, CURRENT_DATE(), CONCAT(CURRENT_DATE(), ' 08:50:00'), '127.0.0.1', '行政主管上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK');
+    -- 2026-07-22 (今日)
+    (1, 1, '2026-07-22', '2026-07-22 08:52:10', '127.0.0.1', '管理员例行打卡', '2026-07-22 18:05:30', '127.0.0.1', '正常下班', 553, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (2, 2, '2026-07-22', '2026-07-22 08:58:00', '127.0.0.1', '研发主管打卡', '2026-07-22 18:10:00', '127.0.0.1', '正常下班', 552, 0, 0, 'NORMAL', 'USER_CHECK'),
+    (4, 2, '2026-07-22', '2026-07-22 09:25:00', '127.0.0.1', '交通拥堵迟到', NULL, NULL, NULL, 0, 25, 0, 'LATE', 'USER_CHECK'),
+    (7, 2, '2026-07-22', '2026-07-22 08:45:00', '127.0.0.1', '张伟上班打卡', NULL, NULL, NULL, 0, 0, 0, 'NORMAL', 'USER_CHECK'),
+    -- 2026-07-21 (已补卡 RECHECKED)
+    (4, 2, '2026-07-21', '2026-07-21 09:00:00', '127.0.0.1', '补打卡成功修正', '2026-07-21 18:00:00', '127.0.0.1', '正常下班', 540, 0, 0, 'RECHECKED', 'MANUAL'),
+    (1, 1, '2026-07-21', '2026-07-21 08:50:00', '127.0.0.1', '正常出勤', '2026-07-21 18:15:00', '127.0.0.1', '正常下班', 565, 0, 0, 'NORMAL', 'USER_CHECK'),
+    -- 2026-07-20 (休假中 ON_LEAVE)
+    (4, 2, '2026-07-20', NULL, NULL, '因事休假已审批', NULL, NULL, '休假免打卡', 0, 0, 0, 'ON_LEAVE', 'MANUAL'),
+    (7, 2, '2026-07-20', '2026-07-20 08:52:00', '127.0.0.1', '正常出勤', '2026-07-20 18:02:00', '127.0.0.1', '正常下班', 550, 0, 0, 'NORMAL', 'USER_CHECK'),
+    -- 2026-07-19 (迟到 LATE)
+    (4, 2, '2026-07-19', '2026-07-19 09:35:00', '127.0.0.1', '地铁故障迟到', '2026-07-19 18:00:00', '127.0.0.1', '正常下班', 505, 35, 0, 'LATE', 'USER_CHECK'),
+    -- 2026-07-18 (早退 EARLY_LEAVE)
+    (4, 2, '2026-07-18', '2026-07-18 08:55:00', '127.0.0.1', '正常上班', '2026-07-18 17:15:00', '127.0.0.1', '提前离岗', 495, 0, 45, 'EARLY_LEAVE', 'USER_CHECK'),
+    -- 2026-07-17 (缺卡 MISSING_CARD)
+    (4, 2, '2026-07-17', '2026-07-17 08:58:00', '127.0.0.1', '准时上班', NULL, NULL, '忘记下班打卡', 0, 0, 0, 'MISSING_CARD', 'USER_CHECK'),
+    -- 2026-07-16 (旷工 ABSENT)
+    (4, 2, '2026-07-16', NULL, NULL, '全天未打卡', NULL, NULL, '全天未打卡', 0, 0, 0, 'ABSENT', 'SYSTEM'),
+    -- 2026-07-15 (迟到且早退 LATE_AND_EARLY)
+    (4, 2, '2026-07-15', '2026-07-15 09:20:00', '127.0.0.1', '晚到', '2026-07-15 17:30:00', '127.0.0.1', '早走', 490, 20, 30, 'LATE_AND_EARLY', 'USER_CHECK');
+
+-- 初始化员工薪资档案测试数据
+INSERT IGNORE INTO sys_user_salary (user_id, base_salary, allowance)
+VALUES
+    (1, 15000.00, 1000.00),
+    (2, 28000.00, 2000.00),
+    (3, 12000.00, 500.00),
+    (4, 10000.00, 500.00),
+    (5, 20000.00, 1500.00),
+    (6, 18000.00, 1500.00),
+    (7, 19000.00, 800.00),
+    (8, 17000.00, 800.00),
+    (9, 11000.00, 500.00),
+    (10, 9000.00, 500.00);
+
+-- 初始化待审批测试单据 (供研发主管登录测试审批功能)
+INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
+VALUES
+    (101, 'LEAVE2026072201', 4, 2, 'LEAVE', '普通员工事假申请', '家中急事需请假半天', '2026-07-23 09:00:00', '2026-07-23 13:00:00', 4.0, 2, 'PENDING'),
+    (102, 'OT2026072201', 4, 2, 'OVERTIME', '项目紧急冲刺加班', '后端接口性能调优上线', '2026-07-22 18:30:00', '2026-07-22 21:30:00', 3.0, 2, 'PENDING');
+

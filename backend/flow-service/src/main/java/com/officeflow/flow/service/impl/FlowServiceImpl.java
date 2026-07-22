@@ -227,6 +227,28 @@ public class FlowServiceImpl implements FlowService {
         record.setComment(dto.getComment());
         record.setApprovedAt(now);
         flowApproveRecordMapper.insert(record);
+
+        // 如果是补卡类型申请，自动同步更新 attendance_correction_apply 与 attendance_record 考勤表
+        if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
+            flowApplyMapper.updateCorrectionStatusByFlowApplyId(id, "APPROVED");
+            java.util.Map<String, Object> corr = flowApplyMapper.selectCorrectionByFlowApplyId(id);
+            if (corr != null) {
+                Long recordId = corr.get("attendanceRecordId") != null ? Long.parseLong(corr.get("attendanceRecordId").toString()) : null;
+                Long userId = corr.get("userId") != null ? Long.parseLong(corr.get("userId").toString()) : apply.getApplicantId();
+                String corrType = String.valueOf(corr.get("correctionType"));
+                LocalDateTime corrTime = (LocalDateTime) corr.get("correctionTime");
+                flowApplyMapper.updateAttendanceRecordForCorrection(recordId, userId, corrType, corrTime);
+            }
+        } else if ("LEAVE".equalsIgnoreCase(apply.getApplyType())) {
+            if (apply.getStartTime() != null && apply.getEndTime() != null) {
+                java.time.LocalDate cur = apply.getStartTime().toLocalDate();
+                java.time.LocalDate end = apply.getEndTime().toLocalDate();
+                while (!cur.isAfter(end)) {
+                    flowApplyMapper.upsertAttendanceRecordForLeave(apply.getApplicantId(), apply.getApplicantDeptId(), cur);
+                    cur = cur.plusDays(1);
+                }
+            }
+        }
     }
 
     @Override
@@ -252,6 +274,10 @@ public class FlowServiceImpl implements FlowService {
         record.setComment(dto.getComment());
         record.setApprovedAt(LocalDateTime.now());
         flowApproveRecordMapper.insert(record);
+
+        if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
+            flowApplyMapper.updateCorrectionStatusByFlowApplyId(id, "REJECTED");
+        }
     }
 
     private String generateApplyNo() {

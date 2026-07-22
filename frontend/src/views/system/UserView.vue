@@ -12,7 +12,7 @@
       <el-tab-pane label="员工" name="users">
         <div class="toolbar">
           <el-input v-model="query.keyword" placeholder="账号 / 姓名 / 手机号" clearable style="width: 220px" @keyup.enter="loadUsers" />
-          <el-tree-select v-model="query.deptId" :data="deptTree" node-key="id" check-strictly clearable placeholder="部门" style="width: 200px" />
+          <el-tree-select v-model="query.deptId" :data="deptTree" :props="deptTreeProps" node-key="id" check-strictly clearable placeholder="部门" style="width: 200px" />
           <el-select v-model="query.status" clearable placeholder="状态" style="width: 130px">
             <el-option label="启用" :value="1" />
             <el-option label="停用" :value="0" />
@@ -110,7 +110,7 @@
           <el-form-item label="密码"><el-input v-model="userDialog.form.password" type="password" show-password placeholder="新增默认 123456" /></el-form-item>
           <el-form-item label="手机号"><el-input v-model="userDialog.form.phone" /></el-form-item>
           <el-form-item label="邮箱"><el-input v-model="userDialog.form.email" /></el-form-item>
-          <el-form-item label="部门"><el-tree-select v-model="userDialog.form.deptId" :data="deptTree" node-key="id" check-strictly clearable /></el-form-item>
+          <el-form-item label="部门"><el-tree-select v-model="userDialog.form.deptId" :data="deptTree" :props="deptTreeProps" node-key="id" check-strictly clearable /></el-form-item>
           <el-form-item label="岗位"><el-select v-model="userDialog.form.postId" clearable><el-option v-for="item in posts" :key="item.id" :label="item.postName" :value="item.id" /></el-select></el-form-item>
           <el-form-item label="直属领导"><el-select v-model="userDialog.form.managerId" clearable><el-option v-for="item in userOptions" :key="item.id" :label="item.realName" :value="item.id" /></el-select></el-form-item>
           <el-form-item label="用户类型"><el-select v-model="userDialog.form.userType"><el-option label="管理员" value="ADMIN" /><el-option label="主管" value="MANAGER" /><el-option label="员工" value="EMPLOYEE" /></el-select></el-form-item>
@@ -135,7 +135,7 @@
 
     <el-dialog v-model="deptDialog.visible" :title="deptDialog.form.id ? '编辑部门' : '新增部门'" width="560px">
       <el-form :model="deptDialog.form" label-width="92px">
-        <el-form-item label="上级部门"><el-tree-select v-model="deptDialog.form.parentId" :data="deptTree" node-key="id" check-strictly clearable /></el-form-item>
+        <el-form-item label="上级部门"><el-tree-select v-model="deptDialog.form.parentId" :data="deptTree" :props="deptTreeProps" node-key="id" check-strictly clearable /></el-form-item>
         <el-form-item label="部门名称"><el-input v-model="deptDialog.form.deptName" /></el-form-item>
         <el-form-item label="部门编码"><el-input v-model="deptDialog.form.deptCode" /></el-form-item>
         <el-form-item label="负责人"><el-select v-model="deptDialog.form.leaderId" clearable><el-option v-for="item in userOptions" :key="item.id" :label="item.realName" :value="item.id" /></el-select></el-form-item>
@@ -198,6 +198,7 @@ const userOptions = ref([])
 const userTotal = ref(0)
 const loading = reactive({ users: false, depts: false, posts: false })
 const query = reactive({ keyword: '', deptId: null, status: null, pageNum: 1, pageSize: 10 })
+const deptTreeProps = { value: 'id', label: 'deptName', children: 'children' }
 
 const userDialog = reactive({ visible: false, form: emptyUser() })
 const deptDialog = reactive({ visible: false, form: emptyDept() })
@@ -209,7 +210,7 @@ function emptyUser() {
 }
 
 function emptyDept() {
-  return { id: null, parentId: 0, deptName: '', deptCode: '', leaderId: null, phone: '', email: '', sortOrder: 0, status: 1 }
+  return { id: null, parentId: null, deptName: '', deptCode: '', leaderId: null, phone: '', email: '', sortOrder: 0, status: 1 }
 }
 
 function emptyPost() {

@@ -71,7 +71,7 @@
         </div>
       </el-tab-pane>
 
-      <el-tab-pane label="待我审批" name="pending">
+      <el-tab-pane v-if="canHandleApproval" label="待我审批" name="pending">
         <div class="panel">
           <div class="panel-alert" v-if="pendingApplies.length === 0 && !loadingPending">
             <el-empty description="暂无待您审批的单据" />
@@ -112,7 +112,7 @@
         </div>
       </el-tab-pane>
 
-      <el-tab-pane label="已办审批" name="processed">
+      <el-tab-pane v-if="canHandleApproval" label="已办审批" name="processed">
         <div class="panel">
           <div class="panel-alert" v-if="processedApplies.length === 0 && !loadingProcessed">
             <el-empty description="暂无您已处理的单据" />
@@ -299,6 +299,17 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const activeTab = ref('my')
 
+const canHandleApproval = computed(() => {
+  const user = userStore.profile || {}
+  const roles = user.roles || []
+  const permissions = user.permissions || []
+  return user.userType === 'ADMIN'
+    || user.userType === 'MANAGER'
+    || roles.some(role => ['ADMIN', 'MANAGER'].includes(role.roleCode))
+    || permissions.includes('flow:approve')
+    || permissions.includes('flow:reject')
+})
+
 // 数据
 const myApplies = ref([])
 const pendingApplies = ref([])
@@ -409,9 +420,9 @@ const loadProcessedApplies = async () => {
 const handleTabClick = (tab) => {
   if (tab.paneName === 'my') {
     loadMyApplies()
-  } else if (tab.paneName === 'pending') {
+  } else if (tab.paneName === 'pending' && canHandleApproval.value) {
     loadPendingApplies()
-  } else if (tab.paneName === 'processed') {
+  } else if (tab.paneName === 'processed' && canHandleApproval.value) {
     loadProcessedApplies()
   }
 }
@@ -577,7 +588,9 @@ const getStatusTagType = (status) => {
 
 onMounted(() => {
   loadMyApplies()
-  loadPendingApplies()
+  if (canHandleApproval.value) {
+    loadPendingApplies()
+  }
 })
 </script>
 

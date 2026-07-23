@@ -75,7 +75,7 @@ public class MonthlyReportAndSalaryController {
     public ApiResponse<Void> publishSalaryStatements(@RequestBody java.util.List<Long> ids, HttpServletRequest request) {
         String roles = RequestUser.roles(request);
         if (!roles.contains("ADMIN") && !roles.contains("MANAGER") && !roles.contains("HR")) {
-            return ApiResponse.error(403, "无权限执行薪资发放操作");
+            return ApiResponse.fail(403, "无权限执行薪资发放操作");
         }
         monthlyReportAndSalaryService.publishSalaryStatements(ids);
         return ApiResponse.ok();

@@ -44,6 +44,18 @@ public class FlowServiceImpl implements FlowService {
         apply.setApplicantId(applicantId);
         apply.setApplicantDeptId(deptId);
 
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+        if ("LEAVE".equals(dto.getApplyType())) {
+            if (dto.getStartTime().toLocalDate().isBefore(today)) {
+                throw new BusinessException("请假申请不能选择过去的日期，过去的考勤异常请走补卡流程");
+            }
+        } else if ("CORRECTION".equals(dto.getApplyType())) {
+            if (dto.getStartTime().toLocalDate().isAfter(today)) {
+                throw new BusinessException("补卡申请只能针对今天及以前的日期");
+            }
+        }
+
         Long managerId = flowApplyMapper.selectManagerIdByUserId(applicantId);
         if (managerId == null) {
             throw new BusinessException("未找到直属领导，无法提交申请");

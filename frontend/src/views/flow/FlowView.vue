@@ -145,6 +145,7 @@
               format="YYYY-MM-DD HH:mm:ss"
               value-format="YYYY-MM-DD HH:mm:ss"
               style="width: 100%"
+              :disabled-date="disabledApplyDate"
               @change="calculateDuration"
             />
           </el-form-item>
@@ -251,6 +252,14 @@ const applyDialogTitle = computed(() => {
     default: return '发起申请'
   }
 })
+
+const disabledApplyDate = (time) => {
+  if (applyForm.applyType === 'LEAVE') {
+    // 请假不能选择过去的时间（基于今天0点）
+    return time.getTime() < new Date().setHours(0, 0, 0, 0)
+  }
+  return false
+}
 
 // 审批处理弹窗
 const actionDialogVisible = ref(false)

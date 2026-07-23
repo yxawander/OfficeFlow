@@ -549,6 +549,7 @@
             format="YYYY-MM-DD HH:mm:ss"
             value-format="YYYY-MM-DD HH:mm:ss"
             style="width: 100%"
+            :disabled-date="disabledCorrectionDate"
           />
         </el-form-item>
         <el-form-item label="补卡原因">
@@ -601,6 +602,14 @@ const correctionForm = ref({
   correctionTime: '',
   reason: ''
 })
+
+const disabledCorrectionDate = (time) => {
+  if (!correctionForm.value.workDate) return false
+  // 将补卡日期严格限制为当天缺卡的日期
+  const targetDate = new Date(correctionForm.value.workDate).setHours(0, 0, 0, 0)
+  const currentTime = new Date(time).setHours(0, 0, 0, 0)
+  return currentTime !== targetDate
+}
 
 const openCorrectionDialog = (row) => {
   correctionForm.value.attendanceRecordId = row.id

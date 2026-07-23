@@ -609,7 +609,7 @@ VALUES
     (10, 9000.00, 500.00);
 
 -- 初始化待审批测试单据 (供研发主管登录测试审批功能)
-INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
+INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, applicant_dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
 VALUES
     (101, 'LEAVE2026072201', 4, 2, 'LEAVE', '普通员工事假申请', '家中急事需请假半天', '2026-07-23 09:00:00', '2026-07-23 13:00:00', 4.0, 2, 'PENDING'),
     (102, 'OT2026072201', 4, 2, 'OVERTIME', '项目紧急冲刺加班', '后端接口性能调优上线', '2026-07-22 18:30:00', '2026-07-22 21:30:00', 3.0, 2, 'PENDING');

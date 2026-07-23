@@ -9,13 +9,16 @@ import com.officeflow.common.exception.BusinessException;
 import com.officeflow.common.api.ResultCode;
 import com.officeflow.notice.dto.*;
 import com.officeflow.notice.entity.Notice;
+import com.officeflow.notice.entity.NoticeAttachment;
 import com.officeflow.notice.entity.NoticeScope;
 import com.officeflow.notice.entity.NoticeRead;
+import com.officeflow.notice.mapper.NoticeAttachmentMapper;
 import com.officeflow.notice.mapper.NoticeMapper;
 import com.officeflow.notice.mapper.NoticeReadMapper;
 import com.officeflow.notice.mapper.NoticeScopeMapper;
 import com.officeflow.notice.service.NoticeService;
 import com.officeflow.notice.vo.AdminNoticeListVO;
+import com.officeflow.notice.vo.AttachmentVO;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
 import com.officeflow.notice.vo.NoticeReadDetailVO;
@@ -45,6 +48,7 @@ public class NoticeServiceImpl implements NoticeService {
     private final NoticeMapper noticeMapper;
     private final NoticeScopeMapper noticeScopeMapper;
     private final NoticeReadMapper noticeReadMapper;
+    private final NoticeAttachmentMapper noticeAttachmentMapper;
     private final UserAdminClient userAdminClient;
     @Override
     public PageResult<NoticeListVO> getNoticeList(NoticeQueryDTO dto, Long userId, Long deptId, List<String> roles) {
@@ -80,6 +84,7 @@ public class NoticeServiceImpl implements NoticeService {
             detail.setReadAt(LocalDateTime.now());
         }
 
+        detail.setAttachments(buildAttachmentVOs(id));
         return detail;
     }
 
@@ -89,6 +94,7 @@ public class NoticeServiceImpl implements NoticeService {
         if (detail == null) {
             throw new BusinessException("公告不存在");
         }
+        detail.setAttachments(buildAttachmentVOs(id));
         return detail;
     }
 
@@ -154,6 +160,7 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setPriority(dto.getPriority());
         notice.setPublisherId(userId);
         notice.setPublisherName(username);
+        notice.setScheduledTime(dto.getScheduledTime());
         notice.setExpireTime(dto.getExpireTime());
         notice.setStatus("DRAFT");
         notice.setReadCount(0);
@@ -176,6 +183,10 @@ public class NoticeServiceImpl implements NoticeService {
             }
         }
 
+        if (!CollectionUtils.isEmpty(dto.getAttachmentIds())) {
+            noticeAttachmentMapper.updateNoticeId(dto.getAttachmentIds(), notice.getId());
+        }
+
         return notice.getId();
     }
 
@@ -195,6 +206,7 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setContent(dto.getContent());
         notice.setNoticeType(dto.getNoticeType());
         notice.setPriority(dto.getPriority());
+        notice.setScheduledTime(dto.getScheduledTime());
         notice.setExpireTime(dto.getExpireTime());
 
         noticeMapper.updateById(notice);
@@ -206,6 +218,13 @@ public class NoticeServiceImpl implements NoticeService {
             scope.setScopeType(scopeDTO.getScopeType());
             scope.setScopeId(scopeDTO.getScopeId());
             noticeScopeMapper.insert(scope);
+        }
+
+        if (dto.getAttachmentIds() != null) {
+            noticeAttachmentMapper.unbindByNoticeId(id);
+            if (!CollectionUtils.isEmpty(dto.getAttachmentIds())) {
+                noticeAttachmentMapper.updateNoticeId(dto.getAttachmentIds(), id);
+            }
         }
 
         return true;
@@ -254,6 +273,7 @@ public class NoticeServiceImpl implements NoticeService {
 
         noticeMapper.deleteById(id);
         noticeScopeMapper.deleteByNoticeId(id);
+        noticeAttachmentMapper.deleteByNoticeId(id);
         return true;
     }
 
@@ -279,6 +299,21 @@ public class NoticeServiceImpl implements NoticeService {
 
         detail.setDeptStats(computeDeptStats(id));
         return detail;
+    }
+
+    @Override
+    public int autoPublishScheduledNotices() {
+        List<Notice> scheduledNotices = noticeMapper.selectScheduledNotices();
+        if (CollectionUtils.isEmpty(scheduledNotices)) {
+            return 0;
+        }
+        int count = 0;
+        for (Notice notice : scheduledNotices) {
+            noticeMapper.updateStatusById(notice.getId(), "PUBLISHED");
+            count++;
+            log.info("Auto published notice: id={}, title={}", notice.getId(), notice.getTitle());
+        }
+        return count;
     }
 
     private Long getTotalActiveUsers() {
@@ -344,5 +379,22 @@ public class NoticeServiceImpl implements NoticeService {
             log.warn("Failed to compute department stats via user-service, returning empty list", e);
             return List.of();
         }
+    }
+
+    private List<AttachmentVO> buildAttachmentVOs(Long noticeId) {
+        List<NoticeAttachment> attachments = noticeAttachmentMapper.selectByNoticeId(noticeId);
+        if (CollectionUtils.isEmpty(attachments)) {
+            return List.of();
+        }
+        return attachments.stream().map(a -> {
+            AttachmentVO vo = new AttachmentVO();
+            vo.setId(a.getId());
+            vo.setNoticeId(a.getNoticeId());
+            vo.setFileName(a.getFileName());
+            vo.setFileUrl(a.getFileUrl());
+            vo.setFileSize(a.getFileSize());
+            vo.setFileType(a.getFileType());
+            return vo;
+        }).collect(Collectors.toList());
     }
 }

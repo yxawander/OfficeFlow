@@ -18,6 +18,7 @@ public class Notice extends BaseEntity {
     private Long publisherId;
     private String publisherName;
     private LocalDateTime publishTime;
+    private LocalDateTime scheduledTime;
     private LocalDateTime expireTime;
     private String status;
     private Integer readCount;

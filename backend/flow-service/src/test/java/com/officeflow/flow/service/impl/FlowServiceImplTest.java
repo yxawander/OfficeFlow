@@ -10,6 +10,7 @@ import com.officeflow.flow.dto.*;
 import com.officeflow.flow.entity.FlowApply;
 import com.officeflow.flow.mapper.FlowApplyMapper;
 import com.officeflow.flow.mapper.FlowApproveRecordMapper;
+import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.mapper.FlowCcMapper;
 import com.officeflow.flow.vo.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,9 @@ class FlowServiceImplTest {
 
     @Mock
     private FlowApproveRecordMapper flowApproveRecordMapper;
+
+    @Mock
+    private FlowAttachmentMapper flowAttachmentMapper;
 
     @Mock
     private FlowCcMapper flowCcMapper;

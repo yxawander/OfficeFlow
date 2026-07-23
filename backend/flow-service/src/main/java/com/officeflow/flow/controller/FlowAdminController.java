@@ -8,8 +8,6 @@ import com.officeflow.flow.dto.FlowApproveDTO;
 import com.officeflow.flow.dto.FlowRejectDTO;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.vo.FlowApprovedVO;
-import com.officeflow.flow.vo.FlowPendingVO;
-import com.officeflow.flow.vo.FlowProcessedVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,22 +21,6 @@ import org.springframework.web.bind.annotation.*;
 public class FlowAdminController {
 
     private final FlowService flowService;
-
-    @GetMapping("/applies/pending")
-    public ApiResponse<PageResult<FlowPendingVO>> getPendingApplies(FlowApplyQueryDTO dto,
-                                                                     HttpServletRequest request) {
-        Long approverId = getUserId(request);
-        Long deptId = getDeptId(request);
-        return ApiResponse.ok(flowService.getPendingApplies(dto, approverId, deptId));
-    }
-
-    @GetMapping("/applies/processed")
-    public ApiResponse<PageResult<FlowProcessedVO>> getProcessedApplies(FlowApplyQueryDTO dto,
-                                                                         HttpServletRequest request) {
-        Long approverId = getUserId(request);
-        Long deptId = getDeptId(request);
-        return ApiResponse.ok(flowService.getProcessedApplies(dto, approverId, deptId));
-    }
 
     @GetMapping("/applies/approved")
     public ApiResponse<PageResult<FlowApprovedVO>> getAllApprovedApplies(FlowApplyQueryDTO dto,

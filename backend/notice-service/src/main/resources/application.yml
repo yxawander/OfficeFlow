@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: notice-service
+  config:
+    import: optional:nacos:notice-service.yaml
   cloud:
     nacos:
       discovery:
@@ -11,6 +13,9 @@ spring:
       config:
         server-addr: localhost:8848
         file-extension: yaml
+        refresh-enabled: true
+        import-check:
+          enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:officeflow}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&characterSetResults=utf8mb4&serverTimezone=Asia/Shanghai
@@ -25,3 +30,4 @@ mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+

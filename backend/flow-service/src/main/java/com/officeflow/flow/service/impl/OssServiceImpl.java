@@ -1,12 +1,12 @@
-package com.officeflow.notice.service.impl;
+package com.officeflow.flow.service.impl;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.officeflow.common.exception.BusinessException;
-import com.officeflow.notice.config.OssProperties;
-import com.officeflow.notice.service.OssService;
+import com.officeflow.flow.config.OssProperties;
+import com.officeflow.flow.service.OssService;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -127,7 +127,7 @@ public class OssServiceImpl implements OssService {
         if (dotIndex > 0) {
             ext = originalFileName.substring(dotIndex);
         }
-        return "notice/" + month + "/" + UUID.randomUUID().toString().replace("-", "") + ext;
+        return "flow/" + month + "/" + UUID.randomUUID().toString().replace("-", "") + ext;
     }
 
     private static String maskSecret(String s) {

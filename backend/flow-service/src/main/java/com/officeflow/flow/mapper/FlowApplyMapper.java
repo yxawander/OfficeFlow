@@ -42,6 +42,8 @@ public interface FlowApplyMapper {
 
     int deleteById(@Param("id") Long id);
 
+    List<FlowApply> selectOverduePendingApplies(@Param("timeoutHours") int timeoutHours);
+
     @org.apache.ibatis.annotations.Update("UPDATE attendance_correction_apply SET status = #{status} WHERE flow_apply_id = #{flowApplyId}")
     int updateCorrectionStatusByFlowApplyId(@Param("flowApplyId") Long flowApplyId, @Param("status") String status);
 

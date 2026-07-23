@@ -387,11 +387,12 @@ CREATE TABLE IF NOT EXISTS flow_cc (
 
 CREATE TABLE IF NOT EXISTS flow_attachment (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '附件ID',
-    flow_apply_id BIGINT NOT NULL COMMENT '审批单ID',
+    flow_apply_id BIGINT NULL COMMENT '审批单ID（上传时为空，提交申请后绑定）',
     file_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
     file_url VARCHAR(500) NOT NULL COMMENT '文件访问地址',
     file_size BIGINT DEFAULT NULL COMMENT '文件大小字节',
     file_type VARCHAR(64) DEFAULT NULL COMMENT '文件MIME类型，如 image/png, application/pdf',
+    oss_key VARCHAR(512) DEFAULT NULL COMMENT 'OSS对象Key',
     uploaded_by BIGINT NOT NULL COMMENT '上传人ID',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_flow_attachment_apply (flow_apply_id)
@@ -410,6 +411,7 @@ CREATE TABLE IF NOT EXISTS notice (
     publisher_id BIGINT NOT NULL COMMENT '发布人ID',
     publisher_name VARCHAR(64) DEFAULT NULL COMMENT '发布人姓名缓存',
     publish_time DATETIME DEFAULT NULL COMMENT '发布时间',
+    scheduled_time DATETIME NULL COMMENT '计划发布时间，null表示需手动发布',
     expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',
     read_count INT NOT NULL DEFAULT 0 COMMENT '已读人数',
@@ -449,6 +451,20 @@ CREATE TABLE IF NOT EXISTS notice_read (
     KEY idx_notice_read_user (user_id),
     KEY idx_notice_read_at (read_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告阅读记录表（优化版）';
+
+CREATE TABLE `notice_attachment` (
+                                     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+                                     `notice_id`   BIGINT       NULL     COMMENT '关联公告ID（上传时可为空，创建/更新公告后绑定）',
+                                     `file_name`   VARCHAR(255) NOT NULL COMMENT '原始文件名',
+                                     `file_url`    VARCHAR(512) NOT NULL COMMENT 'OSS文件访问URL',
+                                     `file_size`   BIGINT       NOT NULL DEFAULT 0 COMMENT '文件大小（字节）',
+                                     `file_type`   VARCHAR(128) NULL     COMMENT 'MIME类型，如 application/pdf',
+                                     `oss_key`     VARCHAR(512) NOT NULL COMMENT 'OSS对象Key，如 notice/2026-07/uuid.pdf',
+                                     `uploaded_by` BIGINT       NULL     COMMENT '上传人用户ID',
+                                     `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                     PRIMARY KEY (`id`),
+                                     INDEX `idx_notice_id` (`notice_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='公告附件表';
 
 
 -- =========================================================

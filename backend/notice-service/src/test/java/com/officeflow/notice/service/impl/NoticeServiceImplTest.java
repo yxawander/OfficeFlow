@@ -11,6 +11,7 @@ import com.officeflow.notice.dto.*;
 import com.officeflow.notice.entity.Notice;
 import com.officeflow.notice.entity.NoticeRead;
 import com.officeflow.notice.entity.NoticeScope;
+import com.officeflow.notice.mapper.NoticeAttachmentMapper;
 import com.officeflow.notice.mapper.NoticeMapper;
 import com.officeflow.notice.mapper.NoticeReadMapper;
 import com.officeflow.notice.mapper.NoticeScopeMapper;
@@ -54,6 +55,9 @@ class NoticeServiceImplTest {
 
     @Mock
     private UserAdminClient userAdminClient;
+
+    @Mock
+    private NoticeAttachmentMapper noticeAttachmentMapper;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;

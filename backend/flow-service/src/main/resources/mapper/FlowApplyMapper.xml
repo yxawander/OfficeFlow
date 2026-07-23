@@ -222,6 +222,14 @@
         WHERE id = #{id} AND is_deleted = 0
     </update>
 
+    <select id="selectOverduePendingApplies" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM flow_apply
+        WHERE status = 'PENDING'
+          AND created_at <![CDATA[ < ]]> DATE_SUB(NOW(), INTERVAL #{timeoutHours} HOUR)
+          AND is_deleted = 0
+    </select>
+
     <update id="deleteById">
         UPDATE flow_apply
         SET is_deleted = 1, updated_at = NOW()

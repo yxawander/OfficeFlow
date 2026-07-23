@@ -44,4 +44,6 @@ public interface NoticeService {
     PageResult<AdminNoticeListVO> getAdminNoticeList(NoticeQueryDTO dto);
 
     NoticeReadDetailVO getNoticeReadDetail(Long id);
+
+    int autoPublishScheduledNotices();
 }

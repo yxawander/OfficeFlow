@@ -12,6 +12,7 @@
         <result column="publisher_id" property="publisherId"/>
         <result column="publisher_name" property="publisherName"/>
         <result column="publish_time" property="publishTime"/>
+        <result column="scheduled_time" property="scheduledTime"/>
         <result column="expire_time" property="expireTime"/>
         <result column="status" property="status"/>
         <result column="read_count" property="readCount"/>
@@ -23,15 +24,15 @@
 
     <sql id="Base_Column_List">
         id, title, content, notice_type, priority, publisher_id, publisher_name,
-        publish_time, expire_time, status, read_count, view_count, is_deleted,
+        publish_time, scheduled_time, expire_time, status, read_count, view_count, is_deleted,
         created_at, updated_at
     </sql>
 
     <insert id="insert" parameterType="com.officeflow.notice.entity.Notice" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO notice (title, content, notice_type, priority, publisher_id, publisher_name,
-        publish_time, expire_time, status, read_count, view_count, is_deleted, created_at, updated_at)
+        publish_time, scheduled_time, expire_time, status, read_count, view_count, is_deleted, created_at, updated_at)
         VALUES (#{title}, #{content}, #{noticeType}, #{priority}, #{publisherId}, #{publisherName},
-        #{publishTime}, #{expireTime}, #{status}, #{readCount}, #{viewCount}, #{isDeleted}, NOW(), NOW())
+        #{publishTime}, #{scheduledTime}, #{expireTime}, #{status}, #{readCount}, #{viewCount}, #{isDeleted}, NOW(), NOW())
     </insert>
 
     <update id="updateById" parameterType="com.officeflow.notice.entity.Notice">
@@ -41,6 +42,7 @@
         <if test="noticeType != null">notice_type = #{noticeType},</if>
         <if test="priority != null">priority = #{priority},</if>
         <if test="expireTime != null">expire_time = #{expireTime},</if>
+        <if test="scheduledTime != null">scheduled_time = #{scheduledTime},</if>
         updated_at = NOW()
         WHERE id = #{id}
     </update>
@@ -219,10 +221,20 @@
         UPDATE notice SET
         <if test="status == 'PUBLISHED'">
             publish_time = NOW(),
+            scheduled_time = NULL,
         </if>
         status = #{status}, updated_at = NOW()
         WHERE id = #{id}
     </update>
+
+    <select id="selectScheduledNotices" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM notice
+        WHERE status = 'DRAFT'
+        AND scheduled_time IS NOT NULL
+        AND scheduled_time &lt;= NOW()
+        AND is_deleted = 0
+    </select>
 
     <select id="selectExpiredNotices" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>

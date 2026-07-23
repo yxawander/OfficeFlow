@@ -3,17 +3,26 @@ package com.officeflow.flow.controller;
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.constant.CommonConstants;
+import com.officeflow.common.exception.BusinessException;
 import com.officeflow.flow.dto.FlowApplyCreateDTO;
 import com.officeflow.flow.dto.FlowApplyQueryDTO;
 import com.officeflow.flow.dto.FlowApplyUpdateDTO;
+import com.officeflow.flow.entity.FlowAttachment;
+import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.service.FlowService;
+import com.officeflow.flow.service.OssService;
+import com.officeflow.flow.service.impl.OssServiceImpl;
+import com.officeflow.flow.vo.AttachmentVO;
 import com.officeflow.flow.vo.FlowApplyDetailVO;
 import com.officeflow.flow.vo.FlowApplyListVO;
+import com.officeflow.flow.vo.FlowPendingVO;
+import com.officeflow.flow.vo.FlowProcessedVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -22,6 +31,8 @@ import org.springframework.web.bind.annotation.*;
 public class FlowController {
 
     private final FlowService flowService;
+    private final OssService ossService;
+    private final FlowAttachmentMapper flowAttachmentMapper;
 
     @PostMapping("/applies")
     public ApiResponse<FlowApplyDetailVO> createApply(@Valid @RequestBody FlowApplyCreateDTO dto,
@@ -66,6 +77,22 @@ public class FlowController {
         return ApiResponse.ok();
     }
 
+    @GetMapping("/applies/pending")
+    public ApiResponse<PageResult<FlowPendingVO>> getPendingApplies(FlowApplyQueryDTO dto,
+                                                                    HttpServletRequest request) {
+        Long approverId = getUserId(request);
+        Long deptId = getDeptId(request);
+        return ApiResponse.ok(flowService.getPendingApplies(dto, approverId, deptId));
+    }
+
+    @GetMapping("/applies/processed")
+    public ApiResponse<PageResult<FlowProcessedVO>> getProcessedApplies(FlowApplyQueryDTO dto,
+                                                                         HttpServletRequest request) {
+        Long approverId = getUserId(request);
+        Long deptId = getDeptId(request);
+        return ApiResponse.ok(flowService.getProcessedApplies(dto, approverId, deptId));
+    }
+
     private Long getUserId(HttpServletRequest request) {
         String userIdStr = request.getHeader(CommonConstants.LOGIN_USER_ID_HEADER);
         if (userIdStr == null) {
@@ -80,5 +107,48 @@ public class FlowController {
             return Long.parseLong(deptIdStr);
         }
         return null;
+    }
+
+    @PostMapping("/attachments/upload")
+    public ApiResponse<AttachmentVO> uploadAttachment(@RequestParam("file") MultipartFile file,
+                                                       HttpServletRequest request) {
+        Long userId = getUserId(request);
+        String objectKey = OssServiceImpl.generateObjectKey(file.getOriginalFilename());
+        String fileUrl = ossService.upload(file, objectKey);
+
+        FlowAttachment attachment = new FlowAttachment();
+        attachment.setFileName(file.getOriginalFilename());
+        attachment.setFileUrl(fileUrl);
+        attachment.setFileSize(file.getSize());
+        attachment.setFileType(file.getContentType());
+        attachment.setOssKey(objectKey);
+        attachment.setUploadedBy(userId);
+        flowAttachmentMapper.insert(attachment);
+
+        AttachmentVO vo = new AttachmentVO();
+        vo.setId(attachment.getId());
+        vo.setFileName(attachment.getFileName());
+        vo.setFileUrl(attachment.getFileUrl());
+        vo.setFileSize(attachment.getFileSize());
+        vo.setFileType(attachment.getFileType());
+        return ApiResponse.ok(vo);
+    }
+
+    @DeleteMapping("/attachments/{id}")
+    public ApiResponse<Void> deleteAttachment(@PathVariable Long id,
+                                               HttpServletRequest request) {
+        Long userId = getUserId(request);
+        FlowAttachment attachment = flowAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        if (!attachment.getUploadedBy().equals(userId)) {
+            throw new BusinessException("只能删除自己上传的附件");
+        }
+        if (attachment.getOssKey() != null) {
+            ossService.delete(attachment.getOssKey());
+        }
+        flowAttachmentMapper.deleteById(id);
+        return ApiResponse.ok();
     }
 }

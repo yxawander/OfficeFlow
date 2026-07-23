@@ -15,6 +15,7 @@ public class FlowApplyListVO {
     private String reason;
     private BigDecimal durationHours;
     private String status;
+    private Long approverId;
     private String approverName;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

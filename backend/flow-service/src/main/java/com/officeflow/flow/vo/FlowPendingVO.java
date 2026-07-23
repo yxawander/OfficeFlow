@@ -14,7 +14,9 @@ public class FlowPendingVO {
     private String title;
     private String reason;
     private BigDecimal durationHours;
+    private Long applicantId;
     private String applicantName;
+    private Long applicantDeptId;
     private String applicantDeptName;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

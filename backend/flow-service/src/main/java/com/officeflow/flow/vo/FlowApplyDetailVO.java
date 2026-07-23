@@ -19,6 +19,7 @@ public class FlowApplyDetailVO {
     private String currentNode;
     private Long applicantId;
     private String applicantName;
+    private Long applicantDeptId;
     private String applicantDeptName;
     private Long approverId;
     private String approverName;

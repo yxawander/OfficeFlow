@@ -3,6 +3,7 @@ package com.officeflow.api.flow.vo;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -11,7 +12,11 @@ public class FlowPendingVO {
     private String applyNo;
     private String applyType;
     private String title;
+    private String reason;
+    private BigDecimal durationHours;
+    private Long applicantId;
     private String applicantName;
+    private Long applicantDeptId;
     private String applicantDeptName;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

@@ -14,8 +14,11 @@ public class FlowApprovedVO {
     private String title;
     private String reason;
     private BigDecimal durationHours;
+    private Long applicantId;
     private String applicantName;
+    private Long applicantDeptId;
     private String applicantDeptName;
+    private Long approverId;
     private String approverName;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

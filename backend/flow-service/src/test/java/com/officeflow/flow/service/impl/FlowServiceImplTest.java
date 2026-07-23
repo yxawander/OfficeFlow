@@ -1,5 +1,9 @@
 package com.officeflow.flow.service.impl;
 
+import com.officeflow.api.user.client.UserAdminClient;
+import com.officeflow.api.user.vo.DeptVO;
+import com.officeflow.api.user.vo.UserOptionVO;
+import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
 import com.officeflow.flow.dto.*;
@@ -47,14 +51,25 @@ class FlowServiceImplTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private UserAdminClient userAdminClient;
+
     @InjectMocks
     private FlowServiceImpl flowService;
 
     private FlowApplyCreateDTO createDTO;
+    private UserOptionVO testUser;
 
     @BeforeEach
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        testUser = new UserOptionVO();
+        testUser.setId(100L);
+        testUser.setUsername("testuser");
+        testUser.setRealName("测试用户");
+        testUser.setManagerId(200L);
+        testUser.setDeptId(1L);
 
         createDTO = new FlowApplyCreateDTO();
         createDTO.setApplyType("LEAVE");
@@ -66,11 +81,25 @@ class FlowServiceImplTest {
         createDTO.setApproverId(200L);
     }
 
+    private void mockUserOptions() {
+        lenient().when(userAdminClient.getUserOptions())
+                .thenReturn(ApiResponse.ok(List.of(testUser)));
+    }
+
+    private void mockDeptList() {
+        DeptVO dept = new DeptVO();
+        dept.setId(1L);
+        dept.setDeptName("技术部");
+        lenient().when(userAdminClient.getDeptList())
+                .thenReturn(ApiResponse.ok(List.of(dept)));
+    }
+
     @Test
     @DisplayName("提交请假申请 - 成功")
     void createApply_Success() {
+        mockUserOptions();
+
         when(valueOperations.increment(anyString())).thenReturn(1L);
-        when(flowApplyMapper.selectManagerIdByUserId(100L)).thenReturn(200L);
         when(flowApplyMapper.insert(any(FlowApply.class))).thenAnswer(invocation -> {
             FlowApply apply = invocation.getArgument(0);
             apply.setId(1L);
@@ -96,9 +125,9 @@ class FlowServiceImplTest {
     @DisplayName("提交申请 - 含抄送人")
     void createApply_WithCc() {
         createDTO.setCcUserIds(List.of(300L, 301L));
+        mockUserOptions();
 
         when(valueOperations.increment(anyString())).thenReturn(1L);
-        when(flowApplyMapper.selectManagerIdByUserId(100L)).thenReturn(200L);
         when(flowApplyMapper.insert(any(FlowApply.class))).thenAnswer(invocation -> {
             FlowApply apply = invocation.getArgument(0);
             apply.setId(1L);
@@ -123,6 +152,7 @@ class FlowServiceImplTest {
         FlowApplyQueryDTO dto = new FlowApplyQueryDTO();
         dto.setPageNum(1);
         dto.setPageSize(10);
+        mockUserOptions();
 
         when(flowApplyMapper.selectUserApplies(any(), eq(100L))).thenReturn(List.of(new FlowApplyListVO()));
         when(flowApplyMapper.countUserApplies(any(), eq(100L))).thenReturn(1L);
@@ -140,6 +170,8 @@ class FlowServiceImplTest {
         FlowApplyDetailVO detailVO = new FlowApplyDetailVO();
         detailVO.setId(1L);
         detailVO.setTitle("年假申请");
+        mockUserOptions();
+        mockDeptList();
 
         when(flowApplyMapper.selectDetailById(1L)).thenReturn(detailVO);
         when(flowApproveRecordMapper.selectByApplyId(1L))
@@ -216,6 +248,8 @@ class FlowServiceImplTest {
         FlowApplyQueryDTO dto = new FlowApplyQueryDTO();
         dto.setPageNum(1);
         dto.setPageSize(10);
+        mockUserOptions();
+        mockDeptList();
 
         when(flowApplyMapper.selectPendingApplies(any(), eq(200L), any())).thenReturn(List.of(new FlowPendingVO()));
         when(flowApplyMapper.countPendingApplies(any(), eq(200L), any())).thenReturn(1L);
@@ -233,6 +267,7 @@ class FlowServiceImplTest {
         FlowApplyQueryDTO dto = new FlowApplyQueryDTO();
         dto.setPageNum(1);
         dto.setPageSize(10);
+        mockUserOptions();
 
         when(flowApplyMapper.selectProcessedApplies(any(), eq(200L), any())).thenReturn(List.of(new FlowProcessedVO()));
         when(flowApplyMapper.countProcessedApplies(any(), eq(200L), any())).thenReturn(1L);
@@ -339,9 +374,9 @@ class FlowServiceImplTest {
     void createApply_Overtime() {
         createDTO.setApplyType("OVERTIME");
         createDTO.setTitle("周末加班申请");
+        mockUserOptions();
 
         when(valueOperations.increment(anyString())).thenReturn(1L);
-        when(flowApplyMapper.selectManagerIdByUserId(100L)).thenReturn(200L);
         when(flowApplyMapper.insert(any(FlowApply.class))).thenAnswer(invocation -> {
             FlowApply apply = invocation.getArgument(0);
             apply.setId(2L);
@@ -364,9 +399,12 @@ class FlowServiceImplTest {
     void createApply_Correction() {
         createDTO.setApplyType("CORRECTION");
         createDTO.setTitle("补卡申请");
+        createDTO.setStartTime(LocalDateTime.now().minusDays(1));
+        createDTO.setEndTime(LocalDateTime.now().minusDays(1).plusHours(8));
+        createDTO.setDurationHours(new BigDecimal("8"));
 
         when(valueOperations.increment(anyString())).thenReturn(2L);
-        when(flowApplyMapper.selectManagerIdByUserId(100L)).thenReturn(200L);
+        mockUserOptions();
         when(flowApplyMapper.insert(any(FlowApply.class))).thenAnswer(invocation -> {
             FlowApply apply = invocation.getArgument(0);
             apply.setId(3L);
@@ -391,6 +429,7 @@ class FlowServiceImplTest {
         apply.setId(1L);
         apply.setApplicantId(100L);
         apply.setStatus("PENDING");
+        apply.setApplyType("LEAVE");
 
         FlowApplyUpdateDTO dto = new FlowApplyUpdateDTO();
         dto.setTitle("修改后的标题");
@@ -472,6 +511,8 @@ class FlowServiceImplTest {
         FlowApplyQueryDTO dto = new FlowApplyQueryDTO();
         dto.setPageNum(1);
         dto.setPageSize(10);
+        mockUserOptions();
+        mockDeptList();
 
         when(flowApplyMapper.selectAllApproved(any(), eq(1L))).thenReturn(List.of(new FlowApprovedVO()));
         when(flowApplyMapper.countAllApproved(any(), eq(1L))).thenReturn(1L);

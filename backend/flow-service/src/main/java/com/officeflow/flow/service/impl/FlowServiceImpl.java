@@ -1,5 +1,9 @@
 package com.officeflow.flow.service.impl;
 
+import com.officeflow.api.user.client.UserAdminClient;
+import com.officeflow.api.user.vo.DeptVO;
+import com.officeflow.api.user.vo.UserOptionVO;
+import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
 import com.officeflow.flow.dto.*;
@@ -24,7 +28,9 @@ import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -35,6 +41,7 @@ public class FlowServiceImpl implements FlowService {
     private final FlowApproveRecordMapper flowApproveRecordMapper;
     private final FlowCcMapper flowCcMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final UserAdminClient userAdminClient;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -51,9 +58,12 @@ public class FlowServiceImpl implements FlowService {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
-        if ("LEAVE".equals(dto.getApplyType())) {
-            if (dto.getStartTime().toLocalDate().isBefore(today)) {
-                throw new BusinessException("请假申请不能选择过去的日期，过去的考勤异常请走补卡流程");
+        if ("LEAVE".equals(dto.getApplyType()) || "OVERTIME".equals(dto.getApplyType())) {
+            if (dto.getStartTime().isBefore(now)) {
+                throw new BusinessException("请假和加班申请的开始时间不能早于当前时间");
+            }
+            if (dto.getEndTime().isBefore(now)) {
+                throw new BusinessException("请假和加班申请的结束时间不能早于当前时间");
             }
         } else if ("CORRECTION".equals(dto.getApplyType())) {
             if (dto.getStartTime().toLocalDate().isAfter(today)) {
@@ -61,7 +71,7 @@ public class FlowServiceImpl implements FlowService {
             }
         }
 
-        Long managerId = flowApplyMapper.selectManagerIdByUserId(applicantId);
+        Long managerId = getManagerIdByUserId(applicantId);
         if (managerId == null) {
             throw new BusinessException("未找到直属领导，无法提交申请");
         }
@@ -108,6 +118,7 @@ public class FlowServiceImpl implements FlowService {
         dto.setOffset(offset);
 
         List<FlowApplyListVO> records = flowApplyMapper.selectUserApplies(dto, userId);
+        resolveApproverNames(records);
         Long total = flowApplyMapper.countUserApplies(dto, userId);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
@@ -122,6 +133,7 @@ public class FlowServiceImpl implements FlowService {
 
         List<FlowApproveRecordVO> approveRecords = flowApproveRecordMapper.selectByApplyId(id);
         detail.setApproveRecords(approveRecords);
+        resolveDetailNames(detail);
 
         return detail;
     }
@@ -157,6 +169,7 @@ public class FlowServiceImpl implements FlowService {
         dto.setOffset(offset);
 
         List<FlowPendingVO> records = flowApplyMapper.selectPendingApplies(dto, approverId, deptId);
+        resolvePendingNames(records);
         Long total = flowApplyMapper.countPendingApplies(dto, approverId, deptId);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
@@ -168,6 +181,7 @@ public class FlowServiceImpl implements FlowService {
         dto.setOffset(offset);
 
         List<FlowProcessedVO> records = flowApplyMapper.selectProcessedApplies(dto, approverId, deptId);
+        resolveProcessedNames(records);
         Long total = flowApplyMapper.countProcessedApplies(dto, approverId, deptId);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
@@ -186,7 +200,17 @@ public class FlowServiceImpl implements FlowService {
         if (!apply.getApplicantId().equals(userId)) {
             throw new BusinessException("仅申请人可编辑自己的申请");
         }
-        validateApplyRequest(normalizeApplyType(apply.getApplyType()), dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
+        String applyType = normalizeApplyType(apply.getApplyType());
+        if ("LEAVE".equals(applyType) || "OVERTIME".equals(applyType)) {
+            LocalDateTime now = LocalDateTime.now();
+            if (dto.getStartTime().isBefore(now)) {
+                throw new BusinessException("请假和加班申请的开始时间不能早于当前时间");
+            }
+            if (dto.getEndTime().isBefore(now)) {
+                throw new BusinessException("请假和加班申请的结束时间不能早于当前时间");
+            }
+        }
+        validateApplyRequest(applyType, dto.getStartTime(), dto.getEndTime(), dto.getDurationHours());
 
         apply.setTitle(dto.getTitle());
         apply.setReason(dto.getReason());
@@ -216,6 +240,7 @@ public class FlowServiceImpl implements FlowService {
         dto.setOffset(offset);
 
         List<FlowApprovedVO> records = flowApplyMapper.selectAllApproved(dto, deptId);
+        resolveApprovedNames(records);
         Long total = flowApplyMapper.countAllApproved(dto, deptId);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
@@ -318,8 +343,8 @@ public class FlowServiceImpl implements FlowService {
     }
 
     private void validateApplyRequest(String applyType, LocalDateTime startTime, LocalDateTime endTime, BigDecimal durationHours) {
-        if (!"LEAVE".equals(applyType) && !"OVERTIME".equals(applyType)) {
-            throw new BusinessException("仅支持请假和加班申请，补卡申请请在考勤记录中发起");
+        if (!"LEAVE".equals(applyType) && !"OVERTIME".equals(applyType) && !"CORRECTION".equals(applyType)) {
+            throw new BusinessException("不支持的申请类型");
         }
         if (startTime == null || endTime == null) {
             throw new BusinessException("申请开始时间和结束时间不能为空");
@@ -335,6 +360,121 @@ public class FlowServiceImpl implements FlowService {
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
         if (durationHours.compareTo(rangeHours) > 0) {
             throw new BusinessException("申请时长不能超过开始和结束时间范围");
+        }
+    }
+
+    private Long getManagerIdByUserId(Long userId) {
+        try {
+            Map<Long, UserOptionVO> userMap = buildUserOptionMap();
+            UserOptionVO user = userMap.get(userId);
+            if (user != null) {
+                return user.getManagerId();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get managerId from user-service for userId={}", userId, e);
+        }
+        return null;
+    }
+
+    private Map<Long, String> buildUserDisplayNameMap() {
+        try {
+            Map<Long, String> map = new HashMap<>();
+            ApiResponse<List<UserOptionVO>> response = userAdminClient.getUserOptions();
+            if (response != null && response.data() != null) {
+                for (UserOptionVO user : response.data()) {
+                    String displayName = user.getRealName() != null ? user.getRealName() : user.getUsername();
+                    map.put(user.getId(), displayName);
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            log.warn("Failed to get user list from user-service", e);
+            return Map.of();
+        }
+    }
+
+    private Map<Long, UserOptionVO> buildUserOptionMap() {
+        try {
+            Map<Long, UserOptionVO> map = new HashMap<>();
+            ApiResponse<List<UserOptionVO>> response = userAdminClient.getUserOptions();
+            if (response != null && response.data() != null) {
+                for (UserOptionVO user : response.data()) {
+                    map.put(user.getId(), user);
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            log.warn("Failed to get user options from user-service", e);
+            return Map.of();
+        }
+    }
+
+    private Map<Long, String> buildDeptNameMap() {
+        try {
+            Map<Long, String> map = new HashMap<>();
+            ApiResponse<List<DeptVO>> response = userAdminClient.getDeptList();
+            if (response != null && response.data() != null) {
+                for (DeptVO dept : response.data()) {
+                    map.put(dept.getId(), dept.getDeptName());
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            log.warn("Failed to get dept list from user-service", e);
+            return Map.of();
+        }
+    }
+
+    private void resolveApproverNames(List<FlowApplyListVO> records) {
+        if (records.isEmpty()) return;
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        for (FlowApplyListVO vo : records) {
+            if (vo.getApproverId() != null) {
+                vo.setApproverName(userNames.getOrDefault(vo.getApproverId(), ""));
+            }
+        }
+    }
+
+    private void resolveDetailNames(FlowApplyDetailVO detail) {
+        if (detail == null) return;
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        Map<Long, String> deptNames = buildDeptNameMap();
+        detail.setApplicantName(userNames.getOrDefault(detail.getApplicantId(), ""));
+        detail.setApplicantDeptName(deptNames.getOrDefault(detail.getApplicantDeptId(), ""));
+        detail.setApproverName(userNames.getOrDefault(detail.getApproverId(), ""));
+        if (detail.getApproveRecords() != null) {
+            for (FlowApproveRecordVO record : detail.getApproveRecords()) {
+                record.setApproverName(userNames.getOrDefault(record.getApproverId(), ""));
+            }
+        }
+    }
+
+    private void resolvePendingNames(List<FlowPendingVO> records) {
+        if (records.isEmpty()) return;
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        Map<Long, String> deptNames = buildDeptNameMap();
+        for (FlowPendingVO vo : records) {
+            vo.setApplicantName(userNames.getOrDefault(vo.getApplicantId(), ""));
+            vo.setApplicantDeptName(deptNames.getOrDefault(vo.getApplicantDeptId(), ""));
+        }
+    }
+
+    private void resolveProcessedNames(List<FlowProcessedVO> records) {
+        if (records.isEmpty()) return;
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        for (FlowProcessedVO vo : records) {
+            vo.setApplicantName(userNames.getOrDefault(vo.getApplicantId(), ""));
+        }
+    }
+
+    private void resolveApprovedNames(List<FlowApprovedVO> records) {
+        if (records.isEmpty()) return;
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        Map<Long, String> deptNames = buildDeptNameMap();
+        for (FlowApprovedVO vo : records) {
+            vo.setApplicantName(userNames.getOrDefault(vo.getApplicantId(), ""));
+            vo.setApplicantDeptName(deptNames.getOrDefault(vo.getApplicantDeptId(), ""));
+            vo.setApproverName(userNames.getOrDefault(vo.getApproverId(), ""));
         }
     }
 }

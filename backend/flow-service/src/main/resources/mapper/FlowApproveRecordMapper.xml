@@ -10,10 +10,8 @@
 
     <select id="selectByApplyId" resultType="com.officeflow.flow.vo.FlowApproveRecordVO">
         SELECT far.id, far.approver_id AS approverId,
-               COALESCE(su.real_name, su.username) AS approverName,
                far.action, far.comment, far.approved_at AS approvedAt
         FROM flow_approve_record far
-        LEFT JOIN sys_user su ON far.approver_id = su.id
         WHERE far.flow_apply_id = #{flowApplyId}
         ORDER BY far.approved_at ASC
     </select>

@@ -46,10 +46,6 @@
         WHERE id = #{id} AND is_deleted = 0
     </select>
 
-    <select id="selectManagerIdByUserId" resultType="java.lang.Long">
-        SELECT manager_id FROM sys_user WHERE id = #{userId} AND is_deleted = 0
-    </select>
-
     <select id="selectByApplyNo" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM flow_apply
@@ -67,11 +63,10 @@
     <select id="selectUserApplies" resultType="com.officeflow.flow.vo.FlowApplyListVO">
         SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
                fa.title, fa.reason, fa.duration_hours AS durationHours,
-               fa.status, fa.start_time AS startTime, fa.end_time AS endTime,
-               fa.created_at AS createdAt,
-               COALESCE(su.real_name, su.username) AS approverName
+               fa.status, fa.approver_id AS approverId,
+               fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.created_at AS createdAt
         FROM flow_apply fa
-        LEFT JOIN sys_user su ON fa.approver_id = su.id
         WHERE fa.applicant_id = #{userId} AND fa.is_deleted = 0
         <if test="dto.applyType != null and dto.applyType != ''">
             AND fa.apply_type = #{dto.applyType}
@@ -112,29 +107,21 @@
                fa.title, fa.reason, fa.duration_hours AS durationHours,
                fa.status, fa.current_node AS currentNode,
                fa.applicant_id AS applicantId,
-               COALESCE(au.real_name, au.username) AS applicantName,
-               COALESCE(ad.dept_name, '') AS applicantDeptName,
+               fa.applicant_dept_id AS applicantDeptId,
                fa.approver_id AS approverId,
-               COALESCE(pu.real_name, pu.username) AS approverName,
                fa.start_time AS startTime, fa.end_time AS endTime,
                fa.approved_at AS approvedAt, fa.created_at AS createdAt
         FROM flow_apply fa
-        LEFT JOIN sys_user au ON fa.applicant_id = au.id
-        LEFT JOIN sys_user pu ON fa.approver_id = pu.id
-        LEFT JOIN sys_dept ad ON fa.applicant_dept_id = ad.id
         WHERE fa.id = #{id} AND fa.is_deleted = 0
     </select>
 
     <select id="selectPendingApplies" resultType="com.officeflow.flow.vo.FlowPendingVO">
         SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
                fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.applicant_id AS applicantId, fa.applicant_dept_id AS applicantDeptId,
                fa.start_time AS startTime, fa.end_time AS endTime,
-               fa.created_at AS createdAt,
-               COALESCE(su.real_name, su.username) AS applicantName,
-               COALESCE(sd.dept_name, '') AS applicantDeptName
+               fa.created_at AS createdAt
         FROM flow_apply fa
-        LEFT JOIN sys_user su ON fa.applicant_id = su.id
-        LEFT JOIN sys_dept sd ON fa.applicant_dept_id = sd.id
         WHERE fa.approver_id = #{approverId}
           AND fa.status = 'PENDING'
           AND fa.is_deleted = 0
@@ -164,8 +151,7 @@
 
     <select id="selectProcessedApplies" resultType="com.officeflow.flow.vo.FlowProcessedVO">
         SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
-               fa.title, fa.status,
-               COALESCE(su.real_name, su.username) AS applicantName,
+               fa.title, fa.status, fa.applicant_id AS applicantId,
                far.action AS myAction,
                far.approved_at AS approvedAt,
                fa.created_at AS createdAt
@@ -173,7 +159,6 @@
         INNER JOIN flow_approve_record far ON far.flow_apply_id = fa.id
             AND far.approver_id = #{approverId}
             AND far.action IN ('APPROVE', 'REJECT')
-        LEFT JOIN sys_user su ON fa.applicant_id = su.id
         WHERE fa.is_deleted = 0
         <if test="deptId != null">
             AND fa.applicant_dept_id = #{deptId}
@@ -203,15 +188,11 @@
     <select id="selectAllApproved" resultType="com.officeflow.flow.vo.FlowApprovedVO">
         SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
                fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.applicant_id AS applicantId, fa.applicant_dept_id AS applicantDeptId,
+               fa.approver_id AS approverId,
                fa.start_time AS startTime, fa.end_time AS endTime,
-               fa.approved_at AS approvedAt, fa.created_at AS createdAt,
-               COALESCE(au.real_name, au.username) AS applicantName,
-               COALESCE(ad.dept_name, '') AS applicantDeptName,
-               COALESCE(pu.real_name, pu.username) AS approverName
+               fa.approved_at AS approvedAt, fa.created_at AS createdAt
         FROM flow_apply fa
-        LEFT JOIN sys_user au ON fa.applicant_id = au.id
-        LEFT JOIN sys_user pu ON fa.approver_id = pu.id
-        LEFT JOIN sys_dept ad ON fa.applicant_dept_id = ad.id
         WHERE fa.status = 'APPROVED'
           AND fa.is_deleted = 0
         <if test="deptId != null">

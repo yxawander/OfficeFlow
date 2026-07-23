@@ -12,6 +12,7 @@ public class FlowProcessedVO {
     private String applyType;
     private String title;
     private String status;
+    private Long applicantId;
     private String applicantName;
     private String myAction;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

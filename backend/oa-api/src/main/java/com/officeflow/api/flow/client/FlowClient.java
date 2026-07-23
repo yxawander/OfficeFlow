@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "flow-service", path = "/api/flow")
+@FeignClient(name = "flow-service",contextId = "flowClient", path = "/api/flow")
 public interface FlowClient {
 
     @PostMapping("/applies")

@@ -12,7 +12,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "flow-service", path = "/api/flow/admin")
+@FeignClient(name = "flow-service", contextId = "flowAdminClient", path = "/api/flow/admin")
 public interface FlowAdminClient {
 
     @GetMapping("/applies/pending")

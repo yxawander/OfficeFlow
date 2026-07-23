@@ -14,8 +14,6 @@ public interface FlowApplyMapper {
 
     int insert(FlowApply flowApply);
 
-    Long selectManagerIdByUserId(Long userId);
-
     FlowApply selectById(Long id);
 
     FlowApply selectByApplyNo(String applyNo);

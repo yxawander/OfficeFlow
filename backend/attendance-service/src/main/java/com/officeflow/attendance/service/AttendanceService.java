@@ -237,13 +237,27 @@ public class AttendanceService {
         return result;
     }
 
-    public Map<String, Object> getDeptTodayOverview(Long userId, Long targetDeptId) {
+    public Map<String, Object> getDeptTodayOverview(Long userId, Long targetDeptId, String dateStr, jakarta.servlet.http.HttpServletRequest httpRequest) {
         Long deptId = targetDeptId;
-        if (deptId == null && userId != null) {
+        String rolesStr = com.officeflow.attendance.util.RequestUser.roles(httpRequest);
+        java.util.List<String> roles = rolesStr == null || rolesStr.isBlank() ? java.util.Collections.emptyList() : java.util.Arrays.asList(rolesStr.split(","));
+        boolean isAdminOrHr = roles.contains("ADMIN") || roles.contains("HR");
+        
+        if (!isAdminOrHr) {
+            // 如果不是管理员/HR，只能看自己的部门，覆盖前端传来的参数
             deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
         }
-        LocalDate today = LocalDate.now();
-        List<Map<String, Object>> list = attendanceRecordMapper.listDeptTodayRecords(deptId, today);
+
+        LocalDate targetDate = LocalDate.now();
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                targetDate = LocalDate.parse(dateStr);
+            } catch (Exception e) {
+                // Ignore parse error, use today
+            }
+        }
+        
+        List<Map<String, Object>> list = attendanceRecordMapper.listDeptTodayRecords(deptId, targetDate);
 
         int totalUsers = list.size();
         int checkedInUsers = 0;
@@ -264,7 +278,7 @@ public class AttendanceService {
 
         Map<String, Object> result = new HashMap<>();
         result.put("deptId", deptId);
-        result.put("todayDate", today.toString());
+        result.put("todayDate", targetDate.toString());
         result.put("totalUsers", totalUsers);
         result.put("checkedInUsers", checkedInUsers);
         result.put("lateUsers", lateUsers);
@@ -341,6 +355,13 @@ public class AttendanceService {
         int existingCount = attendanceCorrectionApplyMapper.countActiveOrRejectedCorrection(userId, request.attendanceRecordId(), targetWorkDate);
         if (existingCount > 0) {
             throw new BusinessException("该日期已在审批中或已被驳回，不可重复发起补卡申请");
+        }
+
+        if (request.attendanceRecordId() != null) {
+            AttendanceRecord record = attendanceRecordMapper.findById(request.attendanceRecordId());
+            if (record != null && ("ABSENT".equals(record.getStatus()) || "ON_LEAVE".equals(record.getStatus()))) {
+                throw new BusinessException("当前考勤状态（旷工/请假）不支持补卡，补卡仅限迟到、早退和缺卡");
+            }
         }
 
         Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);

@@ -541,7 +541,7 @@ VALUES
     (14, 0, '工资结算', 'MENU', '/salary', 'views/salary/SalaryView.vue', 'salary:view', 'Money', 1, 7, 1),
     (15, 0, 'AI 问答', 'MENU', '/ai-chat', 'views/ai/AiChatView.vue', 'ai:view', 'ChatDotRound', 1, 8, 1),
     (16, 5, '个人打卡工作台', 'MENU', '/attendance/my', 'views/attendance/AttendanceView.vue', 'attendance:view', 'Clock', 1, 1, 1),
-    (17, 5, '部门今日考勤实时监控', 'MENU', '/attendance/dept', 'views/attendance/AttendanceView.vue', 'attendance:dept:view', 'DataAnalysis', 1, 2, 1),
+    (17, 5, '部门考勤实时监控', 'MENU', '/attendance/dept', 'views/attendance/AttendanceView.vue', 'attendance:dept:view', 'DataAnalysis', 1, 2, 1),
     (18, 5, '考勤规则与部门绑定', 'MENU', '/attendance/rule', 'views/attendance/AttendanceView.vue', 'attendance:rule:view', 'Setting', 1, 3, 1);
 
 INSERT IGNORE INTO sys_api_permission (id, permission_name, permission_code, service_name, request_method, request_path, status)

@@ -52,7 +52,7 @@ const routes = [
         path: 'attendance/dept',
         name: 'attendance-dept',
         component: () => import('@/views/attendance/AttendanceView.vue'),
-        meta: { title: '部门今日考勤实时监控', icon: 'DataAnalysis' }
+        meta: { title: '部门考勤监控', icon: 'DataAnalysis' }
       },
       {
         path: 'attendance/rule',

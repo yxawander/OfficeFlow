@@ -74,7 +74,24 @@ const router = useRouter()
 const userStore = useUserStore()
 const sidebarCollapsed = ref(false)
 
-const visibleMenus = computed(() => (userStore.menus || []).filter((item) => item.visible === 1 && item.menuType !== 'BUTTON'))
+const visibleMenus = computed(() => {
+  const menus = userStore.menus || []
+  const filtered = menus.filter((item) => item.visible === 1 && item.menuType !== 'BUTTON')
+  // Deep clone and patch
+  const patched = JSON.parse(JSON.stringify(filtered))
+  const patchMenuName = (list) => {
+    for (const item of list) {
+      if (item.menuName === '部门今日考勤实时监控' || item.path === '/attendance/dept') {
+        item.menuName = '部门考勤监控'
+      }
+      if (item.children && item.children.length) {
+        patchMenuName(item.children)
+      }
+    }
+  }
+  patchMenuName(patched)
+  return patched
+})
 const pageTitle = computed(() => route.meta.title || 'OfficeFlow')
 
 function menuChildren(item) {

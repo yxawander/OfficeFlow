@@ -198,7 +198,7 @@
                 <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
               </el-tag>
               <el-button
-                v-else-if="row.status === 'LATE' || row.status === 'EARLY_LEAVE' || row.status === 'LATE_AND_EARLY' || row.status === 'ABSENT' || row.status === 'MISSING_CARD'"
+                v-else-if="row.status === 'LATE' || row.status === 'EARLY_LEAVE' || row.status === 'LATE_AND_EARLY' || row.status === 'MISSING_CARD'"
                 type="warning"
                 plain
                 size="small"
@@ -226,19 +226,19 @@
       </div>
     </template>
 
-    <!-- 模式 2：部门今日考勤实时监控 -->
+    <!-- 模式 2：部门考勤监控 (支持日期与部门筛选) -->
     <template v-else-if="activeTab === 'dept'">
       <div class="overview-card">
         <div class="clock-box">
-          <div class="live-clock">部门今日考勤看板</div>
+          <div class="live-clock">每日考勤数据监控</div>
           <div class="date-info">
-            <span class="date-text">实时监控日期：{{ deptOverview.todayDate || currentDate }}</span>
+            <span class="date-text">当前查看日期：{{ deptOverview.todayDate || overviewDate }}</span>
           </div>
         </div>
 
         <div class="metrics-grid">
           <div class="metric-item">
-            <div class="metric-title">部门总人数</div>
+            <div class="metric-title">总人数</div>
             <div class="metric-num primary-num">{{ deptOverview.totalUsers || 0 }} <small>人</small></div>
           </div>
           <div class="metric-item">
@@ -260,11 +260,31 @@
         <div class="table-card-header">
           <div class="header-title-group">
             <el-icon class="header-icon"><DataAnalysis /></el-icon>
-            <h2>部门员工今日考勤明细</h2>
+            <h2>员工考勤明细</h2>
           </div>
-          <div class="header-filter-group">
+          <div class="header-filter-group" style="display: flex; gap: 12px; align-items: center;">
+            <el-date-picker
+              v-model="overviewDate"
+              type="date"
+              placeholder="选择查询日期"
+              value-format="YYYY-MM-DD"
+              size="default"
+              style="width: 160px;"
+              @change="fetchDeptOverview"
+              :clearable="false"
+            />
+            <el-select 
+              v-if="isAdminOrHr"
+              v-model="overviewDeptId" 
+              placeholder="全部部门" 
+              clearable 
+              style="width: 160px;"
+              @change="fetchDeptOverview"
+            >
+              <el-option v-for="dept in deptList" :key="dept.id" :label="dept.name" :value="dept.id" />
+            </el-select>
             <el-button type="primary" plain size="default" @click="fetchDeptOverview">
-              <el-icon><Refresh /></el-icon> 刷新部门数据
+              <el-icon><Refresh /></el-icon> 刷新数据
             </el-button>
           </div>
         </div>
@@ -330,7 +350,7 @@
         <div class="clock-box">
           <div class="live-clock">考勤规则与部门绑定设置</div>
           <div class="date-info">
-            <span class="date-text">可分别管理考勤班次规则 (`attendance_rule`) 与部门考勤组绑定 (`attendance_group`)</span>
+            <span class="date-text">可分别管理考勤班次规则与部门考勤组绑定</span>
           </div>
         </div>
         <div style="display: flex; gap: 12px;">
@@ -348,7 +368,7 @@
         <div class="table-card-header">
           <div class="header-title-group">
             <el-icon class="header-icon"><Setting /></el-icon>
-            <h2>1. 考勤班次规则库 (attendance_rule 表)</h2>
+            <h2>1. 考勤班次规则库</h2>
           </div>
           <el-button type="primary" plain size="default" @click="fetchRules">
             <el-icon><Refresh /></el-icon> 刷新规则列表
@@ -400,7 +420,7 @@
         <div class="table-card-header">
           <div class="header-title-group">
             <el-icon class="header-icon"><DataAnalysis /></el-icon>
-            <h2>2. 考勤组与部门绑定管理 (attendance_group 表)</h2>
+            <h2>2. 考勤组与部门绑定管理</h2>
           </div>
           <el-button type="primary" plain size="default" @click="fetchGroups">
             <el-icon><Refresh /></el-icon> 刷新绑定列表
@@ -668,6 +688,17 @@ import {
   updateGroupApi,
   recheckApi
 } from '@/api/attendance'
+import { useUserStore } from '@/stores/user'
+import { getDeptTreeApi } from '@/api/user'
+
+const userStore = useUserStore()
+const isAdminOrHr = computed(() => {
+  const roles = userStore.profile?.roles || []
+  return roles.some(r => r.roleCode === 'ADMIN' || r.roleCode === 'HR')
+})
+const overviewDate = ref(new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-'))
+const overviewDeptId = ref(null)
+const deptList = ref([])
 
 const route = useRoute()
 const activeTab = computed(() => {
@@ -901,14 +932,30 @@ const fetchMyRecords = async () => {
 const fetchDeptOverview = async () => {
   deptLoading.value = true
   try {
-    const res = await getDeptTodayOverviewApi()
+    const params = {
+      date: overviewDate.value,
+      deptId: overviewDeptId.value || null
+    }
+    const res = await getDeptTodayOverviewApi(params)
     if (res && res.data) {
       deptOverview.value = res.data
     }
   } catch (err) {
-    console.error('获取部门今日考勤失败:', err)
+    console.error('获取考勤监控失败:', err)
   } finally {
     deptLoading.value = false
+  }
+}
+
+const fetchDeptTree = async () => {
+  if (!isAdminOrHr.value) return
+  try {
+    const res = await getDeptTreeApi()
+    if (res && res.data) {
+      deptList.value = res.data
+    }
+  } catch (error) {
+    console.error('Failed to fetch dept tree', error)
   }
 }
 
@@ -942,6 +989,7 @@ const fetchGroups = async () => {
 
 const loadActiveTabData = (val) => {
   if (val === 'dept') {
+    fetchDeptTree()
     fetchDeptOverview()
   } else if (val === 'rule') {
     fetchRules()
@@ -1307,7 +1355,7 @@ const formatStatusText = (status, lateMins, earlyMins) => {
     case 'LATE_AND_EARLY': return `迟到(${formatMinutes(lateMins)}) + 早退(${formatMinutes(earlyMins)})`
     case 'ABSENT': return `旷工 (${formatMinutes(lateMins)})`
     case 'MISSING_CARD': return '缺卡'
-    default: return status || '正常'
+    default: return status || '正常打卡'
   }
 }
 

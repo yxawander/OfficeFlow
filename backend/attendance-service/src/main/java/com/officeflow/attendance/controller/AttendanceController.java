@@ -103,9 +103,10 @@ public class AttendanceController {
      */
     @GetMapping("/dept-today")
     public ApiResponse<Map<String, Object>> deptToday(@RequestParam(name = "deptId", required = false) Long deptId,
+                                                      @RequestParam(name = "date", required = false) String date,
                                                       HttpServletRequest httpRequest) {
         Long userId = RequestUser.userId(httpRequest);
-        return ApiResponse.ok(attendanceService.getDeptTodayOverview(userId, deptId));
+        return ApiResponse.ok(attendanceService.getDeptTodayOverview(userId, deptId, date, httpRequest));
     }
 
     /**

@@ -15,15 +15,21 @@ public class UpdateDB {
             try (Connection conn = DriverManager.getConnection(url, user, pass);
                  Statement stmt = conn.createStatement()) {
                 
-                String sqlPath = "D:\\newLand\\OfficeFlow\\docs\\sql\\init.sql";
-                String content = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(sqlPath)));
-                String[] queries = content.split(";");
-                for (String query : queries) {
-                    if (query.trim().length() > 0) {
-                        stmt.executeUpdate(query);
-                    }
+                String query = "SELECT c.id, c.attendance_record_id, c.correction_type, c.correction_time, c.status as c_status, f.status as f_status, f.apply_type " +
+                               "FROM attendance_correction_apply c " +
+                               "LEFT JOIN flow_apply f ON c.flow_apply_id = f.id WHERE c.user_id = 4";
+                java.sql.ResultSet rs = stmt.executeQuery(query);
+                StringBuilder sb = new StringBuilder();
+                while (rs.next()) {
+                    sb.append("ID: ").append(rs.getInt("id"))
+                      .append(", RecID: ").append(rs.getString("attendance_record_id"))
+                      .append(", Type: ").append(rs.getString("correction_type"))
+                      .append(", C_Status: ").append(rs.getString("c_status"))
+                      .append(", F_Status: ").append(rs.getString("f_status"))
+                      .append("\n");
                 }
-                System.out.println("SQL EXECUTION SUCCESSFUL");
+                java.nio.file.Files.write(java.nio.file.Paths.get("D:\\newLand\\OfficeFlow\\db_output.txt"), sb.toString().getBytes());
+                System.out.println("QUERY SUCCESSFUL");
             }
         } catch (Exception e) {
             e.printStackTrace();

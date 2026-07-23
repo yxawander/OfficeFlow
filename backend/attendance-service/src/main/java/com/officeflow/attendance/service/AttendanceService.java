@@ -32,6 +32,9 @@ public class AttendanceService {
     private final AttendanceRuleMapper attendanceRuleMapper;
     private final com.officeflow.attendance.mapper.AttendanceGroupMapper attendanceGroupMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private MonthlyReportAndSalaryService monthlyReportAndSalaryService;
+
     // 规定上班时间：09:00
     private static final LocalTime WORK_START_TIME = LocalTime.of(9, 0);
     // 迟到容忍门槛：10 分钟（09:10 之后算迟到）
@@ -586,6 +589,8 @@ public class AttendanceService {
     @Transactional
     public void processLeaveApprove(AttendanceLeaveDTO dto) {
         attendanceRecordMapper.upsertAttendanceRecordForLeave(dto.getUserId(), dto.getDeptId(), dto.getWorkDate());
+        String settleMonth = dto.getWorkDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+        monthlyReportAndSalaryService.recalculateUserSalaryAndReport(dto.getUserId(), settleMonth);
     }
 
     @Transactional
@@ -596,5 +601,7 @@ public class AttendanceService {
         if (updated == 0) {
             attendanceRecordMapper.insertAttendanceRecordForOvertime(dto.getUserId(), dto.getDeptId(), dto.getWorkDate(), minutes);
         }
+        String settleMonth = dto.getWorkDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+        monthlyReportAndSalaryService.recalculateUserSalaryAndReport(dto.getUserId(), settleMonth);
     }
 }

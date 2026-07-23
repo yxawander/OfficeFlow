@@ -131,13 +131,16 @@ public interface AttendanceRecordMapper {
                    r.check_out_distance_meters AS checkOutDistanceMeters, r.check_out_location_name AS checkOutLocationName,
                    r.work_minutes AS workMinutes, r.late_minutes AS lateMinutes, r.early_leave_minutes AS earlyLeaveMinutes,
                    r.status, r.source,
-                   ca.status AS correctionStatus
+                   CASE WHEN f.status = 'CANCELED' THEN 'REVOKED'
+                        WHEN f.status IS NOT NULL THEN f.status
+                        ELSE ca.status END AS correctionStatus
             FROM attendance_record r
             LEFT JOIN attendance_correction_apply ca ON ca.id = (
                 SELECT id FROM attendance_correction_apply
                 WHERE user_id = r.user_id AND (attendance_record_id = r.id OR DATE(correction_time) = r.work_date)
                 ORDER BY id DESC LIMIT 1
             )
+            LEFT JOIN flow_apply f ON ca.flow_apply_id = f.id
             WHERE r.user_id = #{userId}
               <if test="startDate != null and startDate != ''">AND r.work_date &gt;= #{startDate}</if>
               <if test="endDate != null and endDate != ''">AND r.work_date &lt;= #{endDate}</if>

@@ -181,6 +181,10 @@ public class FlowServiceImpl implements FlowService {
         record.setComment("申请人撤销");
         record.setApprovedAt(LocalDateTime.now());
         flowApproveRecordMapper.insert(record);
+
+        if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
+            flowApplyMapper.updateCorrectionStatusByFlowApplyId(apply.getId(), "REVOKED");
+        }
     }
 
     @Override

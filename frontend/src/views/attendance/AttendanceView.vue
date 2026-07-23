@@ -197,16 +197,20 @@
               <el-tag v-else-if="row.correctionStatus === 'REJECTED'" type="danger" effect="plain" size="small">
                 <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
               </el-tag>
-              <el-button
-                v-else-if="row.status === 'LATE' || row.status === 'MISSING_CARD'"
-                type="warning"
-                plain
-                size="small"
-                icon="Edit"
-                @click="openCorrectionDialog(row)"
-              >
-                申请补卡
-              </el-button>
+              <div v-else-if="['LATE', 'MISSING_CARD', 'EARLY_LEAVE', 'LATE_AND_EARLY'].includes(row.status)" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <el-tag v-if="row.correctionStatus === 'APPROVED'" type="success" size="small" effect="plain">
+                  部分通过
+                </el-tag>
+                <el-button
+                  type="warning"
+                  plain
+                  size="small"
+                  icon="Edit"
+                  @click="openCorrectionDialog(row)"
+                >
+                  申请补卡
+                </el-button>
+              </div>
               <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>

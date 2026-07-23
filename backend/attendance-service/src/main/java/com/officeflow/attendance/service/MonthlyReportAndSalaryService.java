@@ -231,29 +231,43 @@ public class MonthlyReportAndSalaryService {
      */
     @Transactional
     public void recalculateUserSalaryAndReport(Long userId, String settleMonth) {
-        // 单个用户的考勤报表和工资也可以复用全局生成逻辑中的片段，为了快速实现：
-        // 实际上 generateMonthlySalary 是全员的。这里我们写一个单人的版本：
-        
-        // 1. 重算该用户该月考勤报表
-        int workDays = calculateWorkDays(settleMonth);
-        int lateMinutes = monthlyReportMapper.selectSumLateMinutes(userId, settleMonth);
-        int earlyLeaveMinutes = monthlyReportMapper.selectSumEarlyLeaveMinutes(userId, settleMonth);
-        int missingCards = monthlyReportMapper.countMissingCards(userId, settleMonth);
-        int overtimeMinutes = monthlyReportMapper.selectSumOvertimeMinutes(userId, settleMonth);
-        int leaveDays = monthlyReportMapper.selectSumLeaveDays(userId, settleMonth);
-        int absentDays = monthlyReportMapper.countAbsentDays(userId, settleMonth);
+        int dynamicShouldWorkDays = calculateWorkDays(settleMonth);
+
+        Map<String, Object> stats = monthlyReportMapper.calculateUserAttendanceStats(userId, settleMonth);
+        int actualWorkDays = stats != null && stats.get("actualWorkDays") != null ? Integer.parseInt(stats.get("actualWorkDays").toString()) : 0;
+        int lateCount = stats != null && stats.get("lateCount") != null ? Integer.parseInt(stats.get("lateCount").toString()) : 0;
+        int earlyLeaveCount = stats != null && stats.get("earlyLeaveCount") != null ? Integer.parseInt(stats.get("earlyLeaveCount").toString()) : 0;
+        int absentCount = stats != null && stats.get("absentCount") != null ? Integer.parseInt(stats.get("absentCount").toString()) : 0;
+        int missingCardCount = stats != null && stats.get("missingCardCount") != null ? Integer.parseInt(stats.get("missingCardCount").toString()) : 0;
+
+        BigDecimal leaveDays = monthlyReportMapper.calculateApprovedLeaveDays(userId, settleMonth);
+        if (leaveDays == null) {
+            leaveDays = BigDecimal.ZERO;
+        }
+
+        List<Map<String, Object>> overtimeApplies = monthlyReportMapper.selectApprovedOvertimeApplies(userId, settleMonth);
+        double totalOvertimeHours = 0.0;
+        for (Map<String, Object> apply : overtimeApplies) {
+            double approvedHours = apply.get("approvedHours") != null ? Double.parseDouble(apply.get("approvedHours").toString()) : 0.0;
+            Object startTime = apply.get("startTime");
+            Object endTime = apply.get("endTime");
+            Double actualHours = monthlyReportMapper.selectActualOvertimeHours(userId, startTime, endTime);
+            if (actualHours == null) actualHours = 0.0;
+            double validHours = Math.min(approvedHours, Math.max(0.0, actualHours));
+            totalOvertimeHours += validHours;
+        }
 
         AttendanceMonthlyReport report = new AttendanceMonthlyReport();
         report.setUserId(userId);
         report.setReportMonth(settleMonth);
-        report.setRequiredWorkDays(workDays);
-        report.setActualWorkDays(workDays - leaveDays - absentDays); // 简化的实际出勤
-        report.setLateMinutes(lateMinutes);
-        report.setEarlyLeaveMinutes(earlyLeaveMinutes);
-        report.setMissingCards(missingCards);
-        report.setAbsentDays(absentDays);
-        report.setOvertimeHours(new BigDecimal(overtimeMinutes).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP));
-        report.setLeaveDays(leaveDays);
+        report.setShouldWorkDays(dynamicShouldWorkDays);
+        report.setActualWorkDays(actualWorkDays);
+        report.setLateCount(lateCount);
+        report.setEarlyLeaveCount(earlyLeaveCount);
+        report.setMissingCardCount(missingCardCount);
+        report.setAbsentCount(absentCount);
+        report.setOvertimeHours(BigDecimal.valueOf(totalOvertimeHours).setScale(1, RoundingMode.HALF_UP));
+        report.setLeaveDays(leaveDays.setScale(1, RoundingMode.HALF_UP));
         monthlyReportMapper.upsertReport(report);
 
         // 2. 重算该用户该月工资
@@ -267,12 +281,11 @@ public class MonthlyReportAndSalaryService {
         BigDecimal overtimePay = report.getOvertimeHours().multiply(hourlyRate).multiply(new BigDecimal("1.5")).setScale(2, RoundingMode.HALF_UP);
 
         Integer offWorkMinutes = salaryStatementMapper.selectSumLateAndEarlyMinutes(userId, settleMonth);
-        if (offWorkMinutes == null) offWorkMinutes = 0;
-        int totalPenaltyMinutes = offWorkMinutes + missingCards * 4 * 60; // 缺卡算4小时
+        double offWorkHours = ((offWorkMinutes != null ? offWorkMinutes : 0) / 60.0) + (missingCardCount * 4.0);
+        BigDecimal lateDeduction = hourlyRate.multiply(BigDecimal.valueOf(offWorkHours)).setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal lateDeduction = hourlyRate.multiply(new BigDecimal(totalPenaltyMinutes)).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP);
-        BigDecimal absentDeduction = dailyRate.multiply(new BigDecimal(absentDays)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal leaveDeduction = dailyRate.multiply(new BigDecimal(leaveDays)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal absentDeduction = dailyRate.multiply(BigDecimal.valueOf(absentCount)).multiply(new BigDecimal("2.0")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal leaveDeduction = dailyRate.multiply(leaveDays).setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal actualSalary = baseSalary.add(allowance).add(overtimePay)
                 .subtract(lateDeduction).subtract(absentDeduction).subtract(leaveDeduction);
@@ -291,11 +304,11 @@ public class MonthlyReportAndSalaryService {
         statement.setOvertimeHours(report.getOvertimeHours());
         statement.setOvertimePay(overtimePay);
         statement.setAllowance(allowance);
-        statement.setOffWorkHours(new BigDecimal(totalPenaltyMinutes).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP));
+        statement.setOffWorkHours(BigDecimal.valueOf(offWorkHours).setScale(2, RoundingMode.HALF_UP));
         statement.setLateDeduction(lateDeduction);
-        statement.setAbsentDays(new BigDecimal(absentDays));
+        statement.setAbsentDays(BigDecimal.valueOf(absentCount));
         statement.setAbsentDeduction(absentDeduction);
-        statement.setLeaveDays(new BigDecimal(leaveDays));
+        statement.setLeaveDays(leaveDays);
         statement.setLeaveDeduction(leaveDeduction);
         statement.setActualSalary(actualSalary);
         statement.setStatus("DRAFT");

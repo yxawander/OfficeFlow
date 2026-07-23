@@ -33,9 +33,9 @@
             </el-table-column>
             <el-table-column prop="title" label="标题" min-width="150" />
             <el-table-column prop="reason" label="申请事由" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="durationHours" label="时长(小时)" width="110">
+            <el-table-column prop="durationHours" label="时长" width="110">
               <template #default="{ row }">
-                {{ row.durationHours || 0 }} 小时
+                {{ row.applyType === 'LEAVE' ? (row.durationHours / 8) + ' 天' : (row.durationHours || 0) + ' 小时' }}
               </template>
             </el-table-column>
             <el-table-column prop="status" label="状态" width="110">
@@ -91,7 +91,7 @@
             <el-table-column prop="reason" label="申请事由" min-width="200" show-overflow-tooltip />
             <el-table-column prop="durationHours" label="时长" width="100">
               <template #default="{ row }">
-                {{ row.durationHours || 0 }}h
+                {{ row.applyType === 'LEAVE' ? (row.durationHours / 8) + 'd' : (row.durationHours || 0) + 'h' }}
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="提交时间" width="170" />
@@ -222,8 +222,8 @@
               @change="calculateDuration"
             />
           </el-form-item>
-          <el-form-item label="时长 (小时)">
-            <el-input-number v-model="applyForm.durationHours" :min="0.5" :precision="1" :step="0.5" />
+          <el-form-item :label="applyForm.applyType === 'LEAVE' ? '时长 (天)' : '时长 (小时)'">
+            <el-input-number v-model="displayDuration" :min="0.5" :precision="1" :step="0.5" />
           </el-form-item>
         </template>
 
@@ -289,7 +289,9 @@
         <el-descriptions-item label="事由">{{ currentDetailRow.reason }}</el-descriptions-item>
         <el-descriptions-item label="开始时间">{{ currentDetailRow.startTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="结束时间">{{ currentDetailRow.endTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="时长 (小时)">{{ currentDetailRow.durationHours || 0 }}</el-descriptions-item>
+        <el-descriptions-item :label="currentDetailRow.applyType === 'LEAVE' ? '时长 (天)' : '时长 (小时)'">
+          {{ currentDetailRow.applyType === 'LEAVE' ? (currentDetailRow.durationHours / 8) : (currentDetailRow.durationHours || 0) }}
+        </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentDetailRow.createdAt }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
@@ -353,9 +355,14 @@ const applyForm = reactive({
   timeRange: [],
   startTime: '',
   endTime: '',
-  durationHours: 1,
+  durationHours: 8,
   correctionType: 'CHECK_IN',
   correctionTime: ''
+})
+
+const displayDuration = computed({
+  get: () => applyForm.applyType === 'LEAVE' ? applyForm.durationHours / 8 : applyForm.durationHours,
+  set: (val) => { applyForm.durationHours = applyForm.applyType === 'LEAVE' ? val * 8 : val }
 })
 
 const applyRules = {
@@ -479,7 +486,7 @@ const openApplyDialog = (type) => {
   } else {
     applyForm.startTime = ''
     applyForm.endTime = ''
-    applyForm.durationHours = 1
+    applyForm.durationHours = type === 'LEAVE' ? 8 : 1
   }
   
   applyDialogVisible.value = true
@@ -491,8 +498,16 @@ const calculateDuration = (val) => {
     applyForm.endTime = val[1]
     const start = new Date(val[0])
     const end = new Date(val[1])
-    const diffHours = (end - start) / (1000 * 3600)
-    applyForm.durationHours = Math.max(0.5, Math.round(diffHours * 10) / 10)
+    
+    if (applyForm.applyType === 'LEAVE') {
+      const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+      const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+      const daysDiff = Math.round((endDate - startDate) / (1000 * 3600 * 24)) + 1
+      applyForm.durationHours = daysDiff * 8
+    } else {
+      const diffHours = (end - start) / (1000 * 3600)
+      applyForm.durationHours = Math.max(0.5, Math.round(diffHours * 10) / 10)
+    }
   }
 }
 

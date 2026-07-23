@@ -380,11 +380,12 @@ CREATE TABLE IF NOT EXISTS flow_cc (
 
 CREATE TABLE IF NOT EXISTS flow_attachment (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '附件ID',
-    flow_apply_id BIGINT NOT NULL COMMENT '审批单ID',
+    flow_apply_id BIGINT NULL COMMENT '审批单ID（上传时为空，提交申请后绑定）',
     file_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
     file_url VARCHAR(500) NOT NULL COMMENT '文件访问地址',
     file_size BIGINT DEFAULT NULL COMMENT '文件大小字节',
     file_type VARCHAR(64) DEFAULT NULL COMMENT '文件MIME类型，如 image/png, application/pdf',
+    oss_key VARCHAR(512) DEFAULT NULL COMMENT 'OSS对象Key',
     uploaded_by BIGINT NOT NULL COMMENT '上传人ID',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY idx_flow_attachment_apply (flow_apply_id)

@@ -9,19 +9,23 @@ import com.officeflow.common.exception.BusinessException;
 import com.officeflow.flow.dto.*;
 import com.officeflow.flow.entity.FlowApply;
 import com.officeflow.flow.entity.FlowApproveRecord;
+import com.officeflow.flow.entity.FlowAttachment;
 import com.officeflow.flow.entity.FlowCc;
 import com.officeflow.flow.mapper.FlowApplyMapper;
 import com.officeflow.flow.mapper.FlowApproveRecordMapper;
+import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.mapper.FlowCcMapper;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -39,11 +43,17 @@ public class FlowServiceImpl implements FlowService {
 
     private final FlowApplyMapper flowApplyMapper;
     private final FlowApproveRecordMapper flowApproveRecordMapper;
+    private final FlowAttachmentMapper flowAttachmentMapper;
     private final FlowCcMapper flowCcMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserAdminClient userAdminClient;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final String AUTO_REJECT_LOCK_KEY = "flow:auto-reject:lock";
+    private static final long SYSTEM_APPROVER_ID = 0L;
+
+    @Value("${flow.auto-reject.timeout-hours:48}")
+    private int autoRejectTimeoutHours;
 
     @Override
     @Transactional
@@ -109,6 +119,10 @@ public class FlowServiceImpl implements FlowService {
             flowCcMapper.batchInsert(ccList);
         }
 
+        if (!CollectionUtils.isEmpty(dto.getAttachmentIds())) {
+            flowAttachmentMapper.updateFlowApplyId(dto.getAttachmentIds(), apply.getId());
+        }
+
         return flowApplyMapper.selectDetailById(apply.getId());
     }
 
@@ -133,6 +147,7 @@ public class FlowServiceImpl implements FlowService {
 
         List<FlowApproveRecordVO> approveRecords = flowApproveRecordMapper.selectByApplyId(id);
         detail.setApproveRecords(approveRecords);
+        detail.setAttachments(buildAttachmentVOs(flowAttachmentMapper.selectByApplyId(id)));
         resolveDetailNames(detail);
 
         return detail;
@@ -218,6 +233,13 @@ public class FlowServiceImpl implements FlowService {
         apply.setEndTime(dto.getEndTime());
         apply.setDurationHours(dto.getDurationHours());
         flowApplyMapper.update(apply);
+
+        if (dto.getAttachmentIds() != null) {
+            flowAttachmentMapper.deleteByApplyId(id);
+            if (!CollectionUtils.isEmpty(dto.getAttachmentIds())) {
+                flowAttachmentMapper.updateFlowApplyId(dto.getAttachmentIds(), id);
+            }
+        }
     }
 
     @Override
@@ -232,6 +254,7 @@ public class FlowServiceImpl implements FlowService {
         }
 
         flowApplyMapper.deleteById(id);
+        flowAttachmentMapper.deleteByApplyId(id);
     }
 
     @Override
@@ -312,18 +335,55 @@ public class FlowServiceImpl implements FlowService {
             throw new BusinessException("您不是该申请的审批人");
         }
 
-        flowApplyMapper.updateStatus(id, "REJECTED", null);
+        doReject(apply, dto.getComment(), approverId);
+    }
+
+    private void doReject(FlowApply apply, String comment, Long approverId) {
+        flowApplyMapper.updateStatus(apply.getId(), "REJECTED", null);
 
         FlowApproveRecord record = new FlowApproveRecord();
-        record.setFlowApplyId(id);
+        record.setFlowApplyId(apply.getId());
         record.setApproverId(approverId);
         record.setAction("REJECT");
-        record.setComment(dto.getComment());
+        record.setComment(comment);
         record.setApprovedAt(LocalDateTime.now());
         flowApproveRecordMapper.insert(record);
 
         if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
-            flowApplyMapper.updateCorrectionStatusByFlowApplyId(id, "REJECTED");
+            flowApplyMapper.updateCorrectionStatusByFlowApplyId(apply.getId(), "REJECTED");
+        }
+    }
+
+    @Override
+    public int autoRejectOverdueApplies() {
+        Boolean locked = stringRedisTemplate.opsForValue()
+                .setIfAbsent(AUTO_REJECT_LOCK_KEY, "1", Duration.ofMinutes(5));
+        if (!Boolean.TRUE.equals(locked)) {
+            log.debug("Auto-reject task skipped — another instance is running.");
+            return 0;
+        }
+
+        try {
+            List<FlowApply> overdue = flowApplyMapper.selectOverduePendingApplies(autoRejectTimeoutHours);
+            if (CollectionUtils.isEmpty(overdue)) {
+                return 0;
+            }
+
+            int count = 0;
+            for (FlowApply apply : overdue) {
+                try {
+                    doReject(apply, "审批超时（超过" + autoRejectTimeoutHours + "小时未处理），系统自动驳回",
+                            SYSTEM_APPROVER_ID);
+                    count++;
+                    log.info("Auto-rejected overdue apply: id={}, applyNo={}, approverId={}",
+                            apply.getId(), apply.getApplyNo(), apply.getApproverId());
+                } catch (Exception e) {
+                    log.error("Failed to auto-reject apply: id={}", apply.getId(), e);
+                }
+            }
+            return count;
+        } finally {
+            stringRedisTemplate.delete(AUTO_REJECT_LOCK_KEY);
         }
     }
 
@@ -465,6 +525,24 @@ public class FlowServiceImpl implements FlowService {
         for (FlowProcessedVO vo : records) {
             vo.setApplicantName(userNames.getOrDefault(vo.getApplicantId(), ""));
         }
+    }
+
+    private List<AttachmentVO> buildAttachmentVOs(List<FlowAttachment> attachments) {
+        if (CollectionUtils.isEmpty(attachments)) {
+            return List.of();
+        }
+        List<AttachmentVO> vos = new ArrayList<>();
+        for (FlowAttachment att : attachments) {
+            AttachmentVO vo = new AttachmentVO();
+            vo.setId(att.getId());
+            vo.setFlowApplyId(att.getFlowApplyId());
+            vo.setFileName(att.getFileName());
+            vo.setFileUrl(att.getFileUrl());
+            vo.setFileSize(att.getFileSize());
+            vo.setFileType(att.getFileType());
+            vos.add(vo);
+        }
+        return vos;
     }
 
     private void resolveApprovedNames(List<FlowApprovedVO> records) {

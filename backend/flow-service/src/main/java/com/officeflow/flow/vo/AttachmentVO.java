@@ -1,18 +1,13 @@
-package com.officeflow.flow.entity;
+package com.officeflow.flow.vo;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-public class FlowAttachment {
+public class AttachmentVO {
     private Long id;
     private Long flowApplyId;
     private String fileName;
     private String fileUrl;
     private Long fileSize;
     private String fileType;
-    private String ossKey;
-    private Long uploadedBy;
-    private LocalDateTime createdAt;
 }

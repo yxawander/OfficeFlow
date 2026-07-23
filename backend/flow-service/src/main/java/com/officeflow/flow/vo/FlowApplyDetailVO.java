@@ -32,4 +32,5 @@ public class FlowApplyDetailVO {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     private List<FlowApproveRecordVO> approveRecords;
+    private List<AttachmentVO> attachments;
 }

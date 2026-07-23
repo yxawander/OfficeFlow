@@ -7,8 +7,6 @@ import com.officeflow.flow.dto.FlowApproveDTO;
 import com.officeflow.flow.dto.FlowRejectDTO;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.vo.FlowApprovedVO;
-import com.officeflow.flow.vo.FlowPendingVO;
-import com.officeflow.flow.vo.FlowProcessedVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,45 +41,6 @@ class FlowAdminControllerTest {
                 .build();
         objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
-    }
-
-    @Test
-    @DisplayName("待审批列表 - 成功")
-    void getPendingApplies_Success() throws Exception {
-        PageResult<FlowPendingVO> pageResult = PageResult.of(1, 1, 10, List.of(new FlowPendingVO()));
-        when(flowService.getPendingApplies(any(), any(), any())).thenReturn(pageResult);
-
-        mockMvc.perform(get("/api/flow/admin/applies/pending")
-                        .header("X-Login-User-Id", "200")
-                        .param("pageNum", "1")
-                        .param("pageSize", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.total").value(1));
-    }
-
-    @Test
-    @DisplayName("待审批列表 - 用户未登录")
-    void getPendingApplies_NotLoggedIn() throws Exception {
-        mockMvc.perform(get("/api/flow/admin/applies/pending")
-                        .param("pageNum", "1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(com.officeflow.common.api.ResultCode.FAIL.code()));
-    }
-
-    @Test
-    @DisplayName("已审批列表 - 成功")
-    void getProcessedApplies_Success() throws Exception {
-        PageResult<FlowProcessedVO> pageResult = PageResult.of(1, 1, 10, List.of(new FlowProcessedVO()));
-        when(flowService.getProcessedApplies(any(), any(), any())).thenReturn(pageResult);
-
-        mockMvc.perform(get("/api/flow/admin/applies/processed")
-                        .header("X-Login-User-Id", "200")
-                        .param("pageNum", "1")
-                        .param("pageSize", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.total").value(1));
     }
 
     @Test
@@ -134,20 +93,6 @@ class FlowAdminControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(com.officeflow.common.api.ResultCode.PARAM_ERROR.code()));
-    }
-
-    @Test
-    @DisplayName("待审批列表 - 按类型筛选")
-    void getPendingApplies_WithFilter() throws Exception {
-        PageResult<FlowPendingVO> pageResult = PageResult.of(0, 1, 10, List.of());
-        when(flowService.getPendingApplies(any(), any(), any())).thenReturn(pageResult);
-
-        mockMvc.perform(get("/api/flow/admin/applies/pending")
-                        .header("X-Login-User-Id", "200")
-                        .param("pageNum", "1")
-                        .param("applyType", "LEAVE"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test

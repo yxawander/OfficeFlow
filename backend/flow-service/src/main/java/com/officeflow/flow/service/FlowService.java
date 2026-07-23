@@ -29,4 +29,7 @@ public interface FlowService {
     void approveApply(Long id, FlowApproveDTO dto, Long approverId);
 
     void rejectApply(Long id, FlowRejectDTO dto, Long approverId);
+
+    // 定时任务
+    int autoRejectOverdueApplies();
 }

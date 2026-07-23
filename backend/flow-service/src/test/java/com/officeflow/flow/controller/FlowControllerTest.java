@@ -4,9 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.GlobalExceptionHandler;
 import com.officeflow.flow.dto.FlowApplyCreateDTO;
+import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.service.FlowService;
+import com.officeflow.flow.service.OssService;
 import com.officeflow.flow.vo.FlowApplyDetailVO;
 import com.officeflow.flow.vo.FlowApplyListVO;
+import com.officeflow.flow.vo.FlowPendingVO;
+import com.officeflow.flow.vo.FlowProcessedVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,12 +37,18 @@ class FlowControllerTest {
     @Mock
     private FlowService flowService;
 
+    @Mock
+    private OssService ossService;
+
+    @Mock
+    private FlowAttachmentMapper flowAttachmentMapper;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new FlowController(flowService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new FlowController(flowService, ossService, flowAttachmentMapper))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();
@@ -154,6 +164,36 @@ class FlowControllerTest {
         mockMvc.perform(put("/api/flow/applies/1/cancel"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(com.officeflow.common.api.ResultCode.FAIL.code()));
+    }
+
+    @Test
+    @DisplayName("待审批列表 - 成功")
+    void getPendingApplies_Success() throws Exception {
+        PageResult<FlowPendingVO> pageResult = PageResult.of(1, 1, 10, List.of(new FlowPendingVO()));
+        when(flowService.getPendingApplies(any(), any(), any())).thenReturn(pageResult);
+
+        mockMvc.perform(get("/api/flow/applies/pending")
+                        .header("X-Login-User-Id", "200")
+                        .param("pageNum", "1")
+                        .param("pageSize", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.total").value(1));
+    }
+
+    @Test
+    @DisplayName("已审批列表 - 成功")
+    void getProcessedApplies_Success() throws Exception {
+        PageResult<FlowProcessedVO> pageResult = PageResult.of(1, 1, 10, List.of(new FlowProcessedVO()));
+        when(flowService.getProcessedApplies(any(), any(), any())).thenReturn(pageResult);
+
+        mockMvc.perform(get("/api/flow/applies/processed")
+                        .header("X-Login-User-Id", "200")
+                        .param("pageNum", "1")
+                        .param("pageSize", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.total").value(1));
     }
 
     private FlowApplyCreateDTO buildCreateDTO() {

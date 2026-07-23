@@ -16,4 +16,10 @@ public interface FlowAttachmentMapper {
     int updateFlowApplyId(@Param("ids") List<Long> ids, @Param("flowApplyId") Long flowApplyId);
 
     List<FlowAttachment> selectByApplyId(@Param("flowApplyId") Long flowApplyId);
+
+    FlowAttachment selectById(@Param("id") Long id);
+
+    int deleteById(@Param("id") Long id);
+
+    int deleteByApplyId(@Param("flowApplyId") Long flowApplyId);
 }

@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: flow-service
+  config:
+    import: optional:nacos:notice-service.yaml
   cloud:
     nacos:
       discovery:
@@ -20,6 +22,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+flow:
+  auto-reject:
+    timeout-hours: 48
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml

@@ -30,4 +30,6 @@ public class FlowApplyUpdateDTO {
     private BigDecimal durationHours;
 
     private List<Long> ccUserIds;
+
+    private List<Long> attachmentIds;
 }

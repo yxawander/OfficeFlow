@@ -35,4 +35,6 @@ public class FlowApplyCreateDTO {
     private Long approverId;
 
     private List<Long> ccUserIds;
+
+    private List<Long> attachmentIds;
 }

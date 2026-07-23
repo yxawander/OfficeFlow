@@ -454,7 +454,7 @@ CREATE TABLE IF NOT EXISTS notice_read (
     KEY idx_notice_read_at (read_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告阅读记录表（优化版）';
 
-CREATE TABLE `notice_attachment` (
+CREATE TABLE IF NOT EXISTS `notice_attachment` (
                                      `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
                                      `notice_id`   BIGINT       NULL     COMMENT '关联公告ID（上传时可为空，创建/更新公告后绑定）',
                                      `file_name`   VARCHAR(255) NOT NULL COMMENT '原始文件名',
@@ -708,13 +708,13 @@ VALUES
     -- 2026-07-17 补卡申请（审核中）
     (105, 'CORR2026071701', 4, 2, 'CORRECTION', '考勤补卡申请(下班补卡)', '手机没电', '2026-07-17 18:00:00', '2026-07-17 18:00:00', 0, 2, 'PENDING', NULL),
     -- 2026-07-14 加班申请（已审批通过，应当发放加班费）
-    (106, 'OT2026071401', 4, 2, 'OVERTIME', '正常加班申请', '日常需求加班', '2026-07-14 18:00:00', '2026-07-14 21:00:00', 3.0, 2, 'APPROVED'),
+    (106, 'OT2026071401', 4, 2, 'OVERTIME', '正常加班申请', '日常需求加班', '2026-07-14 18:00:00', '2026-07-14 21:00:00', 3.0, 2, 'APPROVED',NULL),
     -- 2026-07-13 加班申请（审核中，供主管测试审批）
-    (107, 'OT2026071301', 4, 2, 'OVERTIME', '晚下班冲刺加班申请', '项目交付延期冲刺', '2026-07-13 18:00:00', '2026-07-13 22:00:00', 4.0, 2, 'PENDING'),
+    (107, 'OT2026071301', 4, 2, 'OVERTIME', '晚下班冲刺加班申请', '项目交付延期冲刺', '2026-07-13 18:00:00', '2026-07-13 22:00:00', 4.0, 2, 'PENDING',NULL),
     -- 2026-07-12 补卡申请（已被驳回，应当扣除考勤异常款）
-    (108, 'CORR2026071201', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '早上走得急忘了', '2026-07-12 09:00:00', '2026-07-12 09:00:00', 0, 2, 'REJECTED'),
+    (108, 'CORR2026071201', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '早上走得急忘了', '2026-07-12 09:00:00', '2026-07-12 09:00:00', 0, 2, 'REJECTED',NULL),
     -- 2026-07-10 加班申请（申请3小时，实际干了2小时跑路，测试工资扣减或只发2小时）
-    (109, 'OT2026071001', 4, 2, 'OVERTIME', '紧急bug修复', '系统挂了', '2026-07-10 18:00:00', '2026-07-10 21:00:00', 3.0, 2, 'APPROVED');
+    (109, 'OT2026071001', 4, 2, 'OVERTIME', '紧急bug修复', '系统挂了', '2026-07-10 18:00:00', '2026-07-10 21:00:00', 3.0, 2, 'APPROVED',NULL);
    
 -- 初始化审批记录测试数据（与 flow_apply 对应，每条申请至少一条 SUBMIT）
 INSERT IGNORE INTO flow_approve_record (id, flow_apply_id, approver_id, action, comment, approved_at)

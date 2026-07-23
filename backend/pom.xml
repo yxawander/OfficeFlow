@@ -13,6 +13,7 @@
 
     <modules>
         <module>oa-common</module>
+        <module>oa-api</module>
         <module>oa-gateway</module>
         <module>user-service</module>
         <module>attendance-service</module>
@@ -20,7 +21,6 @@
         <module>notice-service</module>
         <module>report-service</module>
         <module>ai-service</module>
-        <module>oa-api</module>
     </modules>
 
     <properties>

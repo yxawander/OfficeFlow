@@ -35,6 +35,9 @@ public class AttendanceService {
     private static final LocalTime WORK_END_TIME = LocalTime.of(18, 0);
     // 早退容忍门槛：10 分钟
     private static final int EARLY_LEAVE_THRESHOLD_MINUTES = 10;
+    private static final int DEFAULT_ALLOWED_RADIUS_METERS = 500;
+    private static final int DEFAULT_ACCURACY_THRESHOLD_METERS = 1000;
+    private static final double EARTH_RADIUS_METERS = 6371008.8;
 
     public AttendanceService(AttendanceRecordMapper attendanceRecordMapper,
                              AttendanceRuleMapper attendanceRuleMapper,
@@ -62,6 +65,10 @@ public class AttendanceService {
 
         Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
         Map<String, Object> rule = getEffectiveRule(deptId);
+        LocationCheck location = validateLocation(rule,
+                request != null ? request.latitude() : null,
+                request != null ? request.longitude() : null,
+                request != null ? request.accuracyMeters() : null);
 
         LocalTime workStartTime = parseTime(rule.get("workStartTime"), WORK_START_TIME);
         int lateThresholdMinutes = parseInt(rule.get("lateThresholdMinutes"), LATE_THRESHOLD_MINUTES);
@@ -87,6 +94,11 @@ public class AttendanceService {
         record.setCheckInTime(now);
         record.setCheckInIp(getClientIp(httpRequest));
         record.setCheckInRemark(request != null ? request.remark() : "");
+        record.setCheckInLatitude(location.latitude());
+        record.setCheckInLongitude(location.longitude());
+        record.setCheckInAccuracyMeters(location.accuracyMeters());
+        record.setCheckInDistanceMeters(location.distanceMeters());
+        record.setCheckInLocationName(location.locationName());
         record.setLateMinutes(lateMinutes);
         record.setStatus(status);
         record.setSource("USER_CHECK");
@@ -111,6 +123,10 @@ public class AttendanceService {
 
         Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
         Map<String, Object> rule = getEffectiveRule(deptId);
+        LocationCheck location = validateLocation(rule,
+                request != null ? request.latitude() : null,
+                request != null ? request.longitude() : null,
+                request != null ? request.accuracyMeters() : null);
 
         LocalTime workEndTime = parseTime(rule.get("workEndTime"), WORK_END_TIME);
         int earlyLeaveThresholdMinutes = parseInt(rule.get("earlyLeaveThresholdMinutes"), EARLY_LEAVE_THRESHOLD_MINUTES);
@@ -135,6 +151,11 @@ public class AttendanceService {
         existing.setCheckOutTime(now);
         existing.setCheckOutIp(getClientIp(httpRequest));
         existing.setCheckOutRemark(request != null ? request.remark() : "");
+        existing.setCheckOutLatitude(location.latitude());
+        existing.setCheckOutLongitude(location.longitude());
+        existing.setCheckOutAccuracyMeters(location.accuracyMeters());
+        existing.setCheckOutDistanceMeters(location.distanceMeters());
+        existing.setCheckOutLocationName(location.locationName());
         existing.setWorkMinutes(workMinutes);
         existing.setEarlyLeaveMinutes(earlyLeaveMinutes);
         existing.setStatus(status);
@@ -167,6 +188,24 @@ public class AttendanceService {
                 record.getEarlyLeaveMinutes() != null ? record.getEarlyLeaveMinutes() : 0,
                 record.getStatus()
         );
+    }
+
+    public Map<String, Object> getLocationConfig(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("未获取到当前登录用户");
+        }
+        Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
+        Map<String, Object> rule = getEffectiveRule(deptId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("locationRequired", parseBoolean(rule.get("locationRequired"), false));
+        result.put("officeLocationName", blankToDefault(parseString(rule.get("officeLocationName")), "办公地点"));
+        result.put("officeAddress", parseString(rule.get("officeAddress")));
+        result.put("officeLatitude", parseDouble(rule.get("officeLatitude")));
+        result.put("officeLongitude", parseDouble(rule.get("officeLongitude")));
+        result.put("allowedRadiusMeters", parseInt(rule.get("allowedRadiusMeters"), DEFAULT_ALLOWED_RADIUS_METERS));
+        result.put("accuracyThresholdMeters", parseInt(rule.get("accuracyThresholdMeters"), DEFAULT_ACCURACY_THRESHOLD_METERS));
+        result.put("locationConfigured", parseDouble(rule.get("officeLatitude")) != null && parseDouble(rule.get("officeLongitude")) != null);
+        return result;
     }
 
     public Map<String, Object> getMyRecords(Long userId, String startDate, String endDate, Integer page, Integer pageSize) {
@@ -233,7 +272,7 @@ public class AttendanceService {
         if (request == null || request.ruleName() == null || request.ruleName().isBlank()) {
             throw new BusinessException("规则名称不能为空");
         }
-        attendanceRuleMapper.insertRule(request);
+        attendanceRuleMapper.insertRule(normalizeRuleRequest(request));
     }
 
     @Transactional
@@ -245,7 +284,7 @@ public class AttendanceService {
         if (existing == null) {
             throw new BusinessException("指定考勤规则不存在");
         }
-        attendanceRuleMapper.updateRule(id, request);
+        attendanceRuleMapper.updateRule(id, normalizeRuleRequest(request));
     }
 
     public List<Map<String, Object>> getAllGroups() {
@@ -344,9 +383,121 @@ public class AttendanceService {
             fallback.put("workEndTime", "18:00:00");
             fallback.put("lateThresholdMinutes", 10);
             fallback.put("earlyLeaveThresholdMinutes", 10);
+            fallback.put("absentThresholdMinutes", 240);
+            fallback.put("locationRequired", false);
+            fallback.put("allowedRadiusMeters", DEFAULT_ALLOWED_RADIUS_METERS);
+            fallback.put("accuracyThresholdMeters", DEFAULT_ACCURACY_THRESHOLD_METERS);
             return fallback;
         }
         return rule;
+    }
+
+    private com.officeflow.attendance.dto.AttendanceRuleRequest normalizeRuleRequest(com.officeflow.attendance.dto.AttendanceRuleRequest request) {
+        Boolean locationRequired = request.locationRequired() != null && request.locationRequired();
+        Integer allowedRadiusMeters = request.allowedRadiusMeters() == null ? DEFAULT_ALLOWED_RADIUS_METERS : request.allowedRadiusMeters();
+        Integer accuracyThresholdMeters = request.accuracyThresholdMeters() == null ? DEFAULT_ACCURACY_THRESHOLD_METERS : request.accuracyThresholdMeters();
+
+        if (allowedRadiusMeters <= 0) {
+            throw new BusinessException("允许打卡半径必须大于0米");
+        }
+        if (accuracyThresholdMeters <= 0) {
+            throw new BusinessException("定位精度阈值必须大于0米");
+        }
+        if (locationRequired && (request.officeLatitude() == null || request.officeLongitude() == null)) {
+            throw new BusinessException("启用定位打卡时必须配置办公地点经纬度");
+        }
+        if (request.officeLatitude() != null && (request.officeLatitude() < -90 || request.officeLatitude() > 90)) {
+            throw new BusinessException("办公地点纬度必须在 -90 到 90 之间");
+        }
+        if (request.officeLongitude() != null && (request.officeLongitude() < -180 || request.officeLongitude() > 180)) {
+            throw new BusinessException("办公地点经度必须在 -180 到 180 之间");
+        }
+
+        return new com.officeflow.attendance.dto.AttendanceRuleRequest(
+                request.ruleName(),
+                request.workStartTime(),
+                request.workEndTime(),
+                request.lateThresholdMinutes() == null ? LATE_THRESHOLD_MINUTES : request.lateThresholdMinutes(),
+                request.earlyLeaveThresholdMinutes() == null ? EARLY_LEAVE_THRESHOLD_MINUTES : request.earlyLeaveThresholdMinutes(),
+                request.absentThresholdMinutes() == null ? 240 : request.absentThresholdMinutes(),
+                locationRequired,
+                blankToDefault(request.officeLocationName(), "默认办公点"),
+                blankToDefault(request.officeAddress(), ""),
+                request.officeLatitude(),
+                request.officeLongitude(),
+                allowedRadiusMeters,
+                accuracyThresholdMeters
+        );
+    }
+
+    private LocationCheck validateLocation(Map<String, Object> rule, Double latitude, Double longitude, Double accuracyMeters) {
+        boolean required = parseBoolean(rule.get("locationRequired"), false);
+        Double officeLatitude = parseDouble(rule.get("officeLatitude"));
+        Double officeLongitude = parseDouble(rule.get("officeLongitude"));
+        String locationName = blankToDefault(parseString(rule.get("officeLocationName")), "办公地点");
+        int allowedRadiusMeters = parseInt(rule.get("allowedRadiusMeters"), DEFAULT_ALLOWED_RADIUS_METERS);
+        int accuracyThresholdMeters = parseInt(rule.get("accuracyThresholdMeters"), DEFAULT_ACCURACY_THRESHOLD_METERS);
+
+        if (!required && (latitude == null || longitude == null || officeLatitude == null || officeLongitude == null)) {
+            return new LocationCheck(latitude, longitude, accuracyMeters, null, null);
+        }
+        if (latitude == null || longitude == null) {
+            throw new BusinessException("请允许浏览器获取定位后再打卡");
+        }
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            throw new BusinessException("定位经纬度不合法，请重新定位后再打卡");
+        }
+        if (accuracyMeters != null && accuracyMeters > accuracyThresholdMeters) {
+            throw new BusinessException("当前定位精度约" + Math.round(accuracyMeters) + "米，超过允许精度" + accuracyThresholdMeters + "米，请移动到网络较好的位置后重试");
+        }
+        if (officeLatitude == null || officeLongitude == null) {
+            throw new BusinessException("当前考勤规则未配置办公地点，请联系管理员维护考勤规则");
+        }
+
+        int distanceMeters = (int) Math.round(distanceMeters(latitude, longitude, officeLatitude, officeLongitude));
+        if (required && distanceMeters > allowedRadiusMeters) {
+            throw new BusinessException("当前位置距离" + locationName + "约" + distanceMeters + "米，超过允许打卡范围" + allowedRadiusMeters + "米");
+        }
+        return new LocationCheck(latitude, longitude, accuracyMeters, distanceMeters, locationName);
+    }
+
+    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double radLat1 = Math.toRadians(lat1);
+        double radLat2 = Math.toRadians(lat2);
+        double deltaLat = Math.toRadians(lat2 - lat1);
+        double deltaLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+                + Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS_METERS * c;
+    }
+
+    private String parseString(Object obj) {
+        return obj == null ? "" : obj.toString();
+    }
+
+    private Double parseDouble(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(obj.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean parseBoolean(Object obj, boolean fallback) {
+        if (obj == null) return fallback;
+        if (obj instanceof Boolean bool) return bool;
+        if (obj instanceof Number number) return number.intValue() != 0;
+        String value = obj.toString();
+        return "true".equalsIgnoreCase(value) || "1".equals(value);
+    }
+
+    private String blankToDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private LocalTime parseTime(Object obj, LocalTime fallback) {
@@ -374,5 +525,14 @@ public class AttendanceService {
             ip = request.getRemoteAddr();
         }
         return ip;
+    }
+
+    private record LocationCheck(
+            Double latitude,
+            Double longitude,
+            Double accuracyMeters,
+            Integer distanceMeters,
+            String locationName
+    ) {
     }
 }

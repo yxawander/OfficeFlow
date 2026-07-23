@@ -175,6 +175,14 @@
             </template>
           </el-table-column>
 
+          <el-table-column label="打卡地点" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div class="location-cell">
+                <span>{{ formatRecordLocation(row) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+
           <el-table-column label="当日工时" width="140" align="center">
             <template #default="{ row }">
               <span v-if="row.workMinutes">{{ formatMinutes(row.workMinutes) }}</span>
@@ -305,6 +313,14 @@
             </template>
           </el-table-column>
 
+          <el-table-column label="打卡地点" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div class="location-cell">
+                <span>{{ formatRecordLocation(row) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+
           <el-table-column label="当日工时" width="140" align="center">
             <template #default="{ row }">
               <span v-if="row.workMinutes">{{ formatMinutes(row.workMinutes) }}</span>
@@ -373,6 +389,19 @@
               <el-tag type="info">{{ row.earlyLeaveThresholdMinutes }} 分钟</el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="定位打卡" min-width="220" align="center">
+            <template #default="{ row }">
+              <div class="rule-location-cell">
+                <el-tag :type="row.locationRequired ? 'success' : 'info'" effect="light">
+                  {{ row.locationRequired ? '已启用' : '未强制' }}
+                </el-tag>
+                <span v-if="row.officeLatitude !== null && row.officeLatitude !== undefined && row.officeLongitude !== null && row.officeLongitude !== undefined">
+                  {{ row.officeLocationName || '办公点' }} / {{ row.allowedRadiusMeters || 0 }}米
+                </span>
+                <span v-else class="text-muted">未配置办公坐标</span>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="120" align="center" fixed="right">
             <template #default="{ row }">
               <el-button type="primary" link @click="openRuleDialog(row)">编辑规则</el-button>
@@ -437,6 +466,26 @@
         <el-form-item label="当前打卡时间">
           <el-input :value="currentFullTime" readonly />
         </el-form-item>
+        <el-form-item label="当前位置">
+          <div class="punch-location-panel" :class="`location-${punchLocation.status}`">
+            <div class="location-panel-main">
+              <el-icon><Location /></el-icon>
+              <div>
+                <div class="location-title">
+                  {{ punchLocation.title }}
+                  <el-tag size="small" :type="locationTagType" effect="light">{{ locationTagText }}</el-tag>
+                </div>
+                <div class="location-desc">{{ punchLocation.message }}</div>
+                <div v-if="punchLocation.latitude !== null && punchLocation.longitude !== null" class="location-meta">
+                  经度 {{ punchLocation.longitude.toFixed(6) }}，纬度 {{ punchLocation.latitude.toFixed(6) }}，精度约 {{ Math.round(punchLocation.accuracyMeters || 0) }} 米
+                </div>
+              </div>
+            </div>
+            <el-button size="small" plain :loading="locating" @click="requestPunchLocation">
+              重新定位
+            </el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="打卡备注（可选）">
           <el-input
             v-model="remark"
@@ -451,7 +500,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="submitCheck">确认打卡</el-button>
+          <el-button type="primary" :loading="loading" :disabled="!locationReady" @click="submitCheck">确认打卡</el-button>
         </div>
       </template>
     </el-dialog>
@@ -460,7 +509,7 @@
     <el-dialog
       v-model="ruleDialogVisible"
       :title="ruleForm.id ? '编辑考勤班次规则' : '新增考勤班次规则'"
-      width="500px"
+      width="720px"
       destroy-on-close
     >
       <el-form :model="ruleForm" label-width="120px">
@@ -481,6 +530,51 @@
         </el-form-item>
         <el-form-item label="旷工判定分钟" required>
           <el-input-number v-model="ruleForm.absentThresholdMinutes" :min="60" :max="480" :step="30" style="width: 100%;" />
+        </el-form-item>
+        <el-divider content-position="left">定位打卡范围</el-divider>
+        <el-form-item label="强制定位打卡">
+          <el-switch
+            v-model="ruleForm.locationRequired"
+            active-text="启用"
+            inactive-text="不强制"
+          />
+        </el-form-item>
+        <el-form-item label="办公点名称">
+          <el-input v-model="ruleForm.officeLocationName" placeholder="例如：总部办公室、研发中心" />
+        </el-form-item>
+        <el-form-item label="办公地址">
+          <el-input v-model="ruleForm.officeAddress" placeholder="例如：成都市高新区 XXX 大厦" />
+        </el-form-item>
+        <el-form-item label="办公点坐标">
+          <div class="office-location-editor">
+            <el-input-number
+              v-model="ruleForm.officeLatitude"
+              :min="-90"
+              :max="90"
+              :precision="7"
+              placeholder="纬度"
+              controls-position="right"
+            />
+            <el-input-number
+              v-model="ruleForm.officeLongitude"
+              :min="-180"
+              :max="180"
+              :precision="7"
+              placeholder="经度"
+              controls-position="right"
+            />
+            <el-button :loading="officeLocating" @click="fillOfficeLocationFromCurrentPosition">
+              <el-icon><Location /></el-icon> 使用当前位置
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="允许半径">
+          <el-input-number v-model="ruleForm.allowedRadiusMeters" :min="50" :max="5000" :step="50" style="width: 100%;" />
+          <div class="form-tip">单位：米。员工定位点到办公点距离超过该半径时，后端会拒绝打卡。</div>
+        </el-form-item>
+        <el-form-item label="定位精度阈值">
+          <el-input-number v-model="ruleForm.accuracyThresholdMeters" :min="50" :max="5000" :step="50" style="width: 100%;" />
+          <div class="form-tip">单位：米。浏览器返回的定位精度太差时，要求员工重新定位。</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -572,10 +666,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Clock, Sunrise, Sunset, Calendar, Check, Refresh, DataAnalysis, Setting, Plus } from '@element-plus/icons-vue'
+import { Clock, Sunrise, Sunset, Calendar, Check, Refresh, DataAnalysis, Setting, Plus, Location } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   getTodayStatusApi,
+  getLocationConfigApi,
   checkInApi,
   checkOutApi,
   getMyRecordsApi,
@@ -726,7 +821,14 @@ const ruleForm = ref({
   workEndTime: '18:00:00',
   lateThresholdMinutes: 10,
   earlyLeaveThresholdMinutes: 10,
-  absentThresholdMinutes: 240
+  absentThresholdMinutes: 240,
+  locationRequired: false,
+  officeLocationName: 'OfficeFlow 办公点',
+  officeAddress: '',
+  officeLatitude: null,
+  officeLongitude: null,
+  allowedRadiusMeters: 500,
+  accuracyThresholdMeters: 1000
 })
 
 // 考勤组数据
@@ -745,6 +847,44 @@ const groupForm = ref({
 const dialogVisible = ref(false)
 const dialogType = ref('checkIn')
 const remark = ref('')
+const locating = ref(false)
+const officeLocating = ref(false)
+const punchLocation = ref({
+  status: 'idle',
+  title: '等待定位',
+  message: '打开弹窗后会自动获取当前位置。',
+  latitude: null,
+  longitude: null,
+  accuracyMeters: null
+})
+const locationConfig = ref({
+  locationRequired: false,
+  locationConfigured: false,
+  officeLocationName: '办公地点',
+  officeAddress: '',
+  officeLatitude: null,
+  officeLongitude: null,
+  allowedRadiusMeters: 500,
+  accuracyThresholdMeters: 1000
+})
+
+const locationReady = computed(() => punchLocation.value.status === 'success')
+const locationTagType = computed(() => {
+  switch (punchLocation.value.status) {
+    case 'success': return 'success'
+    case 'loading': return 'warning'
+    case 'error': return 'danger'
+    default: return 'info'
+  }
+})
+const locationTagText = computed(() => {
+  switch (punchLocation.value.status) {
+    case 'success': return '已定位'
+    case 'loading': return '定位中'
+    case 'error': return '定位失败'
+    default: return '未定位'
+  }
+})
 
 // 计算统计
 const normalRate = computed(() => {
@@ -844,13 +984,25 @@ watch(activeTab, (val) => {
 const openCheckDialog = (type) => {
   dialogType.value = type
   remark.value = ''
+  resetPunchLocation()
   dialogVisible.value = true
+  fetchLocationConfig()
+  requestPunchLocation()
 }
 
 const submitCheck = async () => {
+  if (!locationReady.value) {
+    ElMessage.warning('请先完成定位后再打卡')
+    return
+  }
   loading.value = true
   try {
-    const data = { remark: remark.value }
+    const data = {
+      remark: remark.value,
+      latitude: punchLocation.value.latitude,
+      longitude: punchLocation.value.longitude,
+      accuracyMeters: punchLocation.value.accuracyMeters
+    }
     if (dialogType.value === 'checkIn') {
       await checkInApi(data)
       ElMessage.success('上班打卡成功！')
@@ -868,6 +1020,171 @@ const submitCheck = async () => {
   }
 }
 
+const resetPunchLocation = () => {
+  punchLocation.value = {
+    status: 'idle',
+    title: '等待定位',
+    message: '正在准备获取当前位置。',
+    latitude: null,
+    longitude: null,
+    accuracyMeters: null
+  }
+}
+
+const requestPunchLocation = () => {
+  if (!navigator.geolocation) {
+    punchLocation.value = {
+      status: 'error',
+      title: '浏览器不支持定位',
+      message: '请使用支持 Geolocation 的浏览器，或联系管理员处理。',
+      latitude: null,
+      longitude: null,
+      accuracyMeters: null
+    }
+    return
+  }
+
+  locating.value = true
+  punchLocation.value = {
+    status: 'loading',
+    title: '正在获取定位',
+    message: '请在浏览器弹窗中允许 OfficeFlow 获取当前位置。',
+    latitude: null,
+    longitude: null,
+    accuracyMeters: null
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      updatePunchLocation(position.coords)
+      locating.value = false
+    },
+    (error) => {
+      punchLocation.value = {
+        status: 'error',
+        title: '定位失败',
+        message: getLocationErrorMessage(error),
+        latitude: null,
+        longitude: null,
+        accuracyMeters: null
+      }
+      locating.value = false
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0
+    }
+  )
+}
+
+const fetchLocationConfig = async () => {
+  try {
+    const res = await getLocationConfigApi()
+    if (res?.data) {
+      locationConfig.value = res.data
+      if (punchLocation.value.status === 'success') {
+        updatePunchLocation({
+          latitude: punchLocation.value.latitude,
+          longitude: punchLocation.value.longitude,
+          accuracy: punchLocation.value.accuracyMeters
+        })
+      }
+    }
+  } catch (error) {
+    console.error('获取定位打卡配置失败', error)
+  }
+}
+
+const updatePunchLocation = (coords) => {
+  const latitude = coords.latitude
+  const longitude = coords.longitude
+  const accuracy = coords.accuracy
+  const config = locationConfig.value
+  let status = 'success'
+  let title = '定位已获取'
+  let message = '提交后后端会按考勤规则校验是否在允许打卡范围内。'
+
+  if (config.locationRequired && !config.locationConfigured) {
+    status = 'error'
+    title = '办公点未配置'
+    message = '当前考勤规则要求定位打卡，但管理员还没有维护办公点坐标。'
+  } else if (config.locationConfigured) {
+    const distance = calcDistanceMeters(latitude, longitude, Number(config.officeLatitude), Number(config.officeLongitude))
+    if (accuracy && accuracy > Number(config.accuracyThresholdMeters || 1000)) {
+      status = 'error'
+      title = '定位精度不足'
+      message = `当前定位精度约 ${Math.round(accuracy)} 米，超过允许精度 ${config.accuracyThresholdMeters || 1000} 米。`
+    } else if (config.locationRequired && distance > Number(config.allowedRadiusMeters || 500)) {
+      status = 'error'
+      title = '超出打卡范围'
+      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，超过允许范围 ${config.allowedRadiusMeters || 500} 米。`
+    } else {
+      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，允许范围 ${config.allowedRadiusMeters || 500} 米。`
+    }
+  } else if (!config.locationRequired) {
+    message = '当前规则未强制配置办公点，系统会记录本次定位信息。'
+  }
+
+  punchLocation.value = {
+    status,
+    title,
+    message,
+    latitude,
+    longitude,
+    accuracyMeters: accuracy
+  }
+}
+
+const calcDistanceMeters = (lat1, lon1, lat2, lon2) => {
+  const radius = 6371008.8
+  const radLat1 = lat1 * Math.PI / 180
+  const radLat2 = lat2 * Math.PI / 180
+  const deltaLat = (lat2 - lat1) * Math.PI / 180
+  const deltaLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(deltaLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(radius * c)
+}
+
+const getCurrentPositionOnce = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('浏览器不支持定位'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0
+    })
+  })
+}
+
+const fillOfficeLocationFromCurrentPosition = async () => {
+  officeLocating.value = true
+  try {
+    const position = await getCurrentPositionOnce()
+    ruleForm.value.officeLatitude = Number(position.coords.latitude.toFixed(7))
+    ruleForm.value.officeLongitude = Number(position.coords.longitude.toFixed(7))
+    if (!ruleForm.value.officeLocationName) {
+      ruleForm.value.officeLocationName = 'OfficeFlow 办公点'
+    }
+    ElMessage.success('已填入当前位置作为办公点坐标')
+  } catch (error) {
+    ElMessage.error(getLocationErrorMessage(error))
+  } finally {
+    officeLocating.value = false
+  }
+}
+
+const getLocationErrorMessage = (error) => {
+  if (error?.code === 1) return '你拒绝了浏览器定位授权，请在浏览器地址栏权限设置中允许定位。'
+  if (error?.code === 2) return '暂时无法获取定位，请检查网络、Wi-Fi 或系统定位服务。'
+  if (error?.code === 3) return '定位超时，请移动到网络较好的位置后重试。'
+  return error?.message || '获取定位失败，请稍后重试。'
+}
+
 // 规则编辑与保存
 const openRuleDialog = (row) => {
   if (row) {
@@ -878,7 +1195,14 @@ const openRuleDialog = (row) => {
       workEndTime: row.workEndTime,
       lateThresholdMinutes: row.lateThresholdMinutes,
       earlyLeaveThresholdMinutes: row.earlyLeaveThresholdMinutes,
-      absentThresholdMinutes: row.absentThresholdMinutes
+      absentThresholdMinutes: row.absentThresholdMinutes,
+      locationRequired: !!row.locationRequired,
+      officeLocationName: row.officeLocationName || '',
+      officeAddress: row.officeAddress || '',
+      officeLatitude: row.officeLatitude ?? null,
+      officeLongitude: row.officeLongitude ?? null,
+      allowedRadiusMeters: row.allowedRadiusMeters || 500,
+      accuracyThresholdMeters: row.accuracyThresholdMeters || 1000
     }
   } else {
     ruleForm.value = {
@@ -888,7 +1212,14 @@ const openRuleDialog = (row) => {
       workEndTime: '18:00:00',
       lateThresholdMinutes: 10,
       earlyLeaveThresholdMinutes: 10,
-      absentThresholdMinutes: 240
+      absentThresholdMinutes: 240,
+      locationRequired: true,
+      officeLocationName: 'OfficeFlow 办公点',
+      officeAddress: '',
+      officeLatitude: null,
+      officeLongitude: null,
+      allowedRadiusMeters: 500,
+      accuracyThresholdMeters: 1000
     }
   }
   ruleDialogVisible.value = true
@@ -965,6 +1296,18 @@ const formatMinutes = (mins) => {
   if (h > 0 && m > 0) return `${h}小时${m}分钟`
   if (h > 0) return `${h}小时`
   return `${m}分钟`
+}
+
+const formatRecordLocation = (row) => {
+  const inText = formatOneLocation('上班', row.checkInLocationName, row.checkInDistanceMeters)
+  const outText = formatOneLocation('下班', row.checkOutLocationName, row.checkOutDistanceMeters)
+  return [inText, outText].filter(Boolean).join('；') || '-'
+}
+
+const formatOneLocation = (label, locationName, distanceMeters) => {
+  if (!locationName && (distanceMeters === null || distanceMeters === undefined)) return ''
+  const distanceText = distanceMeters === null || distanceMeters === undefined ? '距离未记录' : `距办公点 ${distanceMeters} 米`
+  return `${label}：${locationName || '办公点'}，${distanceText}`
 }
 
 const getStatusTagType = (status) => {
@@ -1256,5 +1599,103 @@ onUnmounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.location-cell {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rule-location-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.punch-location-panel {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.punch-location-panel.location-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.punch-location-panel.location-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.punch-location-panel.location-loading {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.location-panel-main {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.location-title {
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.location-desc {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.location-meta {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.office-location-editor {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.office-location-editor :deep(.el-input-number) {
+  width: 100%;
+}
+
+.form-tip {
+  width: 100%;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .punch-location-panel {
+    flex-direction: column;
+  }
+
+  .office-location-editor {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

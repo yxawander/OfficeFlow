@@ -233,6 +233,13 @@ CREATE TABLE IF NOT EXISTS attendance_rule (
     early_leave_threshold_minutes INT NOT NULL DEFAULT 10 COMMENT '早退阈值分钟',
     absent_threshold_minutes INT NOT NULL DEFAULT 240 COMMENT '旷工阈值分钟',
     check_lock_seconds INT NOT NULL DEFAULT 10 COMMENT '打卡分布式锁过期秒数',
+    location_required TINYINT NOT NULL DEFAULT 0 COMMENT '是否强制定位打卡：1是，0否',
+    office_location_name VARCHAR(100) NOT NULL DEFAULT '默认办公点' COMMENT '办公地点名称',
+    office_address VARCHAR(255) DEFAULT NULL COMMENT '办公地点地址',
+    office_latitude DECIMAL(10,7) DEFAULT NULL COMMENT '办公地点纬度',
+    office_longitude DECIMAL(10,7) DEFAULT NULL COMMENT '办公地点经度',
+    allowed_radius_meters INT NOT NULL DEFAULT 500 COMMENT '允许打卡半径，单位米',
+    accuracy_threshold_meters INT NOT NULL DEFAULT 1000 COMMENT '定位精度阈值，单位米',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -259,9 +266,19 @@ CREATE TABLE IF NOT EXISTS attendance_record (
     check_in_time DATETIME DEFAULT NULL COMMENT '上班打卡时间',
     check_in_ip VARCHAR(64) DEFAULT NULL COMMENT '上班打卡IP',
     check_in_remark VARCHAR(255) DEFAULT NULL COMMENT '上班打卡备注',
+    check_in_latitude DECIMAL(10,7) DEFAULT NULL COMMENT '上班打卡纬度',
+    check_in_longitude DECIMAL(10,7) DEFAULT NULL COMMENT '上班打卡经度',
+    check_in_accuracy_meters DECIMAL(10,2) DEFAULT NULL COMMENT '上班打卡定位精度，单位米',
+    check_in_distance_meters INT DEFAULT NULL COMMENT '上班打卡距离办公点距离，单位米',
+    check_in_location_name VARCHAR(100) DEFAULT NULL COMMENT '上班打卡命中办公地点',
     check_out_time DATETIME DEFAULT NULL COMMENT '下班打卡时间',
     check_out_ip VARCHAR(64) DEFAULT NULL COMMENT '下班打卡IP',
     check_out_remark VARCHAR(255) DEFAULT NULL COMMENT '下班打卡备注',
+    check_out_latitude DECIMAL(10,7) DEFAULT NULL COMMENT '下班打卡纬度',
+    check_out_longitude DECIMAL(10,7) DEFAULT NULL COMMENT '下班打卡经度',
+    check_out_accuracy_meters DECIMAL(10,2) DEFAULT NULL COMMENT '下班打卡定位精度，单位米',
+    check_out_distance_meters INT DEFAULT NULL COMMENT '下班打卡距离办公点距离，单位米',
+    check_out_location_name VARCHAR(100) DEFAULT NULL COMMENT '下班打卡命中办公地点',
     work_minutes INT NOT NULL DEFAULT 0 COMMENT '实际工作分钟数',
     late_minutes INT NOT NULL DEFAULT 0 COMMENT '迟到分钟数',
     early_leave_minutes INT NOT NULL DEFAULT 0 COMMENT '早退分钟数',
@@ -582,9 +599,13 @@ VALUES
     ('attendance.check-lock-seconds', '10', 'ATTENDANCE', '打卡分布式锁过期秒数，正式以Nacos配置为准', 1),
     ('jwt.expire-seconds', '86400', 'SECURITY', 'JWT过期秒数，正式以Nacos配置为准', 1);
 
-INSERT IGNORE INTO attendance_rule (id, rule_name, work_start_time, work_end_time, late_threshold_minutes, early_leave_threshold_minutes, absent_threshold_minutes, check_lock_seconds, status)
+INSERT IGNORE INTO attendance_rule (
+    id, rule_name, work_start_time, work_end_time, late_threshold_minutes, early_leave_threshold_minutes,
+    absent_threshold_minutes, check_lock_seconds, location_required, office_location_name, office_address,
+    office_latitude, office_longitude, allowed_radius_meters, accuracy_threshold_meters, status
+)
 VALUES
-    (1, '默认工作日考勤规则', '09:00:00', '18:00:00', 10, 10, 240, 10, 1);
+    (1, '默认工作日考勤规则', '09:00:00', '18:00:00', 10, 10, 240, 10, 0, 'OfficeFlow 办公点', '请在考勤规则中设置真实办公地址', NULL, NULL, 500, 1000, 1);
 
 INSERT IGNORE INTO attendance_group (id, group_name, rule_id, dept_id, status)
 VALUES

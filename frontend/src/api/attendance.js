@@ -10,6 +10,11 @@ export function getTodayStatusApi() {
   return request.get('/api/attendance/today')
 }
 
+// 获取当前用户适用的定位打卡配置
+export function getLocationConfigApi() {
+  return request.get('/api/attendance/location-config')
+}
+
 // 上班打卡
 export function checkInApi(data) {
   return request.post('/api/attendance/check-in', data)

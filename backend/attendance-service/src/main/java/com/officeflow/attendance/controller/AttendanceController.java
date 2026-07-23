@@ -77,6 +77,15 @@ public class AttendanceController {
     }
 
     /**
+     * 获取当前登录用户适用的定位打卡配置
+     */
+    @GetMapping("/location-config")
+    public ApiResponse<Map<String, Object>> locationConfig(HttpServletRequest httpRequest) {
+        Long userId = RequestUser.userId(httpRequest);
+        return ApiResponse.ok(attendanceService.getLocationConfig(userId));
+    }
+
+    /**
      * 查询个人历史考勤记录
      */
     @GetMapping("/my-records")

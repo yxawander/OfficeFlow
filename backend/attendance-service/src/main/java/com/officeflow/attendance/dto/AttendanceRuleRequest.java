@@ -6,6 +6,13 @@ public record AttendanceRuleRequest(
         String workEndTime,
         Integer lateThresholdMinutes,
         Integer earlyLeaveThresholdMinutes,
-        Integer absentThresholdMinutes
+        Integer absentThresholdMinutes,
+        Boolean locationRequired,
+        String officeLocationName,
+        String officeAddress,
+        Double officeLatitude,
+        Double officeLongitude,
+        Integer allowedRadiusMeters,
+        Integer accuracyThresholdMeters
 ) {
 }

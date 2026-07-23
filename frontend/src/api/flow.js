@@ -9,6 +9,11 @@ export function createApplyApi(data) {
   return request.post('/api/flow/applies', data)
 }
 
+// 获取申请详情
+export function getApplyDetailApi(id) {
+  return request.get(`/api/flow/applies/${id}`)
+}
+
 // 获取我的申请列表
 export function getMyAppliesApi(params) {
   return request.get('/api/flow/applies/my', { params })

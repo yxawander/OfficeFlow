@@ -369,6 +369,8 @@ CREATE TABLE IF NOT EXISTS flow_approve_record (
     action VARCHAR(32) NOT NULL COMMENT '动作：APPROVE/REJECT/CANCEL/SUBMIT',
     comment VARCHAR(500) DEFAULT NULL COMMENT '审批意见',
     approved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_flow_approve_record_apply (flow_apply_id),
     KEY idx_flow_approve_record_approver (approver_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批流转记录表';
@@ -638,9 +640,9 @@ VALUES
     (1, '研发部考勤组', 1, 2, 1),
     (2, '人事行政考勤组', 1, 3, 1);
 
-INSERT IGNORE INTO notice (id, title, content, notice_type, priority, publisher_id, publish_time, status)
+INSERT IGNORE INTO notice (id, title, content, notice_type, priority, publisher_id, publisher_name, publish_time, status)
 VALUES
-    (1, 'OfficeFlow 项目启动通知', '请各成员按照分工完成对应模块开发，并保持每日提交。', 'COMPANY', 'IMPORTANT', 1, NOW(), 'PUBLISHED');
+    (1, 'OfficeFlow 项目启动通知', '请各成员按照分工完成对应模块开发，并保持每日提交。', 'COMPANY', 'IMPORTANT', 1, '系统管理员', NOW(), 'PUBLISHED');
 
 INSERT IGNORE INTO notice_scope (notice_id, scope_type, scope_id)
 VALUES
@@ -695,16 +697,16 @@ VALUES
     (10, 9000.00, 500.00);
 
 -- 初始化待审批测试单据 (供研发主管登录测试审批功能)
-INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, applicant_dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status)
+INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, applicant_dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status, approved_at)
 VALUES
     -- 2026-07-20 请假申请（已审批通过）
-    (101, 'LEAVE2026072001', 4, 2, 'LEAVE', '普通员工事假申请', '家中急事需请假半天', '2026-07-20 09:00:00', '2026-07-20 18:00:00', 8.0, 2, 'APPROVED'),
+    (101, 'LEAVE2026072001', 4, 2, 'LEAVE', '普通员工事假申请', '家中急事需请假半天', '2026-07-20 09:00:00', '2026-07-20 18:00:00', 8.0, 2, 'APPROVED', '2026-07-20 08:30:00'),
     -- 2026-07-22 补卡申请（已撤销）
-    (103, 'CORR2026072201', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '忘记打卡', '2026-07-22 09:00:00', '2026-07-22 09:00:00', 0, 2, 'CANCELED'),
+    (103, 'CORR2026072201', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '忘记打卡', '2026-07-22 09:00:00', '2026-07-22 09:00:00', 0, 2, 'CANCELED', '2026-07-22 10:00:00'),
     -- 2026-07-21 补卡申请（已审批通过）
-    (104, 'CORR2026072101', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '打卡机故障', '2026-07-21 09:00:00', '2026-07-21 09:00:00', 0, 2, 'APPROVED'),
-    -- 2026-07-17 补卡申请（审核中，供主管测试审批）
-    (105, 'CORR2026071701', 4, 2, 'CORRECTION', '考勤补卡申请(下班补卡)', '手机没电', '2026-07-17 18:00:00', '2026-07-17 18:00:00', 0, 2, 'PENDING'),
+    (104, 'CORR2026072101', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '打卡机故障', '2026-07-21 09:00:00', '2026-07-21 09:00:00', 0, 2, 'APPROVED', '2026-07-21 09:30:00'),
+    -- 2026-07-17 补卡申请（审核中）
+    (105, 'CORR2026071701', 4, 2, 'CORRECTION', '考勤补卡申请(下班补卡)', '手机没电', '2026-07-17 18:00:00', '2026-07-17 18:00:00', 0, 2, 'PENDING', NULL),
     -- 2026-07-14 加班申请（已审批通过，应当发放加班费）
     (106, 'OT2026071401', 4, 2, 'OVERTIME', '正常加班申请', '日常需求加班', '2026-07-14 18:00:00', '2026-07-14 21:00:00', 3.0, 2, 'APPROVED'),
     -- 2026-07-13 加班申请（审核中，供主管测试审批）
@@ -713,6 +715,29 @@ VALUES
     (108, 'CORR2026071201', 4, 2, 'CORRECTION', '考勤补卡申请(上班补卡)', '早上走得急忘了', '2026-07-12 09:00:00', '2026-07-12 09:00:00', 0, 2, 'REJECTED'),
     -- 2026-07-10 加班申请（申请3小时，实际干了2小时跑路，测试工资扣减或只发2小时）
     (109, 'OT2026071001', 4, 2, 'OVERTIME', '紧急bug修复', '系统挂了', '2026-07-10 18:00:00', '2026-07-10 21:00:00', 3.0, 2, 'APPROVED');
+   
+-- 初始化审批记录测试数据（与 flow_apply 对应，每条申请至少一条 SUBMIT）
+INSERT IGNORE INTO flow_approve_record (id, flow_apply_id, approver_id, action, comment, approved_at)
+VALUES
+    -- 101：请假申请 → SUBMIT + APPROVE
+    (1, 101, 4, 'SUBMIT', '家中急事需请假半天', '2026-07-20 08:00:00'),
+    (2, 101, 2, 'APPROVE', '同意请假', '2026-07-20 08:30:00'),
+    -- 103：补卡申请 → SUBMIT + CANCEL
+    (3, 103, 4, 'SUBMIT', '忘记打卡，申请补卡', '2026-07-22 08:30:00'),
+    (4, 103, 4, 'CANCEL', '已不需要补卡', '2026-07-22 10:00:00'),
+    -- 104：补卡申请 → SUBMIT + APPROVE
+    (5, 104, 4, 'SUBMIT', '打卡机故障，申请补卡', '2026-07-21 08:00:00'),
+    (6, 104, 2, 'APPROVE', '已知晓，同意补卡', '2026-07-21 09:30:00'),
+    -- 105：补卡申请 → SUBMIT（审核中）
+    (7, 105, 4, 'SUBMIT', '手机没电忘记打卡', '2026-07-17 18:10:00'),
+    -- 106：加班申请 → SUBMIT + APPROVE
+    (8, 106, 4, 'SUBMIT', '日常需求加班', '2026-07-14 16:00:00'),
+    (9, 106, 2, 'APPROVE', '同意加班', '2026-07-14 17:00:00'),
+    -- 107：加班申请 → SUBMIT（审核中）
+    (10, 107, 4, 'SUBMIT', '项目交付延期，需要冲刺', '2026-07-13 17:00:00'),
+    -- 108：补卡申请 → SUBMIT + REJECT
+    (11, 108, 4, 'SUBMIT', '早上走得急忘了打卡', '2026-07-12 09:10:00'),
+    (12, 108, 2, 'REJECT', '理由不充分，不予补卡', '2026-07-12 14:00:00');
 
 -- 初始化补卡申请详情测试数据
 INSERT IGNORE INTO attendance_correction_apply (id, user_id, attendance_record_id, correction_type, correction_time, reason, flow_apply_id, status)

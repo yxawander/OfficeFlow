@@ -11,6 +11,17 @@ export const useUserStore = defineStore('user', {
     profile: JSON.parse(localStorage.getItem(USER_KEY) || 'null'),
     menus: JSON.parse(localStorage.getItem(MENUS_KEY) || '[]')
   }),
+  getters: {
+    // 判断当前登录用户是否拥有某角色（兼容 userType / roleCode / roles[].roleCode）
+    hasRole: (state) => (roleCode) => {
+      const user = state.profile
+      if (!user) return false
+      if ((user.userType || '') === roleCode) return true
+      if ((user.roleCode || '') === roleCode) return true
+      const roles = Array.isArray(user.roles) ? user.roles : []
+      return roles.some((r) => (typeof r === 'string' ? r : r?.roleCode) === roleCode)
+    }
+  },
   actions: {
     setSession(payload) {
       this.token = payload.token || ''

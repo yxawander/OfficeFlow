@@ -225,4 +225,81 @@ public class MonthlyReportAndSalaryService {
     public SalaryMonthlyStatement getMySalaryStatement(Long userId, String settleMonth) {
         return salaryStatementMapper.selectStatementByUserIdAndMonth(userId, settleMonth);
     }
+
+    /**
+     * 为单个用户重新计算指定月份的考勤报表和工资单
+     */
+    @Transactional
+    public void recalculateUserSalaryAndReport(Long userId, String settleMonth) {
+        // 单个用户的考勤报表和工资也可以复用全局生成逻辑中的片段，为了快速实现：
+        // 实际上 generateMonthlySalary 是全员的。这里我们写一个单人的版本：
+        
+        // 1. 重算该用户该月考勤报表
+        int workDays = calculateWorkDays(settleMonth);
+        int lateMinutes = monthlyReportMapper.selectSumLateMinutes(userId, settleMonth);
+        int earlyLeaveMinutes = monthlyReportMapper.selectSumEarlyLeaveMinutes(userId, settleMonth);
+        int missingCards = monthlyReportMapper.countMissingCards(userId, settleMonth);
+        int overtimeMinutes = monthlyReportMapper.selectSumOvertimeMinutes(userId, settleMonth);
+        int leaveDays = monthlyReportMapper.selectSumLeaveDays(userId, settleMonth);
+        int absentDays = monthlyReportMapper.countAbsentDays(userId, settleMonth);
+
+        AttendanceMonthlyReport report = new AttendanceMonthlyReport();
+        report.setUserId(userId);
+        report.setReportMonth(settleMonth);
+        report.setRequiredWorkDays(workDays);
+        report.setActualWorkDays(workDays - leaveDays - absentDays); // 简化的实际出勤
+        report.setLateMinutes(lateMinutes);
+        report.setEarlyLeaveMinutes(earlyLeaveMinutes);
+        report.setMissingCards(missingCards);
+        report.setAbsentDays(absentDays);
+        report.setOvertimeHours(new BigDecimal(overtimeMinutes).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP));
+        report.setLeaveDays(leaveDays);
+        monthlyReportMapper.upsertReport(report);
+
+        // 2. 重算该用户该月工资
+        Map<String, Object> salaryConfig = salaryStatementMapper.getUserSalaryConfig(userId);
+        BigDecimal baseSalary = salaryConfig.get("baseSalary") != null ? new BigDecimal(salaryConfig.get("baseSalary").toString()) : new BigDecimal("8000.00");
+        BigDecimal allowance = salaryConfig.get("allowance") != null ? new BigDecimal(salaryConfig.get("allowance").toString()) : new BigDecimal("500.00");
+
+        BigDecimal dailyRate = baseSalary.divide(new BigDecimal("21.75"), 4, RoundingMode.HALF_UP);
+        BigDecimal hourlyRate = dailyRate.divide(new BigDecimal("8.0"), 4, RoundingMode.HALF_UP);
+
+        BigDecimal overtimePay = report.getOvertimeHours().multiply(hourlyRate).multiply(new BigDecimal("1.5")).setScale(2, RoundingMode.HALF_UP);
+
+        Integer offWorkMinutes = salaryStatementMapper.selectSumLateAndEarlyMinutes(userId, settleMonth);
+        if (offWorkMinutes == null) offWorkMinutes = 0;
+        int totalPenaltyMinutes = offWorkMinutes + missingCards * 4 * 60; // 缺卡算4小时
+
+        BigDecimal lateDeduction = hourlyRate.multiply(new BigDecimal(totalPenaltyMinutes)).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP);
+        BigDecimal absentDeduction = dailyRate.multiply(new BigDecimal(absentDays)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal leaveDeduction = dailyRate.multiply(new BigDecimal(leaveDays)).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal actualSalary = baseSalary.add(allowance).add(overtimePay)
+                .subtract(lateDeduction).subtract(absentDeduction).subtract(leaveDeduction);
+
+        if (actualSalary.compareTo(BigDecimal.ZERO) < 0) {
+            actualSalary = BigDecimal.ZERO;
+        }
+        actualSalary = actualSalary.setScale(2, RoundingMode.HALF_UP);
+
+        SalaryMonthlyStatement statement = new SalaryMonthlyStatement();
+        statement.setUserId(userId);
+        statement.setSettleMonth(settleMonth);
+        statement.setBaseSalary(baseSalary);
+        statement.setDailyWage(dailyRate.setScale(2, RoundingMode.HALF_UP));
+        statement.setHourlyWage(hourlyRate.setScale(2, RoundingMode.HALF_UP));
+        statement.setOvertimeHours(report.getOvertimeHours());
+        statement.setOvertimePay(overtimePay);
+        statement.setAllowance(allowance);
+        statement.setOffWorkHours(new BigDecimal(totalPenaltyMinutes).divide(new BigDecimal("60"), 2, RoundingMode.HALF_UP));
+        statement.setLateDeduction(lateDeduction);
+        statement.setAbsentDays(new BigDecimal(absentDays));
+        statement.setAbsentDeduction(absentDeduction);
+        statement.setLeaveDays(new BigDecimal(leaveDays));
+        statement.setLeaveDeduction(leaveDeduction);
+        statement.setActualSalary(actualSalary);
+        statement.setStatus("DRAFT");
+        
+        salaryStatementMapper.upsertStatement(statement);
+    }
 }

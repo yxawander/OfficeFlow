@@ -16,12 +16,12 @@ export function getMyAppliesApi(params) {
 
 // 获取待我审批列表 (主管/管理员)
 export function getPendingAppliesApi(params) {
-  return request.get('/api/flow/admin/applies/pending', { params })
+  return request.get('/api/flow/applies/pending', { params })
 }
 
 // 获取我已处理的审批列表
 export function getProcessedAppliesApi(params) {
-  return request.get('/api/flow/admin/applies/processed', { params })
+  return request.get('/api/flow/applies/processed', { params })
 }
 
 // 审批同意

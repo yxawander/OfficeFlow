@@ -174,11 +174,19 @@ public interface AttendanceRecordMapper {
     List<Map<String, Object>> listDeptTodayRecords(@Param("deptId") Long deptId, @Param("workDate") LocalDate workDate);
 
     @Update("""
+            <script>
             UPDATE attendance_record
-            SET check_in_time = CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE check_in_time END,
-                check_out_time = CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE check_out_time END,
+            <set>
+                <if test="correctionType == 'CHECK_IN'">check_in_time = #{correctionTime},</if>
+                <if test="correctionType == 'CHECK_OUT'">check_out_time = #{correctionTime},</if>
                 source = 'MANUAL'
-            WHERE (id = #{recordId} AND #{recordId} IS NOT NULL) OR (user_id = #{userId} AND work_date = DATE(#{correctionTime}))
+            </set>
+            WHERE 
+            <choose>
+                <when test="recordId != null">id = #{recordId}</when>
+                <otherwise>user_id = #{userId} AND work_date = DATE(#{correctionTime})</otherwise>
+            </choose>
+            </script>
             """)
     int updateAttendanceRecordForCorrection(@Param("recordId") Long recordId,
                                              @Param("userId") Long userId,

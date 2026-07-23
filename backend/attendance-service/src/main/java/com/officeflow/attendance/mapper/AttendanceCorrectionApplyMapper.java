@@ -74,10 +74,12 @@ public interface AttendanceCorrectionApplyMapper {
                 <if test="attendanceRecordId != null">attendance_record_id = #{attendanceRecordId} OR</if>
                 DATE(correction_time) = #{workDate}
               )
-              AND status IN ('PENDING', 'REJECTED')
+              AND status IN ('PENDING', 'REJECTED', 'APPROVED')
+              AND correction_type = #{correctionType}
             </script>
             """)
-    int countActiveOrRejectedCorrection(@Param("userId") Long userId,
-                                         @Param("attendanceRecordId") Long attendanceRecordId,
-                                         @Param("workDate") java.time.LocalDate workDate);
+    int countExistingCorrection(@Param("userId") Long userId,
+                                @Param("attendanceRecordId") Long attendanceRecordId,
+                                @Param("workDate") java.time.LocalDate workDate,
+                                @Param("correctionType") String correctionType);
 }

@@ -350,11 +350,11 @@ public class AttendanceService {
             throw new BusinessException("补卡类型和原因不能为空");
         }
 
-        // 防重复与防止对已驳回记录重复申请
+        // 防重复与防止对已审批或已驳回记录重复申请同一类型补卡
         LocalDate targetWorkDate = request.workDate() != null ? request.workDate() : request.correctionTime().toLocalDate();
-        int existingCount = attendanceCorrectionApplyMapper.countActiveOrRejectedCorrection(userId, request.attendanceRecordId(), targetWorkDate);
+        int existingCount = attendanceCorrectionApplyMapper.countExistingCorrection(userId, request.attendanceRecordId(), targetWorkDate, request.correctionType());
         if (existingCount > 0) {
-            throw new BusinessException("该日期已在审批中或已被驳回，不可重复发起补卡申请");
+            throw new BusinessException("该日期的此类型补卡已在审批中或已处理，不可重复申请");
         }
 
         if (request.attendanceRecordId() != null) {
@@ -577,6 +577,9 @@ public class AttendanceService {
                 attendanceRecordMapper.insertAttendanceRecordForCorrection(corr.getUserId(), dto.getDeptId(), corr.getCorrectionType(), corr.getCorrectionTime());
             }
             attendanceRecordMapper.recalculateAttendanceRecordAfterCorrection(corr.getUserId(), corr.getCorrectionTime());
+            // 自动重算当月工资
+            String settleMonth = corr.getCorrectionTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+            monthlyReportAndSalaryService.recalculateUserSalaryAndReport(corr.getUserId(), settleMonth);
         }
     }
 

@@ -729,10 +729,22 @@ const disabledCorrectionDate = (time) => {
 const openCorrectionDialog = (row) => {
   correctionForm.value.attendanceRecordId = row.id
   correctionForm.value.workDate = row.workDate
-  correctionForm.value.correctionType = row.checkInTime ? 'CHECK_OUT' : 'CHECK_IN'
+  if (row.status === 'LATE') {
+    correctionForm.value.correctionType = 'CHECK_IN'
+  } else if (row.status === 'EARLY_LEAVE') {
+    correctionForm.value.correctionType = 'CHECK_OUT'
+  } else {
+    correctionForm.value.correctionType = row.checkInTime ? 'CHECK_OUT' : 'CHECK_IN'
+  }
   correctionForm.value.correctionTime = `${row.workDate} ${correctionForm.value.correctionType === 'CHECK_IN' ? '09:00:00' : '18:00:00'}`
   correctionForm.value.reason = ''
   correctionDialogVisible.value = true
+}
+
+const onCorrectionTypeChange = (type) => {
+  if (correctionForm.value.workDate) {
+    correctionForm.value.correctionTime = `${correctionForm.value.workDate} ${type === 'CHECK_IN' ? '09:00:00' : '18:00:00'}`
+  }
 }
 
 const submitCorrection = async () => {

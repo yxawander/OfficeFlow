@@ -15,16 +15,15 @@ public class UpdateDB {
             try (Connection conn = DriverManager.getConnection(url, user, pass);
                  Statement stmt = conn.createStatement()) {
                 
-                String sql = "ALTER TABLE salary_monthly_statement " +
-                        "ADD COLUMN daily_wage DECIMAL(10,2) COMMENT '日薪', " +
-                        "ADD COLUMN hourly_wage DECIMAL(10,2) COMMENT '时薪', " +
-                        "ADD COLUMN overtime_hours DECIMAL(5,1) COMMENT '加班小时数', " +
-                        "ADD COLUMN off_work_hours DECIMAL(5,1) COMMENT '迟到/早退/缺卡折算扣除总小时数', " +
-                        "ADD COLUMN absent_days DECIMAL(5,1) COMMENT '旷工天数', " +
-                        "ADD COLUMN leave_days DECIMAL(5,1) COMMENT '请假天数'";
-                
-                stmt.executeUpdate(sql);
-                System.out.println("ALTER TABLE SUCCESSFUL");
+                String sqlPath = "D:\\newLand\\OfficeFlow\\docs\\sql\\init.sql";
+                String content = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(sqlPath)));
+                String[] queries = content.split(";");
+                for (String query : queries) {
+                    if (query.trim().length() > 0) {
+                        stmt.executeUpdate(query);
+                    }
+                }
+                System.out.println("SQL EXECUTION SUCCESSFUL");
             }
         } catch (Exception e) {
             e.printStackTrace();

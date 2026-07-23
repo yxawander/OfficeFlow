@@ -142,7 +142,7 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="approvedAt" label="处理时间" width="170" />
+            <el-table-column prop="handleTime" label="处理时间" width="170" />
             <el-table-column label="操作" width="100" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" link size="small" @click="openDetailDialog(row)">
@@ -310,6 +310,7 @@ const router = useRouter()
 import {
   createApplyApi,
   getMyAppliesApi,
+  getApplyDetailApi,
   getPendingAppliesApi,
   getProcessedAppliesApi,
   approveApplyApi,
@@ -407,8 +408,17 @@ const submittingAction = ref(false)
 const detailDialogVisible = ref(false)
 const currentDetailRow = ref(null)
 
-const openDetailDialog = (row) => {
-  currentDetailRow.value = row
+const openDetailDialog = async (row) => {
+  try {
+    const res = await getApplyDetailApi(row.id)
+    if (res.code === 200 && res.data) {
+      currentDetailRow.value = res.data
+    } else {
+      currentDetailRow.value = row
+    }
+  } catch (e) {
+    currentDetailRow.value = row
+  }
   detailDialogVisible.value = true
 }
 

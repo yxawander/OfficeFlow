@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.officeflow.notice.mapper.NoticeAttachmentMapper">
+
+    <resultMap id="BaseResultMap" type="com.officeflow.notice.entity.NoticeAttachment">
+        <id column="id" property="id"/>
+        <result column="notice_id" property="noticeId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_url" property="fileUrl"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="file_type" property="fileType"/>
+        <result column="oss_key" property="ossKey"/>
+        <result column="uploaded_by" property="uploadedBy"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.officeflow.notice.entity.NoticeAttachment"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notice_attachment (notice_id, file_name, file_url, file_size, file_type,
+                                        oss_key, uploaded_by, created_at)
+        VALUES (#{noticeId}, #{fileName}, #{fileUrl}, #{fileSize}, #{fileType},
+                #{ossKey}, #{uploadedBy}, NOW())
+    </insert>
+
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO notice_attachment (notice_id, file_name, file_url, file_size, file_type,
+                                        oss_key, uploaded_by, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.noticeId}, #{item.fileName}, #{item.fileUrl}, #{item.fileSize}, #{item.fileType},
+             #{item.ossKey}, #{item.uploadedBy}, NOW())
+        </foreach>
+    </insert>
+
+    <update id="updateNoticeId">
+        UPDATE notice_attachment
+        SET notice_id = #{noticeId}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <select id="selectByNoticeId" resultMap="BaseResultMap">
+        SELECT id, notice_id, file_name, file_url, file_size, file_type, oss_key,
+               uploaded_by, created_at
+        FROM notice_attachment
+        WHERE notice_id = #{noticeId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, notice_id, file_name, file_url, file_size, file_type, oss_key,
+               uploaded_by, created_at
+        FROM notice_attachment
+        WHERE id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM notice_attachment WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByNoticeId">
+        DELETE FROM notice_attachment WHERE notice_id = #{noticeId}
+    </delete>
+
+    <update id="unbindByNoticeId">
+        UPDATE notice_attachment SET notice_id = NULL WHERE notice_id = #{noticeId}
+    </update>
+
+</mapper>

@@ -403,7 +403,7 @@ CREATE TABLE IF NOT EXISTS notice (
     publisher_id BIGINT NOT NULL COMMENT '发布人ID',
     publisher_name VARCHAR(64) DEFAULT NULL COMMENT '发布人姓名缓存',
     publish_time DATETIME DEFAULT NULL COMMENT '发布时间',
-    scheduled_time DATETIME NULL COMMENT '计划发布时间，null表示需手动发布'
+    scheduled_time DATETIME NULL COMMENT '计划发布时间，null表示需手动发布',
     expire_time DATETIME DEFAULT NULL COMMENT '过期时间',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/PUBLISHED/OFFLINE',
     read_count INT NOT NULL DEFAULT 0 COMMENT '已读人数',

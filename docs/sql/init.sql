@@ -583,7 +583,7 @@ SELECT 1, id FROM sys_menu;
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 VALUES
     (2, 1), (2, 5), (2, 16), (2, 17), (2, 6), (2, 7), (2, 11), (2, 12), (2, 13), (2, 14), (2, 15),
-    (3, 1), (3, 5), (3, 16), (3, 6), (3, 7);
+    (3, 1), (3, 5), (3, 16), (3, 6), (3, 7), (3, 15);
 
 INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
 SELECT 1, id FROM sys_api_permission;
@@ -594,7 +594,7 @@ VALUES
     (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24), (2, 28), (2, 29), (2, 30), (2, 31), (2, 32), (2, 33), (2, 34), (2, 35),
     (2, 36), (2, 37), (2, 38), (2, 39),
     (3, 4), (3, 5), (3, 6), (3, 8), (3, 10), (3, 15), (3, 16),
-    (3, 19), (3, 20), (3, 21), (3, 24), (3, 31);
+    (3, 19), (3, 20), (3, 21), (3, 24), (3, 31), (3, 36), (3, 37);
 
 INSERT IGNORE INTO sys_config (config_key, config_value, config_group, remark, status)
 VALUES

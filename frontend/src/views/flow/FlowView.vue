@@ -500,8 +500,12 @@ const calculateDuration = (val) => {
     const end = new Date(val[1])
     
     if (applyForm.applyType === 'LEAVE') {
+      let adjustedEnd = new Date(end.getTime())
+      if (adjustedEnd.getHours() === 0 && adjustedEnd.getMinutes() === 0 && adjustedEnd.getSeconds() === 0 && end.getTime() > start.getTime()) {
+        adjustedEnd = new Date(end.getTime() - 1)
+      }
       const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-      const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+      const endDate = new Date(adjustedEnd.getFullYear(), adjustedEnd.getMonth(), adjustedEnd.getDate())
       const daysDiff = Math.round((endDate - startDate) / (1000 * 3600 * 24)) + 1
       applyForm.durationHours = daysDiff * 8
     } else {
@@ -557,7 +561,7 @@ const submitApply = async () => {
           reason: applyForm.reason,
           startTime: applyForm.startTime,
           endTime: applyForm.endTime,
-          durationHours: applyForm.durationHours
+          durationHours: applyForm.durationHours // Ensure this sends hours!
         })
       }
 

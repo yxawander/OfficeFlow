@@ -96,7 +96,23 @@ public class FlowServiceImpl implements FlowService {
         apply.setReason(dto.getReason());
         apply.setStartTime(dto.getStartTime());
         apply.setEndTime(dto.getEndTime());
-        apply.setDurationHours(dto.getDurationHours());
+        
+        if ("LEAVE".equals(applyType)) {
+            LocalDateTime start = dto.getStartTime();
+            LocalDateTime end = dto.getEndTime();
+            LocalDateTime adjustedEnd = end;
+            if (end.getHour() == 0 && end.getMinute() == 0 && end.getSecond() == 0 && end.isAfter(start)) {
+                adjustedEnd = end.minusSeconds(1);
+            }
+            long days = java.time.temporal.ChronoUnit.DAYS.between(start.toLocalDate(), adjustedEnd.toLocalDate()) + 1;
+            apply.setDurationHours(BigDecimal.valueOf(days * 8));
+        } else if ("OVERTIME".equals(applyType)) {
+            long minutes = java.time.Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
+            apply.setDurationHours(BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 1, java.math.RoundingMode.HALF_UP));
+        } else {
+            apply.setDurationHours(dto.getDurationHours() != null ? dto.getDurationHours() : BigDecimal.ZERO);
+        }
+        
         apply.setStatus("PENDING");
         apply.setCurrentNode("DIRECT_MANAGER");
         apply.setIsDeleted((byte) 0);
@@ -240,7 +256,23 @@ public class FlowServiceImpl implements FlowService {
         apply.setReason(dto.getReason());
         apply.setStartTime(dto.getStartTime());
         apply.setEndTime(dto.getEndTime());
-        apply.setDurationHours(dto.getDurationHours());
+        
+        if ("LEAVE".equals(applyType)) {
+            LocalDateTime start = dto.getStartTime();
+            LocalDateTime end = dto.getEndTime();
+            LocalDateTime adjustedEnd = end;
+            if (end.getHour() == 0 && end.getMinute() == 0 && end.getSecond() == 0 && end.isAfter(start)) {
+                adjustedEnd = end.minusSeconds(1);
+            }
+            long days = java.time.temporal.ChronoUnit.DAYS.between(start.toLocalDate(), adjustedEnd.toLocalDate()) + 1;
+            apply.setDurationHours(BigDecimal.valueOf(days * 8));
+        } else if ("OVERTIME".equals(applyType)) {
+            long minutes = java.time.Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
+            apply.setDurationHours(BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 1, java.math.RoundingMode.HALF_UP));
+        } else {
+            apply.setDurationHours(dto.getDurationHours());
+        }
+        
         flowApplyMapper.update(apply);
 
         if (dto.getAttachmentIds() != null) {

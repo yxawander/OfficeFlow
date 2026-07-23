@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS attendance_rule (
     office_address VARCHAR(255) DEFAULT NULL COMMENT '办公地点地址',
     office_latitude DECIMAL(10,7) DEFAULT NULL COMMENT '办公地点纬度',
     office_longitude DECIMAL(10,7) DEFAULT NULL COMMENT '办公地点经度',
-    allowed_radius_meters INT NOT NULL DEFAULT 500 COMMENT '允许打卡半径，单位米',
+    allowed_radius_meters INT NOT NULL DEFAULT 1000 COMMENT '允许打卡半径，单位米',
     accuracy_threshold_meters INT NOT NULL DEFAULT 1000 COMMENT '定位精度阈值，单位米',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -506,7 +506,7 @@ VALUES
     (2, 0, '系统管理', 'CATALOG', '/system', NULL, 'system:view', 'Setting', 1, 2, 1),
     (3, 2, '员工管理', 'MENU', '/system/users', 'views/system/UserView.vue', 'system:user:view', 'User', 1, 1, 1),
     (4, 2, '角色权限', 'MENU', '/system/roles', 'views/system/RoleView.vue', 'system:role:view', 'Lock', 1, 2, 1),
-    (5, 0, '考勤打卡', 'MENU', '/attendance', 'views/attendance/AttendanceView.vue', 'attendance:view', 'Calendar', 1, 3, 1),
+    (5, 0, '考勤打卡', 'CATALOG', '/attendance', NULL, 'attendance:view', 'Calendar', 1, 3, 1),
     (6, 0, '审批中心', 'MENU', '/flow', 'views/flow/FlowView.vue', 'flow:view', 'Tickets', 1, 4, 1),
     (7, 0, '公告通知', 'MENU', '/notice', 'views/notice/NoticeView.vue', 'notice:view', 'Bell', 1, 5, 1),
     (8, 3, '新增员工', 'BUTTON', NULL, NULL, 'system:user:create', NULL, 0, 1, 1),
@@ -516,7 +516,10 @@ VALUES
     (12, 6, '审批驳回', 'BUTTON', NULL, NULL, 'flow:reject', NULL, 0, 2, 1),
     (13, 0, '月度报表', 'MENU', '/report', 'views/report/ReportView.vue', 'report:view', 'DataAnalysis', 1, 6, 1),
     (14, 0, '工资结算', 'MENU', '/salary', 'views/salary/SalaryView.vue', 'salary:view', 'Money', 1, 7, 1),
-    (15, 0, 'AI 问答', 'MENU', '/ai-chat', 'views/ai/AiChatView.vue', 'ai:view', 'ChatDotRound', 1, 8, 1);
+    (15, 0, 'AI 问答', 'MENU', '/ai-chat', 'views/ai/AiChatView.vue', 'ai:view', 'ChatDotRound', 1, 8, 1),
+    (16, 5, '个人打卡工作台', 'MENU', '/attendance/my', 'views/attendance/AttendanceView.vue', 'attendance:view', 'Clock', 1, 1, 1),
+    (17, 5, '部门今日考勤实时监控', 'MENU', '/attendance/dept', 'views/attendance/AttendanceView.vue', 'attendance:dept:view', 'DataAnalysis', 1, 2, 1),
+    (18, 5, '考勤规则与部门绑定', 'MENU', '/attendance/rule', 'views/attendance/AttendanceView.vue', 'attendance:rule:view', 'Setting', 1, 3, 1);
 
 INSERT IGNORE INTO sys_api_permission (id, permission_name, permission_code, service_name, request_method, request_path, status)
 VALUES
@@ -579,8 +582,8 @@ SELECT 1, id FROM sys_menu;
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 VALUES
-    (2, 1), (2, 5), (2, 6), (2, 7), (2, 11), (2, 12), (2, 13), (2, 14), (2, 15),
-    (3, 1), (3, 5), (3, 6), (3, 7);
+    (2, 1), (2, 5), (2, 16), (2, 17), (2, 6), (2, 7), (2, 11), (2, 12), (2, 13), (2, 14), (2, 15),
+    (3, 1), (3, 5), (3, 16), (3, 6), (3, 7);
 
 INSERT IGNORE INTO sys_role_api_permission (role_id, api_permission_id)
 SELECT 1, id FROM sys_api_permission;
@@ -605,7 +608,7 @@ INSERT IGNORE INTO attendance_rule (
     office_latitude, office_longitude, allowed_radius_meters, accuracy_threshold_meters, status
 )
 VALUES
-    (1, '默认工作日考勤规则', '09:00:00', '18:00:00', 10, 10, 240, 10, 0, 'OfficeFlow 办公点', '请在考勤规则中设置真实办公地址', NULL, NULL, 500, 1000, 1);
+    (1, '默认工作日考勤规则', '09:00:00', '18:00:00', 10, 10, 240, 10, 0, 'OfficeFlow 办公点', '请在考勤规则中设置真实办公地址', NULL, NULL, 1000, 1000, 1);
 
 INSERT IGNORE INTO attendance_group (id, group_name, rule_id, dept_id, status)
 VALUES

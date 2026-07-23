@@ -1,20 +1,5 @@
 <template>
   <div class="attendance-page">
-    <!-- 顶部 View 模式切换 Segment -->
-    <div v-if="isManager || isAdmin" class="mode-switch-card">
-      <el-radio-group v-model="activeTab" size="large">
-        <el-radio-button label="my">
-          <el-icon><Clock /></el-icon> 个人打卡工作台
-        </el-radio-button>
-        <el-radio-button v-if="isManager || isAdmin" label="dept">
-          <el-icon><DataAnalysis /></el-icon> 部门今日考勤实时监控
-        </el-radio-button>
-        <el-radio-button v-if="isAdmin" label="rule">
-          <el-icon><Setting /></el-icon> 考勤规则与部门绑定 (管理员)
-        </el-radio-button>
-      </el-radio-group>
-    </div>
-
     <!-- 模式 1：个人打卡工作台 -->
     <template v-if="activeTab === 'my'">
       <!-- 顶部概览 Banner (白色简约风格) -->
@@ -667,7 +652,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Clock, Sunrise, Sunset, Calendar, Check, Refresh, DataAnalysis, Setting, Plus, Location } from '@element-plus/icons-vue'
-import { useUserStore } from '@/stores/user'
+import { useRoute } from 'vue-router'
 import {
   getTodayStatusApi,
   getLocationConfigApi,
@@ -684,8 +669,12 @@ import {
   recheckApi
 } from '@/api/attendance'
 
-const userStore = useUserStore()
-const activeTab = ref('my')
+const route = useRoute()
+const activeTab = computed(() => {
+  if (route.path === '/attendance/dept') return 'dept'
+  if (route.path === '/attendance/rule') return 'rule'
+  return 'my'
+})
 
 // 补卡申请弹窗状态
 const correctionDialogVisible = ref(false)
@@ -741,27 +730,6 @@ const submitCorrection = async () => {
     submittingCorrection.value = false
   }
 }
-
-// 角色判定：管理员与主管权限分离
-const isAdmin = computed(() => {
-  const user = userStore.profile
-  if (!user) return false
-  const username = user.username || ''
-  const userType = user.userType || ''
-  const roleCode = user.roleCode || ''
-  const roles = user.roles || []
-  return username === 'admin' || userType === 'ADMIN' || roleCode === 'ADMIN' || roles.some(r => r.roleCode === 'ADMIN' || r.id === 1)
-})
-
-const isManager = computed(() => {
-  const user = userStore.profile
-  if (!user) return false
-  if (isAdmin.value) return true
-  const userType = user.userType || ''
-  const roleCode = user.roleCode || ''
-  const roles = user.roles || []
-  return userType === 'MANAGER' || roleCode === 'MANAGER' || roles.some(r => r.roleCode === 'MANAGER')
-})
 
 // 时钟与日期
 const currentTime = ref('')
@@ -827,7 +795,7 @@ const ruleForm = ref({
   officeAddress: '',
   officeLatitude: null,
   officeLongitude: null,
-  allowedRadiusMeters: 500,
+  allowedRadiusMeters: 1000,
   accuracyThresholdMeters: 1000
 })
 
@@ -864,7 +832,7 @@ const locationConfig = ref({
   officeAddress: '',
   officeLatitude: null,
   officeLongitude: null,
-  allowedRadiusMeters: 500,
+  allowedRadiusMeters: 1000,
   accuracyThresholdMeters: 1000
 })
 
@@ -972,14 +940,19 @@ const fetchGroups = async () => {
   }
 }
 
-watch(activeTab, (val) => {
+const loadActiveTabData = (val) => {
   if (val === 'dept') {
     fetchDeptOverview()
   } else if (val === 'rule') {
     fetchRules()
     fetchGroups()
+  } else {
+    fetchTodayStatus()
+    fetchMyRecords()
   }
-})
+}
+
+watch(activeTab, loadActiveTabData)
 
 const openCheckDialog = (type) => {
   dialogType.value = type
@@ -1115,12 +1088,12 @@ const updatePunchLocation = (coords) => {
       status = 'error'
       title = '定位精度不足'
       message = `当前定位精度约 ${Math.round(accuracy)} 米，超过允许精度 ${config.accuracyThresholdMeters || 1000} 米。`
-    } else if (config.locationRequired && distance > Number(config.allowedRadiusMeters || 500)) {
+    } else if (config.locationRequired && distance > Number(config.allowedRadiusMeters || 1000)) {
       status = 'error'
       title = '超出打卡范围'
-      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，超过允许范围 ${config.allowedRadiusMeters || 500} 米。`
+      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，超过允许范围 ${config.allowedRadiusMeters || 1000} 米。`
     } else {
-      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，允许范围 ${config.allowedRadiusMeters || 500} 米。`
+      message = `当前位置距离 ${config.officeLocationName || '办公地点'} 约 ${distance} 米，允许范围 ${config.allowedRadiusMeters || 1000} 米。`
     }
   } else if (!config.locationRequired) {
     message = '当前规则未强制配置办公点，系统会记录本次定位信息。'
@@ -1201,7 +1174,7 @@ const openRuleDialog = (row) => {
       officeAddress: row.officeAddress || '',
       officeLatitude: row.officeLatitude ?? null,
       officeLongitude: row.officeLongitude ?? null,
-      allowedRadiusMeters: row.allowedRadiusMeters || 500,
+      allowedRadiusMeters: row.allowedRadiusMeters || 1000,
       accuracyThresholdMeters: row.accuracyThresholdMeters || 1000
     }
   } else {
@@ -1218,7 +1191,7 @@ const openRuleDialog = (row) => {
       officeAddress: '',
       officeLatitude: null,
       officeLongitude: null,
-      allowedRadiusMeters: 500,
+      allowedRadiusMeters: 1000,
       accuracyThresholdMeters: 1000
     }
   }
@@ -1371,8 +1344,7 @@ const formatDeptStatusText = (status, lateMins) => {
 onMounted(() => {
   updateClock()
   timer = setInterval(updateClock, 1000)
-  fetchTodayStatus()
-  fetchMyRecords()
+  loadActiveTabData(activeTab.value)
 })
 
 onUnmounted(() => {
@@ -1385,16 +1357,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.mode-switch-card {
-  background: #ffffff;
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-start;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 /* 顶部概览 Banner (白色卡片) */

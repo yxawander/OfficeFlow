@@ -43,6 +43,24 @@ const routes = [
         meta: { title: '考勤打卡', icon: 'Calendar' }
       },
       {
+        path: 'attendance/my',
+        name: 'attendance-my',
+        component: () => import('@/views/attendance/AttendanceView.vue'),
+        meta: { title: '个人打卡工作台', icon: 'Clock' }
+      },
+      {
+        path: 'attendance/dept',
+        name: 'attendance-dept',
+        component: () => import('@/views/attendance/AttendanceView.vue'),
+        meta: { title: '部门今日考勤实时监控', icon: 'DataAnalysis' }
+      },
+      {
+        path: 'attendance/rule',
+        name: 'attendance-rule',
+        component: () => import('@/views/attendance/AttendanceView.vue'),
+        meta: { title: '考勤规则与部门绑定', icon: 'Setting' }
+      },
+      {
         path: 'flow',
         name: 'flow',
         component: () => import('@/views/flow/FlowView.vue'),

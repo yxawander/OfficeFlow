@@ -35,7 +35,7 @@ public class AttendanceService {
     private static final LocalTime WORK_END_TIME = LocalTime.of(18, 0);
     // 早退容忍门槛：10 分钟
     private static final int EARLY_LEAVE_THRESHOLD_MINUTES = 10;
-    private static final int DEFAULT_ALLOWED_RADIUS_METERS = 500;
+    private static final int DEFAULT_ALLOWED_RADIUS_METERS = 1000;
     private static final int DEFAULT_ACCURACY_THRESHOLD_METERS = 1000;
     private static final double EARTH_RADIUS_METERS = 6371008.8;
 

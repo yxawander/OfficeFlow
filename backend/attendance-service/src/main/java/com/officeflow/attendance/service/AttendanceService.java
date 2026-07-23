@@ -359,8 +359,8 @@ public class AttendanceService {
 
         if (request.attendanceRecordId() != null) {
             AttendanceRecord record = attendanceRecordMapper.findById(request.attendanceRecordId());
-            if (record != null && ("ABSENT".equals(record.getStatus()) || "ON_LEAVE".equals(record.getStatus()))) {
-                throw new BusinessException("当前考勤状态（旷工/请假）不支持补卡，补卡仅限迟到、早退和缺卡");
+            if (record != null && ("ABSENT".equals(record.getStatus()) || "ON_LEAVE".equals(record.getStatus()) || "EARLY_LEAVE".equals(record.getStatus()) || "LATE_AND_EARLY".equals(record.getStatus()))) {
+                throw new BusinessException("当前考勤状态（旷工/请假/早退）不支持补卡，补卡仅限纯迟到和缺卡");
             }
         }
 

@@ -198,7 +198,7 @@
                 <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
               </el-tag>
               <el-button
-                v-else-if="row.status === 'LATE' || row.status === 'EARLY_LEAVE' || row.status === 'LATE_AND_EARLY' || row.status === 'MISSING_CARD'"
+                v-else-if="row.status === 'LATE' || row.status === 'MISSING_CARD'"
                 type="warning"
                 plain
                 size="small"

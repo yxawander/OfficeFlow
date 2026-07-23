@@ -46,8 +46,16 @@
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="提交时间" width="170" />
-            <el-table-column label="操作" width="110" fixed="right">
+            <el-table-column label="操作" width="130" fixed="right">
               <template #default="{ row }">
+                <el-button 
+                  link 
+                  type="primary" 
+                  size="small" 
+                  @click="openDetailDialog(row)"
+                >
+                  详情
+                </el-button>
                 <el-button 
                   v-if="row.status === 'PENDING'" 
                   link 
@@ -57,7 +65,6 @@
                 >
                   撤销
                 </el-button>
-                <span v-else class="text-muted">-</span>
               </template>
             </el-table-column>
           </el-table>
@@ -88,13 +95,58 @@
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="提交时间" width="170" />
-            <el-table-column label="审批操作" width="180" fixed="right">
+            <el-table-column label="审批操作" width="240" fixed="right">
               <template #default="{ row }">
+                <el-button type="info" plain size="small" icon="View" @click="openDetailDialog(row)">
+                  详情
+                </el-button>
                 <el-button type="success" size="small" icon="Check" @click="handleApprove(row)">
                   同意
                 </el-button>
                 <el-button type="danger" size="small" icon="Close" @click="handleReject(row)">
                   驳回
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="已办审批" name="processed">
+        <div class="panel">
+          <div class="panel-alert" v-if="processedApplies.length === 0 && !loadingProcessed">
+            <el-empty description="暂无您已处理的单据" />
+          </div>
+          <el-table v-else :data="processedApplies" v-loading="loadingProcessed" border stripe style="width: 100%">
+            <el-table-column prop="applyNo" label="申请单号" width="170" />
+            <el-table-column prop="applicantName" label="申请人" width="120" />
+            <el-table-column prop="applyType" label="类型" width="110">
+              <template #default="{ row }">
+                <el-tag :type="getTypeTagType(row.applyType)">
+                  {{ formatApplyType(row.applyType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="status" label="最终状态" width="110">
+              <template #default="{ row }">
+                <el-tag :type="getStatusTagType(row.status)">
+                  {{ formatStatusText(row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="myAction" label="我的动作" width="110">
+              <template #default="{ row }">
+                <el-tag :type="row.myAction === 'APPROVED' ? 'success' : 'danger'" effect="plain">
+                  {{ row.myAction === 'APPROVED' ? '同意' : '驳回' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="approvedAt" label="处理时间" width="170" />
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="openDetailDialog(row)">
+                  详情
                 </el-button>
               </template>
             </el-table-column>
@@ -197,6 +249,32 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 申请单详情弹窗 -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="审批单详情"
+      width="500px"
+    >
+      <el-descriptions :column="1" border v-if="currentDetailRow">
+        <el-descriptions-item label="单号">{{ currentDetailRow.applyNo }}</el-descriptions-item>
+        <el-descriptions-item label="类型">
+          <el-tag :type="getTypeTagType(currentDetailRow.applyType)">{{ formatApplyType(currentDetailRow.applyType) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusTagType(currentDetailRow.status)">{{ formatStatusText(currentDetailRow.status) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="标题">{{ currentDetailRow.title }}</el-descriptions-item>
+        <el-descriptions-item label="事由">{{ currentDetailRow.reason }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ currentDetailRow.startTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="结束时间">{{ currentDetailRow.endTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="时长 (小时)">{{ currentDetailRow.durationHours || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ currentDetailRow.createdAt }}</el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -207,20 +285,29 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 import {
+  createApplyApi,
   getMyAppliesApi,
   getPendingAppliesApi,
-  createApplyApi,
+  getProcessedAppliesApi,
   approveApplyApi,
   rejectApplyApi,
   cancelApplyApi
 } from '@/api/flow'
 import { recheckApi } from '@/api/attendance'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const activeTab = ref('my')
-const loadingMy = ref(false)
-const loadingPending = ref(false)
+
+// 数据
 const myApplies = ref([])
 const pendingApplies = ref([])
+const processedApplies = ref([])
+
+// 加载状态
+const loadingMy = ref(false)
+const loadingPending = ref(false)
+const loadingProcessed = ref(false)
 
 // 申请弹窗
 const applyDialogVisible = ref(false)
@@ -268,6 +355,15 @@ const currentTargetRow = ref(null)
 const actionComment = ref('')
 const submittingAction = ref(false)
 
+// 详情弹窗
+const detailDialogVisible = ref(false)
+const currentDetailRow = ref(null)
+
+const openDetailDialog = (row) => {
+  currentDetailRow.value = row
+  detailDialogVisible.value = true
+}
+
 const loadMyApplies = async () => {
   loadingMy.value = true
   try {
@@ -296,11 +392,27 @@ const loadPendingApplies = async () => {
   }
 }
 
+const loadProcessedApplies = async () => {
+  loadingProcessed.value = true
+  try {
+    const res = await getProcessedAppliesApi({ pageNum: 1, pageSize: 50 })
+    if (res.code === 200 && res.data) {
+      processedApplies.value = res.data.records || []
+    }
+  } catch (error) {
+    console.error('加载已审批失败', error)
+  } finally {
+    loadingProcessed.value = false
+  }
+}
+
 const handleTabClick = (tab) => {
   if (tab.paneName === 'my') {
     loadMyApplies()
   } else if (tab.paneName === 'pending') {
     loadPendingApplies()
+  } else if (tab.paneName === 'processed') {
+    loadProcessedApplies()
   }
 }
 

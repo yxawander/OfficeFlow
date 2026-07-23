@@ -33,8 +33,9 @@
             <div class="payslip-header">
               <div class="payslip-title">
                 <h2>{{ mySalary?.settleMonth || myMonth }} 月份薪资明细单</h2>
-                <el-tag :type="mySalary ? 'success' : 'info'" effect="dark">
-                  {{ mySalary ? '已结清发放' : '未生成' }}
+                <el-tag v-if="!mySalary" type="info" effect="dark">未生成</el-tag>
+                <el-tag v-else :type="mySalary.status === 'PUBLISHED' ? 'success' : 'warning'" effect="dark">
+                  {{ mySalary.status === 'PUBLISHED' ? '已发放' : '待发放(核算中)' }}
                 </el-tag>
               </div>
               <div class="payslip-emp-info">
@@ -66,7 +67,10 @@
                       <span class="amount">￥{{ formatMoney(mySalary?.allowance) }}</span>
                     </div>
                     <div class="item-row">
-                      <span>加班费补贴 (按1.5倍计)</span>
+                      <div class="flex-col">
+                        <span>加班费补贴</span>
+                        <span class="sub-text" v-if="mySalary?.hourlyWage">({{ mySalary.overtimeHours }}小时 × ￥{{ formatMoney(mySalary.hourlyWage) }}/时 × 1.5)</span>
+                      </div>
                       <span class="amount highlight-income">￥{{ formatMoney(mySalary?.overtimePay) }}</span>
                     </div>
                   </div>
@@ -77,15 +81,24 @@
                       <el-icon><Minus /></el-icon> 考勤扣款明细
                     </div>
                     <div class="item-row">
-                      <span>迟到早退扣款</span>
+                      <div class="flex-col">
+                        <span>迟到早退/缺卡扣款</span>
+                        <span class="sub-text" v-if="mySalary?.hourlyWage">({{ mySalary.offWorkHours }}小时 × ￥{{ formatMoney(mySalary.hourlyWage) }}/时)</span>
+                      </div>
                       <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.lateDeduction) }}</span>
                     </div>
                     <div class="item-row">
-                      <span>旷工扣款 (按双倍日薪)</span>
+                      <div class="flex-col">
+                        <span>旷工扣款</span>
+                        <span class="sub-text" v-if="mySalary?.dailyWage">({{ mySalary.absentDays }}天 × ￥{{ formatMoney(mySalary.dailyWage) }}/天 × 2)</span>
+                      </div>
                       <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.absentDeduction) }}</span>
                     </div>
                     <div class="item-row">
-                      <span>请假扣款</span>
+                      <div class="flex-col">
+                        <span>请假扣款</span>
+                        <span class="sub-text" v-if="mySalary?.dailyWage">({{ mySalary.leaveDays }}天 × ￥{{ formatMoney(mySalary.dailyWage) }}/天)</span>
+                      </div>
                       <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.leaveDeduction) }}</span>
                     </div>
                   </div>
@@ -119,10 +132,7 @@
           <div class="filter-item">
             <span class="filter-label">部门筛选：</span>
             <el-select v-model="queryForm.deptId" placeholder="全部部门" clearable @change="fetchAllSalary">
-              <el-option label="总经办" :value="1" />
-              <el-option label="研发部" :value="2" />
-              <el-option label="人事部" :value="3" />
-              <el-option label="行政部" :value="4" />
+              <el-option v-for="dept in deptList" :key="dept.id" :label="dept.name" :value="dept.id" />
             </el-select>
           </div>
 
@@ -136,11 +146,13 @@
               @clear="fetchAllSalary"
             />
             <el-button type="primary" @click="fetchAllSalary">查询</el-button>
+            <el-button type="success" :disabled="selectedIds.length === 0" :loading="publishing" @click="handlePublish">发布选中记录</el-button>
           </div>
         </div>
 
         <div class="table-card">
-          <el-table :data="allSalaryList" border stripe style="width: 100%" v-loading="loadingAll">
+          <el-table :data="allSalaryList" border stripe style="width: 100%" v-loading="loadingAll" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" :selectable="row => row.status === 'DRAFT'" />
             <el-table-column prop="realName" label="员工姓名" width="130" fixed="left">
               <template #default="{ row }">
                 <span class="font-bold">{{ row.realName }}</span>
@@ -180,7 +192,15 @@
 
             <el-table-column prop="status" label="状态" width="100" align="center" fixed="right">
               <template #default="{ row }">
-                <el-tag type="success" size="small">已发放</el-tag>
+                <el-tag :type="row.status === 'PUBLISHED' ? 'success' : 'warning'" size="small">
+                  {{ row.status === 'PUBLISHED' ? '已发放' : '待发放' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            
+            <el-table-column label="操作" width="100" align="center" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="handleViewDetail(row)">详情</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -199,6 +219,84 @@
         </div>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 薪资详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="薪资账单明细" width="750px" destroy-on-close class="salary-detail-dialog">
+      <div class="payslip-card" style="box-shadow: none; border: none; padding: 0;">
+        <div class="payslip-header">
+          <div class="payslip-title">
+            <h2>{{ detailSalary?.settleMonth }} 月份薪资明细单</h2>
+            <el-tag :type="detailSalary?.status === 'PUBLISHED' ? 'success' : 'info'" effect="dark">
+              {{ detailSalary?.status === 'PUBLISHED' ? '已结清发放' : '未结清发放' }}
+            </el-tag>
+          </div>
+          <div class="payslip-emp-info">
+            <span>姓名：<strong>{{ detailSalary?.realName }}</strong></span>
+            <span>部门：<strong>{{ detailSalary?.deptName || '-' }}</strong></span>
+            <span>岗位：<strong>{{ detailSalary?.postName || '-' }}</strong></span>
+          </div>
+        </div>
+
+        <div class="payslip-body">
+          <div class="net-salary-box">
+            <div class="net-label">本月实发工资 (元)</div>
+            <div class="net-value">￥{{ formatMoney(detailSalary?.actualSalary) }}</div>
+          </div>
+
+          <div class="salary-breakdown-grid">
+            <!-- 收入项 -->
+            <div class="breakdown-column income-col">
+              <div class="column-title">
+                <el-icon><Plus /></el-icon> 应发收入明细
+              </div>
+              <div class="item-row">
+                <span>基本工资</span>
+                <span class="amount">￥{{ formatMoney(detailSalary?.baseSalary) }}</span>
+              </div>
+              <div class="item-row">
+                <span>岗位津贴/补贴</span>
+                <span class="amount">￥{{ formatMoney(detailSalary?.allowance) }}</span>
+              </div>
+              <div class="item-row">
+                <div class="flex-col">
+                  <span>加班费补贴</span>
+                  <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.overtimeHours }}小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时 × 1.5)</span>
+                </div>
+                <span class="amount highlight-income">￥{{ formatMoney(detailSalary?.overtimePay) }}</span>
+              </div>
+            </div>
+
+            <!-- 扣款项 -->
+            <div class="breakdown-column deduction-col">
+              <div class="column-title">
+                <el-icon><Minus /></el-icon> 考勤扣款明细
+              </div>
+              <div class="item-row">
+                <div class="flex-col">
+                  <span>迟到早退/缺卡扣款</span>
+                  <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.offWorkHours }}小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时)</span>
+                </div>
+                <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.lateDeduction) }}</span>
+              </div>
+              <div class="item-row">
+                <div class="flex-col">
+                  <span>旷工扣款</span>
+                  <span class="sub-text" v-if="detailSalary?.dailyWage">({{ detailSalary.absentDays }}天 × ￥{{ formatMoney(detailSalary.dailyWage) }}/天 × 2)</span>
+                </div>
+                <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.absentDeduction) }}</span>
+              </div>
+              <div class="item-row">
+                <div class="flex-col">
+                  <span>请假扣款</span>
+                  <span class="sub-text" v-if="detailSalary?.dailyWage">({{ detailSalary.leaveDays }}天 × ￥{{ formatMoney(detailSalary.dailyWage) }}/天)</span>
+                </div>
+                <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.leaveDeduction) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -207,7 +305,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Minus } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { getMySalaryStatementApi, getSalaryStatementsApi, generateMonthlySalaryApi } from '@/api/report'
+import { getMySalaryStatementApi, getSalaryStatementsApi, generateMonthlySalaryApi, publishSalaryStatementsApi } from '@/api/report'
+import { getDeptTreeApi } from '@/api/user'
 
 const userStore = useUserStore()
 const currentMonthStr = new Date().toISOString().slice(0, 7)
@@ -232,6 +331,10 @@ const pagination = reactive({
 const loadingAll = ref(false)
 const generating = ref(false)
 const allSalaryList = ref([])
+const deptList = ref([])
+
+const detailVisible = ref(false)
+const detailSalary = ref(null)
 
 const isAdminOrManager = computed(() => {
   const user = userStore.profile
@@ -293,12 +396,61 @@ const handleGenerateSalary = async () => {
   }
 }
 
+const selectedIds = ref([])
+const publishing = ref(false)
+
+const handleSelectionChange = (selection) => {
+  selectedIds.value = selection.map(item => item.id)
+}
+
+const handlePublish = async () => {
+  if (selectedIds.value.length === 0) return
+  publishing.value = true
+  try {
+    const res = await publishSalaryStatementsApi(selectedIds.value)
+    if (res.code === 200) {
+      ElMessage.success(`成功发布 ${selectedIds.value.length} 条工资单！`)
+      fetchAllSalary()
+    }
+  } catch (error) {
+    console.error('发布失败', error)
+  } finally {
+    publishing.value = false
+  }
+}
+
 const formatMoney = (val) => {
   if (val === undefined || val === null) return '0.00'
   return Number(val).toFixed(2)
 }
 
+const handleViewDetail = (row) => {
+  detailSalary.value = row
+  detailVisible.value = true
+}
+
+const fetchDepts = async () => {
+  try {
+    const res = await getDeptTreeApi()
+    if (res.code === 200 && res.data) {
+      // 扁平化部门树用于下拉框
+      const flatDepts = []
+      const flatten = (list) => {
+        list.forEach(dept => {
+          flatDepts.push({ id: dept.id, name: dept.name })
+          if (dept.children && dept.children.length > 0) flatten(dept.children)
+        })
+      }
+      flatten(res.data)
+      deptList.value = flatDepts
+    }
+  } catch (error) {
+    console.error('获取部门失败', error)
+  }
+}
+
 onMounted(() => {
+  fetchDepts()
   fetchMySalary()
   if (isAdminOrManager.value) {
     fetchAllSalary()
@@ -449,6 +601,19 @@ onMounted(() => {
 
 .amount {
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.sub-text {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .highlight-income {

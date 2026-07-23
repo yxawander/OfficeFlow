@@ -30,7 +30,8 @@ public class AttendanceRecord {
     private Integer workMinutes;
     private Integer lateMinutes;
     private Integer earlyLeaveMinutes;
-    private String status; // NORMAL, LATE, EARLY_LEAVE, ABSENT, MISSING_CARD
+    private Integer overtimeMinutes;
+    private String status; // NORMAL, LATE, EARLY_LEAVE, ABSENT, MISSING_CARD, ON_LEAVE
     private String source; // USER_CHECK, MANUAL
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

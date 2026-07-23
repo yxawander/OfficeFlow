@@ -69,6 +69,19 @@ public class MonthlyReportAndSalaryController {
     }
 
     /**
+     * 批量发布/发放工资单
+     */
+    @PostMapping("/salary/publish")
+    public ApiResponse<Void> publishSalaryStatements(@RequestBody java.util.List<Long> ids, HttpServletRequest request) {
+        String roles = RequestUser.roles(request);
+        if (!roles.contains("ADMIN") && !roles.contains("MANAGER") && !roles.contains("HR")) {
+            return ApiResponse.error(403, "无权限执行薪资发放操作");
+        }
+        monthlyReportAndSalaryService.publishSalaryStatements(ids);
+        return ApiResponse.ok();
+    }
+
+    /**
      * 员工查询个人特定月份工资条
      */
     @GetMapping("/salary/my")

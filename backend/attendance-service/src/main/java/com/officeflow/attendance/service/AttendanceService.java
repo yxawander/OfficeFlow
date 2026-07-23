@@ -1,9 +1,14 @@
 package com.officeflow.attendance.service;
 
+import com.officeflow.api.attendance.dto.AttendanceCorrectionDTO;
+import com.officeflow.api.attendance.dto.AttendanceLeaveDTO;
+import com.officeflow.api.attendance.dto.AttendanceOvertimeDTO;
 import com.officeflow.attendance.dto.CheckInRequest;
 import com.officeflow.attendance.dto.CheckOutRequest;
 import com.officeflow.attendance.dto.TodayAttendanceResponse;
 import com.officeflow.attendance.entity.AttendanceRecord;
+import com.officeflow.attendance.entity.AttendanceCorrectionApply;
+import com.officeflow.attendance.mapper.AttendanceCorrectionApplyMapper;
 import com.officeflow.attendance.mapper.AttendanceRecordMapper;
 import com.officeflow.attendance.mapper.AttendanceRuleMapper;
 import com.officeflow.common.exception.BusinessException;
@@ -23,9 +28,9 @@ import java.util.Map;
 public class AttendanceService {
 
     private final AttendanceRecordMapper attendanceRecordMapper;
+    private final AttendanceCorrectionApplyMapper attendanceCorrectionApplyMapper;
     private final AttendanceRuleMapper attendanceRuleMapper;
     private final com.officeflow.attendance.mapper.AttendanceGroupMapper attendanceGroupMapper;
-    private final com.officeflow.attendance.mapper.AttendanceCorrectionApplyMapper attendanceCorrectionApplyMapper;
 
     // 规定上班时间：09:00
     private static final LocalTime WORK_START_TIME = LocalTime.of(9, 0);
@@ -103,7 +108,12 @@ public class AttendanceService {
         record.setStatus(status);
         record.setSource("USER_CHECK");
 
-        attendanceRecordMapper.insertCheckIn(record);
+        if (existing != null) {
+            record.setId(existing.getId());
+            attendanceRecordMapper.updateCheckIn(record);
+        } else {
+            attendanceRecordMapper.insertCheckIn(record);
+        }
         return record;
     }
 
@@ -534,5 +544,33 @@ public class AttendanceService {
             Integer distanceMeters,
             String locationName
     ) {
+    }
+
+    @Transactional
+    public void processCorrectionApprove(AttendanceCorrectionDTO dto) {
+        AttendanceCorrectionApply corr = attendanceCorrectionApplyMapper.findByFlowApplyId(dto.getFlowApplyId());
+        if (corr != null) {
+            attendanceCorrectionApplyMapper.updateStatus(corr.getId(), "APPROVED");
+            int updated = attendanceRecordMapper.updateAttendanceRecordForCorrection(corr.getAttendanceRecordId(), corr.getUserId(), corr.getCorrectionType(), corr.getCorrectionTime());
+            if (updated == 0) {
+                attendanceRecordMapper.insertAttendanceRecordForCorrection(corr.getUserId(), dto.getDeptId(), corr.getCorrectionType(), corr.getCorrectionTime());
+            }
+            attendanceRecordMapper.recalculateAttendanceRecordAfterCorrection(corr.getUserId(), corr.getCorrectionTime());
+        }
+    }
+
+    @Transactional
+    public void processLeaveApprove(AttendanceLeaveDTO dto) {
+        attendanceRecordMapper.upsertAttendanceRecordForLeave(dto.getUserId(), dto.getDeptId(), dto.getWorkDate());
+    }
+
+    @Transactional
+    public void processOvertimeApprove(AttendanceOvertimeDTO dto) {
+        int minutes = dto.getDurationHours() != null ? dto.getDurationHours().multiply(new java.math.BigDecimal("60")).intValue() : 0;
+        if (minutes <= 0) return;
+        int updated = attendanceRecordMapper.addOvertimeMinutes(dto.getUserId(), dto.getWorkDate(), minutes);
+        if (updated == 0) {
+            attendanceRecordMapper.insertAttendanceRecordForOvertime(dto.getUserId(), dto.getDeptId(), dto.getWorkDate(), minutes);
+        }
     }
 }

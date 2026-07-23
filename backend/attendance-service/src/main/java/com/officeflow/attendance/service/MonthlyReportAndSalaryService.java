@@ -25,6 +25,22 @@ public class MonthlyReportAndSalaryService {
     private final SalaryMonthlyStatementMapper salaryStatementMapper;
 
     /**
+     * 计算指定月份的工作日（周一至周五）天数
+     */
+    private int calculateWorkDays(String yearMonthStr) {
+        java.time.YearMonth yearMonth = java.time.YearMonth.parse(yearMonthStr);
+        int daysInMonth = yearMonth.lengthOfMonth();
+        int workDays = 0;
+        for (int i = 1; i <= daysInMonth; i++) {
+            java.time.DayOfWeek dayOfWeek = yearMonth.atDay(i).getDayOfWeek();
+            if (dayOfWeek != java.time.DayOfWeek.SATURDAY && dayOfWeek != java.time.DayOfWeek.SUNDAY) {
+                workDays++;
+            }
+        }
+        return workDays;
+    }
+
+    /**
      * 生成/更新全员指定月份的月度考勤报表
      */
     @Transactional
@@ -32,6 +48,8 @@ public class MonthlyReportAndSalaryService {
         if (reportMonth == null || !reportMonth.matches("^\\d{4}-\\d{2}$")) {
             throw new BusinessException("月份格式错误，示例：2026-07");
         }
+        
+        int dynamicShouldWorkDays = calculateWorkDays(reportMonth);
 
         List<Map<String, Object>> users = monthlyReportMapper.listAllActiveUsers();
         for (Map<String, Object> user : users) {
@@ -59,7 +77,7 @@ public class MonthlyReportAndSalaryService {
                 Object endTime = apply.get("endTime");
                 Double actualHours = monthlyReportMapper.selectActualOvertimeHours(userId, startTime, endTime);
                 if (actualHours == null) {
-                    actualHours = approvedHours; // 如果那天无打卡流（如周末加班），以审批时间为准
+                    actualHours = 0.0; // 如果无完整打卡记录，实际加班时长按 0 算（必须打卡才算加班）
                 }
                 double validHours = Math.min(approvedHours, Math.max(0.0, actualHours));
                 totalOvertimeHours += validHours;
@@ -69,7 +87,7 @@ public class MonthlyReportAndSalaryService {
             report.setUserId(userId);
             report.setDeptId(deptId);
             report.setReportMonth(reportMonth);
-            report.setShouldWorkDays(22); // 假设法定月出勤 22 天
+            report.setShouldWorkDays(dynamicShouldWorkDays); // 动态计算当月法定工作日
             report.setActualWorkDays(actualWorkDays);
             report.setLateCount(lateCount);
             report.setEarlyLeaveCount(earlyLeaveCount);
@@ -162,7 +180,15 @@ public class MonthlyReportAndSalaryService {
             statement.setAbsentDeduction(absentDeduction);
             statement.setLeaveDeduction(leaveDeduction);
             statement.setActualSalary(actualSalary);
-            statement.setStatus("PUBLISHED");
+            statement.setStatus("DRAFT");
+            
+            // Set Snapshot fields
+            statement.setDailyWage(dailyRate);
+            statement.setHourlyWage(hourlyRate);
+            statement.setOvertimeHours(BigDecimal.valueOf(overtimeHoursVal).setScale(1, RoundingMode.HALF_UP));
+            statement.setOffWorkHours(BigDecimal.valueOf(offWorkHours).setScale(1, RoundingMode.HALF_UP));
+            statement.setAbsentDays(BigDecimal.valueOf(absentCount).setScale(1, RoundingMode.HALF_UP));
+            statement.setLeaveDays(BigDecimal.valueOf(leaveDaysVal).setScale(1, RoundingMode.HALF_UP));
 
             salaryStatementMapper.upsertStatement(statement);
         }
@@ -180,6 +206,17 @@ public class MonthlyReportAndSalaryService {
         long total = salaryStatementMapper.countStatements(settleMonth, deptId, keyword);
 
         return PageResult.of(total, safePage, safeSize, records);
+    }
+
+    /**
+     * 批量发布工资条
+     */
+    @Transactional
+    public void publishSalaryStatements(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        salaryStatementMapper.updateStatusByIds(ids, "PUBLISHED");
     }
 
     /**

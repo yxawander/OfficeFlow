@@ -1,5 +1,9 @@
 package com.officeflow.flow.service.impl;
 
+import com.officeflow.api.attendance.client.AttendanceClient;
+import com.officeflow.api.attendance.dto.AttendanceCorrectionDTO;
+import com.officeflow.api.attendance.dto.AttendanceLeaveDTO;
+import com.officeflow.api.attendance.dto.AttendanceOvertimeDTO;
 import com.officeflow.api.user.client.UserAdminClient;
 import com.officeflow.api.user.vo.DeptVO;
 import com.officeflow.api.user.vo.UserOptionVO;
@@ -42,6 +46,7 @@ public class FlowServiceImpl implements FlowService {
     private final FlowCcMapper flowCcMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserAdminClient userAdminClient;
+    private final AttendanceClient attendanceClient;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -271,30 +276,32 @@ public class FlowServiceImpl implements FlowService {
         record.setApprovedAt(now);
         flowApproveRecordMapper.insert(record);
 
-        // 如果是补卡类型申请，自动同步更新 attendance_correction_apply 与 attendance_record 考勤表
+        // 根据类型通知考勤服务
         if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
-            flowApplyMapper.updateCorrectionStatusByFlowApplyId(id, "APPROVED");
-            java.util.Map<String, Object> corr = flowApplyMapper.selectCorrectionByFlowApplyId(id);
-            if (corr != null) {
-                Long recordId = corr.get("attendanceRecordId") != null ? Long.parseLong(corr.get("attendanceRecordId").toString()) : null;
-                Long userId = corr.get("userId") != null ? Long.parseLong(corr.get("userId").toString()) : apply.getApplicantId();
-                String corrType = String.valueOf(corr.get("correctionType"));
-                LocalDateTime corrTime = (LocalDateTime) corr.get("correctionTime");
-                int updated = flowApplyMapper.updateAttendanceRecordForCorrection(recordId, userId, corrType, corrTime);
-                if (updated == 0) {
-                    flowApplyMapper.insertAttendanceRecordForCorrection(userId, apply.getApplicantDeptId(), corrType, corrTime);
-                }
-                flowApplyMapper.recalculateAttendanceRecordAfterCorrection(userId, corrTime);
-            }
+            AttendanceCorrectionDTO dtoCorrection = new AttendanceCorrectionDTO();
+            dtoCorrection.setFlowApplyId(id);
+            dtoCorrection.setDeptId(apply.getApplicantDeptId());
+            attendanceClient.updateAttendanceForCorrection(dtoCorrection);
         } else if ("LEAVE".equalsIgnoreCase(apply.getApplyType())) {
             if (isFullDayLeave(apply) && apply.getStartTime() != null && apply.getEndTime() != null) {
                 java.time.LocalDate cur = apply.getStartTime().toLocalDate();
                 java.time.LocalDate end = apply.getEndTime().toLocalDate();
                 while (!cur.isAfter(end)) {
-                    flowApplyMapper.upsertAttendanceRecordForLeave(apply.getApplicantId(), apply.getApplicantDeptId(), cur);
+                    AttendanceLeaveDTO dtoLeave = new AttendanceLeaveDTO();
+                    dtoLeave.setUserId(apply.getApplicantId());
+                    dtoLeave.setDeptId(apply.getApplicantDeptId());
+                    dtoLeave.setWorkDate(cur);
+                    attendanceClient.updateAttendanceForLeave(dtoLeave);
                     cur = cur.plusDays(1);
                 }
             }
+        } else if ("OVERTIME".equalsIgnoreCase(apply.getApplyType())) {
+            AttendanceOvertimeDTO dtoOvertime = new AttendanceOvertimeDTO();
+            dtoOvertime.setUserId(apply.getApplicantId());
+            dtoOvertime.setDeptId(apply.getApplicantDeptId());
+            dtoOvertime.setWorkDate(apply.getStartTime() != null ? apply.getStartTime().toLocalDate() : now.toLocalDate());
+            dtoOvertime.setDurationHours(apply.getDurationHours());
+            attendanceClient.updateAttendanceForOvertime(dtoOvertime);
         }
     }
 

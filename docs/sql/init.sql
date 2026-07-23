@@ -216,6 +216,12 @@ CREATE TABLE IF NOT EXISTS salary_monthly_statement (
     leave_deduction DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '请假扣款',
     actual_salary DECIMAL(10,2) NOT NULL COMMENT '实发工资',
     status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT, PUBLISHED',
+    daily_wage DECIMAL(10,2) COMMENT '日薪',
+    hourly_wage DECIMAL(10,2) COMMENT '时薪',
+    overtime_hours DECIMAL(5,1) COMMENT '加班小时数',
+    off_work_hours DECIMAL(5,1) COMMENT '迟到/早退/缺卡折算扣除总小时数',
+    absent_days DECIMAL(5,1) COMMENT '旷工天数',
+    leave_days DECIMAL(5,1) COMMENT '请假天数',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_salary_statement_user_month (user_id, settle_month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='月度工资结算表';
@@ -282,6 +288,7 @@ CREATE TABLE IF NOT EXISTS attendance_record (
     work_minutes INT NOT NULL DEFAULT 0 COMMENT '实际工作分钟数',
     late_minutes INT NOT NULL DEFAULT 0 COMMENT '迟到分钟数',
     early_leave_minutes INT NOT NULL DEFAULT 0 COMMENT '早退分钟数',
+    overtime_minutes INT NOT NULL DEFAULT 0 COMMENT '加班分钟数',
     status VARCHAR(32) NOT NULL DEFAULT 'NORMAL' COMMENT '状态：NORMAL(正常打卡), RECHECKED(已补卡), ON_LEAVE(休假中), LATE(迟到), EARLY_LEAVE(早退), LATE_AND_EARLY(迟到且早退), ABSENT(旷工), MISSING_CARD(缺卡)',
     source VARCHAR(32) NOT NULL DEFAULT 'USER_CHECK' COMMENT '来源：USER_CHECK/MANUAL/RECALCULATE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -19,4 +19,9 @@ public final class RequestUser {
         String value = request.getHeader(CommonConstants.LOGIN_USERNAME_HEADER);
         return value == null || "null".equals(value) ? null : value;
     }
+
+    public static String roles(HttpServletRequest request) {
+        String value = request.getHeader(CommonConstants.LOGIN_ROLES_HEADER);
+        return value == null || "null".equals(value) ? "" : value;
+    }
 }

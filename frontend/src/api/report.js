@@ -24,3 +24,8 @@ export function getSalaryStatementsApi(params) {
 export function getMySalaryStatementApi(params) {
   return request.get('/api/attendance/salary/my', { params })
 }
+
+// 批量发布/发放工资单
+export function publishSalaryStatementsApi(ids) {
+  return request.post('/api/attendance/salary/publish', ids)
+}

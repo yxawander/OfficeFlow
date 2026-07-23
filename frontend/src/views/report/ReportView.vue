@@ -30,10 +30,7 @@
       <div class="filter-item dept-filter">
         <span class="filter-label">部门筛选：</span>
         <el-select v-model="queryForm.deptId" placeholder="全部部门" clearable @change="fetchReports">
-          <el-option label="总经办" :value="1" />
-          <el-option label="研发部" :value="2" />
-          <el-option label="人事部" :value="3" />
-          <el-option label="行政部" :value="4" />
+          <el-option v-for="dept in deptList" :key="dept.id" :label="dept.name" :value="dept.id" />
         </el-select>
       </div>
 
@@ -142,6 +139,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { getMonthlyReportsApi, generateMonthlyReportApi } from '@/api/report'
+import { getDeptTreeApi } from '@/api/user'
 
 const currentMonthStr = new Date().toISOString().slice(0, 7)
 
@@ -160,6 +158,7 @@ const pagination = reactive({
 const loading = ref(false)
 const generating = ref(false)
 const reportList = ref([])
+const deptList = ref([])
 
 const fetchReports = async () => {
   loading.value = true
@@ -195,7 +194,28 @@ const handleGenerate = async () => {
   }
 }
 
+const fetchDepts = async () => {
+  try {
+    const res = await getDeptTreeApi()
+    if (res.code === 200 && res.data) {
+      // 扁平化部门树用于下拉框
+      const flatDepts = []
+      const flatten = (list) => {
+        list.forEach(dept => {
+          flatDepts.push({ id: dept.id, name: dept.name })
+          if (dept.children && dept.children.length > 0) flatten(dept.children)
+        })
+      }
+      flatten(res.data)
+      deptList.value = flatDepts
+    }
+  } catch (error) {
+    console.error('获取部门失败', error)
+  }
+}
+
 onMounted(() => {
+  fetchDepts()
   fetchReports()
 })
 </script>

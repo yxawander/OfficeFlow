@@ -20,6 +20,14 @@ public class SalaryMonthlyStatement {
     private String status; // DRAFT, PUBLISHED
     private LocalDateTime createdAt;
 
+    // Snapshot fields for detailed calculation breakdown
+    private BigDecimal dailyWage;
+    private BigDecimal hourlyWage;
+    private BigDecimal overtimeHours;
+    private BigDecimal offWorkHours;
+    private BigDecimal absentDays;
+    private BigDecimal leaveDays;
+
     // Extra fields for VO display
     private String username;
     private String realName;

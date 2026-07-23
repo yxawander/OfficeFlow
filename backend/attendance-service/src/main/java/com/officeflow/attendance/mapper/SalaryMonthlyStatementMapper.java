@@ -14,8 +14,8 @@ import java.util.Map;
 public interface SalaryMonthlyStatementMapper {
 
     @Insert("""
-            INSERT INTO salary_monthly_statement (user_id, settle_month, base_salary, overtime_pay, allowance, late_deduction, absent_deduction, leave_deduction, actual_salary, status, created_at)
-            VALUES (#{userId}, #{settleMonth}, #{baseSalary}, #{overtimePay}, #{allowance}, #{lateDeduction}, #{absentDeduction}, #{leaveDeduction}, #{actualSalary}, #{status}, NOW())
+            INSERT INTO salary_monthly_statement (user_id, settle_month, base_salary, overtime_pay, allowance, late_deduction, absent_deduction, leave_deduction, actual_salary, status, created_at, daily_wage, hourly_wage, overtime_hours, off_work_hours, absent_days, leave_days)
+            VALUES (#{userId}, #{settleMonth}, #{baseSalary}, #{overtimePay}, #{allowance}, #{lateDeduction}, #{absentDeduction}, #{leaveDeduction}, #{actualSalary}, #{status}, NOW(), #{dailyWage}, #{hourlyWage}, #{overtimeHours}, #{offWorkHours}, #{absentDays}, #{leaveDays})
             ON DUPLICATE KEY UPDATE
                 base_salary = VALUES(base_salary),
                 overtime_pay = VALUES(overtime_pay),
@@ -24,7 +24,13 @@ public interface SalaryMonthlyStatementMapper {
                 absent_deduction = VALUES(absent_deduction),
                 leave_deduction = VALUES(leave_deduction),
                 actual_salary = VALUES(actual_salary),
-                status = VALUES(status)
+                status = VALUES(status),
+                daily_wage = VALUES(daily_wage),
+                hourly_wage = VALUES(hourly_wage),
+                overtime_hours = VALUES(overtime_hours),
+                off_work_hours = VALUES(off_work_hours),
+                absent_days = VALUES(absent_days),
+                leave_days = VALUES(leave_days)
             """)
     int upsertStatement(SalaryMonthlyStatement statement);
 
@@ -35,6 +41,8 @@ public interface SalaryMonthlyStatementMapper {
                    s.allowance, s.late_deduction AS lateDeduction,
                    s.absent_deduction AS absentDeduction, s.leave_deduction AS leaveDeduction,
                    s.actual_salary AS actualSalary, s.status, s.created_at AS createdAt,
+                   s.daily_wage AS dailyWage, s.hourly_wage AS hourlyWage, s.overtime_hours AS overtimeHours,
+                   s.off_work_hours AS offWorkHours, s.absent_days AS absentDays, s.leave_days AS leaveDays,
                    u.real_name AS realName, u.username, d.dept_name AS deptName, p.post_name AS postName
             FROM salary_monthly_statement s
             LEFT JOIN sys_user u ON u.id = s.user_id
@@ -77,6 +85,8 @@ public interface SalaryMonthlyStatementMapper {
                    s.allowance, s.late_deduction AS lateDeduction,
                    s.absent_deduction AS absentDeduction, s.leave_deduction AS leaveDeduction,
                    s.actual_salary AS actualSalary, s.status, s.created_at AS createdAt,
+                   s.daily_wage AS dailyWage, s.hourly_wage AS hourlyWage, s.overtime_hours AS overtimeHours,
+                   s.off_work_hours AS offWorkHours, s.absent_days AS absentDays, s.leave_days AS leaveDays,
                    u.real_name AS realName, u.username, d.dept_name AS deptName, p.post_name AS postName
             FROM salary_monthly_statement s
             LEFT JOIN sys_user u ON u.id = s.user_id
@@ -104,4 +114,16 @@ public interface SalaryMonthlyStatementMapper {
             WHERE user_id = #{userId} AND DATE_FORMAT(work_date, '%Y-%m') = #{settleMonth}
             """)
     Integer selectSumLateAndEarlyMinutes(@Param("userId") Long userId, @Param("settleMonth") String settleMonth);
+
+    @org.apache.ibatis.annotations.Update("""
+            <script>
+            UPDATE salary_monthly_statement
+            SET status = #{status}
+            WHERE id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    int updateStatusByIds(@Param("ids") List<Long> ids, @Param("status") String status);
 }

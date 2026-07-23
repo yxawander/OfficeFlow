@@ -47,6 +47,23 @@ public interface AttendanceRecordMapper {
 
     @Update("""
             UPDATE attendance_record
+            SET check_in_time = #{checkInTime},
+                check_in_ip = #{checkInIp},
+                check_in_remark = #{checkInRemark},
+                check_in_latitude = #{checkInLatitude},
+                check_in_longitude = #{checkInLongitude},
+                check_in_accuracy_meters = #{checkInAccuracyMeters},
+                check_in_distance_meters = #{checkInDistanceMeters},
+                check_in_location_name = #{checkInLocationName},
+                late_minutes = #{lateMinutes},
+                status = CASE WHEN status = 'ON_LEAVE' THEN 'ON_LEAVE' ELSE #{status} END,
+                source = #{source}
+            WHERE id = #{id}
+            """)
+    int updateCheckIn(AttendanceRecord record);
+
+    @Update("""
+            UPDATE attendance_record
             SET check_out_time = #{checkOutTime},
                 check_out_ip = #{checkOutIp},
                 check_out_remark = #{checkOutRemark},
@@ -155,4 +172,93 @@ public interface AttendanceRecordMapper {
             </script>
             """)
     List<Map<String, Object>> listDeptTodayRecords(@Param("deptId") Long deptId, @Param("workDate") LocalDate workDate);
+
+    @Update("""
+            UPDATE attendance_record
+            SET check_in_time = CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE check_in_time END,
+                check_out_time = CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE check_out_time END,
+                source = 'MANUAL'
+            WHERE (id = #{recordId} AND #{recordId} IS NOT NULL) OR (user_id = #{userId} AND work_date = DATE(#{correctionTime}))
+            """)
+    int updateAttendanceRecordForCorrection(@Param("recordId") Long recordId,
+                                             @Param("userId") Long userId,
+                                             @Param("correctionType") String correctionType,
+                                             @Param("correctionTime") java.time.LocalDateTime correctionTime);
+
+    @Insert("""
+            INSERT INTO attendance_record (user_id, dept_id, work_date, check_in_time, check_out_time, status, source)
+            VALUES (
+                #{userId},
+                #{deptId},
+                DATE(#{correctionTime}),
+                CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE NULL END,
+                CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE NULL END,
+                'MISSING_CARD',
+                'MANUAL'
+            )
+            ON DUPLICATE KEY UPDATE
+                check_in_time = CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE check_in_time END,
+                check_out_time = CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE check_out_time END,
+                source = 'MANUAL'
+            """)
+    int insertAttendanceRecordForCorrection(@Param("userId") Long userId,
+                                            @Param("deptId") Long deptId,
+                                            @Param("correctionType") String correctionType,
+                                            @Param("correctionTime") java.time.LocalDateTime correctionTime);
+
+    @Update("""
+            UPDATE attendance_record
+            SET work_minutes = CASE
+                    WHEN check_in_time IS NOT NULL AND check_out_time IS NOT NULL
+                    THEN GREATEST(TIMESTAMPDIFF(MINUTE, check_in_time, check_out_time), 0)
+                    ELSE 0
+                END,
+                late_minutes = CASE
+                    WHEN check_in_time IS NOT NULL AND TIME(check_in_time) > '09:10:00'
+                    THEN TIMESTAMPDIFF(MINUTE, CONCAT(work_date, ' 09:00:00'), check_in_time)
+                    ELSE 0
+                END,
+                early_leave_minutes = CASE
+                    WHEN check_out_time IS NOT NULL AND TIME(check_out_time) < '17:50:00'
+                    THEN TIMESTAMPDIFF(MINUTE, check_out_time, CONCAT(work_date, ' 18:00:00'))
+                    ELSE 0
+                END,
+                status = CASE
+                    WHEN check_in_time IS NULL OR check_out_time IS NULL THEN 'MISSING_CARD'
+                    WHEN TIME(check_in_time) > '09:10:00' AND TIME(check_out_time) < '17:50:00' THEN 'LATE_AND_EARLY'
+                    WHEN TIME(check_in_time) > '09:10:00' THEN 'LATE'
+                    WHEN TIME(check_out_time) < '17:50:00' THEN 'EARLY_LEAVE'
+                    ELSE 'RECHECKED'
+                END,
+                source = 'MANUAL'
+            WHERE user_id = #{userId}
+              AND work_date = DATE(#{correctionTime})
+            """)
+    int recalculateAttendanceRecordAfterCorrection(@Param("userId") Long userId,
+                                                   @Param("correctionTime") java.time.LocalDateTime correctionTime);
+
+    @Insert("""
+            INSERT INTO attendance_record (user_id, dept_id, work_date, status, source)
+            VALUES (#{userId}, #{deptId}, #{workDate}, 'ON_LEAVE', 'MANUAL')
+            ON DUPLICATE KEY UPDATE status = 'ON_LEAVE', source = 'MANUAL'
+            """)
+    int upsertAttendanceRecordForLeave(@Param("userId") Long userId,
+                                        @Param("deptId") Long deptId,
+                                        @Param("workDate") java.time.LocalDate workDate);
+
+    @Update("""
+            UPDATE attendance_record
+            SET overtime_minutes = overtime_minutes + #{minutes}
+            WHERE user_id = #{userId} AND work_date = #{workDate}
+            """)
+    int addOvertimeMinutes(@Param("userId") Long userId, @Param("workDate") LocalDate workDate, @Param("minutes") int minutes);
+    
+    @Insert("""
+            INSERT INTO attendance_record (user_id, dept_id, work_date, status, source, overtime_minutes)
+            VALUES (#{userId}, #{deptId}, #{workDate}, 'NORMAL', 'MANUAL', #{minutes})
+            """)
+    int insertAttendanceRecordForOvertime(@Param("userId") Long userId,
+                                          @Param("deptId") Long deptId,
+                                          @Param("workDate") java.time.LocalDate workDate,
+                                          @Param("minutes") int minutes);
 }

@@ -137,8 +137,8 @@
             </el-table-column>
             <el-table-column prop="myAction" label="我的动作" width="110">
               <template #default="{ row }">
-                <el-tag :type="row.myAction === 'APPROVED' ? 'success' : 'danger'" effect="plain">
-                  {{ row.myAction === 'APPROVED' ? '同意' : '驳回' }}
+                <el-tag :type="row.myAction === 'APPROVE' ? 'success' : 'danger'" effect="plain">
+                  {{ row.myAction === 'APPROVE' ? '同意' : '驳回' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -183,6 +183,27 @@
               value-format="YYYY-MM-DD HH:mm:ss"
               style="width: 100%"
             />
+          </el-form-item>
+        </template>
+
+        <template v-else-if="applyForm.applyType === 'OVERTIME'">
+          <el-form-item label="开始时间">
+            <el-input v-model="applyForm.startTime" disabled />
+          </el-form-item>
+          <el-form-item label="结束时间" prop="endTime">
+            <el-date-picker
+              v-model="applyForm.endTime"
+              type="datetime"
+              placeholder="选择结束时间（仅限今日）"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              style="width: 100%"
+              :disabled-date="disabledOvertimeDate"
+              @change="calculateOvertimeDuration"
+            />
+          </el-form-item>
+          <el-form-item label="时长 (小时)">
+            <el-input-number v-model="applyForm.durationHours" :min="0.5" :precision="1" :step="0.5" disabled />
           </el-form-item>
         </template>
 
@@ -359,6 +380,15 @@ const disabledApplyDate = (time) => {
   return false
 }
 
+const disabledOvertimeDate = (time) => {
+  // 加班强制今天
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return time.getTime() < today.getTime() || time.getTime() >= tomorrow.getTime()
+}
+
 // 审批处理弹窗
 const actionDialogVisible = ref(false)
 const actionType = ref('APPROVE') // APPROVE or REJECT
@@ -437,9 +467,21 @@ const openApplyDialog = (type) => {
   applyForm.title = type === 'LEAVE' ? '事假申请' : '加班申请'
   applyForm.reason = ''
   applyForm.timeRange = []
-  applyForm.startTime = ''
-  applyForm.endTime = ''
-  applyForm.durationHours = 1
+  
+  if (type === 'OVERTIME') {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    applyForm.startTime = `${year}-${month}-${day} 18:00:00`
+    applyForm.endTime = ''
+    applyForm.durationHours = 0
+  } else {
+    applyForm.startTime = ''
+    applyForm.endTime = ''
+    applyForm.durationHours = 1
+  }
+  
   applyDialogVisible.value = true
 }
 
@@ -451,6 +493,23 @@ const calculateDuration = (val) => {
     const end = new Date(val[1])
     const diffHours = (end - start) / (1000 * 3600)
     applyForm.durationHours = Math.max(0.5, Math.round(diffHours * 10) / 10)
+  }
+}
+
+const calculateOvertimeDuration = (val) => {
+  if (applyForm.startTime && val) {
+    const start = new Date(applyForm.startTime)
+    const end = new Date(val)
+    if (end <= start) {
+      ElMessage.warning('加班结束时间必须晚于18:00')
+      applyForm.endTime = ''
+      applyForm.durationHours = 0
+      return
+    }
+    const diffHours = (end - start) / (1000 * 3600)
+    applyForm.durationHours = Math.max(0.5, Math.round(diffHours * 10) / 10)
+  } else {
+    applyForm.durationHours = 0
   }
 }
 

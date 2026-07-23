@@ -22,25 +22,29 @@ import java.util.UUID;
 @Service
 public class OssServiceImpl implements OssService {
 
-    @Value("${oss.endpoint}")
+    @Value("${oss.endpoint:}")
     private String endpoint;
 
-    @Value("${oss.access-key-id}")
+    @Value("${oss.access-key-id:}")
     private String accessKeyId;
 
-    @Value("${oss.access-key-secret}")
+    @Value("${oss.access-key-secret:}")
     private String accessKeySecret;
 
-    @Value("${oss.bucket-name}")
+    @Value("${oss.bucket-name:}")
     private String bucketName;
 
-    @Value("${oss.base-url:#{null}}")
+    @Value("${oss.base-url:}")
     private String baseUrl;
 
     private OSS ossClient;
 
     @PostConstruct
     public void init() {
+        if (endpoint.isEmpty() || accessKeyId.isEmpty() || accessKeySecret.isEmpty()) {
+            log.warn("OSS config not provided, OSS client disabled. Configure oss.* in Nacos or environment variables.");
+            return;
+        }
         ossClient = new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
         log.info("OSS client initialized, endpoint={}, bucket={}", endpoint, bucketName);
     }
@@ -52,8 +56,15 @@ public class OssServiceImpl implements OssService {
         }
     }
 
+    private void ensureClient() {
+        if (ossClient == null) {
+            throw new BusinessException("OSS未配置，无法上传文件。请在Nacos中配置oss.*参数。");
+        }
+    }
+
     @Override
     public String upload(MultipartFile file, String objectKey) {
+        ensureClient();
         try (InputStream inputStream = file.getInputStream()) {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentType(file.getContentType());
@@ -70,6 +81,9 @@ public class OssServiceImpl implements OssService {
 
     @Override
     public void delete(String objectKey) {
+        if (ossClient == null) {
+            return;
+        }
         try {
             ossClient.deleteObject(bucketName, objectKey);
             log.info("File deleted from OSS: bucket={}, key={}", bucketName, objectKey);
@@ -80,6 +94,7 @@ public class OssServiceImpl implements OssService {
 
     @Override
     public String getPresignedUrl(String objectKey, long expireSeconds) {
+        ensureClient();
         try {
             Date expiration = new Date(System.currentTimeMillis() + expireSeconds * 1000);
             URL url = ossClient.generatePresignedUrl(bucketName, objectKey, expiration);

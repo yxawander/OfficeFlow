@@ -10,15 +10,15 @@ public record ApiResponse<T>(int code, String message, T data) {
         return new ApiResponse<>(ResultCode.SUCCESS.code(), ResultCode.SUCCESS.message(), null);
     }
 
-    public static ApiResponse<Void> fail(String message) {
+    public static <T> ApiResponse<T> fail(String message) {
         return new ApiResponse<>(ResultCode.FAIL.code(), message, null);
     }
 
-    public static ApiResponse<Void> fail(int code, String message) {
+    public static <T> ApiResponse<T> fail(int code, String message) {
         return new ApiResponse<>(code, message, null);
     }
 
-    public static ApiResponse<Void> fail(ResultCode resultCode) {
+    public static <T> ApiResponse<T> fail(ResultCode resultCode) {
         return new ApiResponse<>(resultCode.code(), resultCode.message(), null);
     }
 }

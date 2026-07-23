@@ -23,8 +23,13 @@ public class NoticeCreateDTO {
     private String priority;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime scheduledTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expireTime;
 
     @NotNull(message = "可见范围不能为空")
     private List<NoticeScopeDTO> scopes;
+
+    private List<Long> attachmentIds;
 }

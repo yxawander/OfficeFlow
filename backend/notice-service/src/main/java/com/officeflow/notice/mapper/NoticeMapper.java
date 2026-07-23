@@ -36,5 +36,7 @@ public interface NoticeMapper {
 
     int updateStatusById(@Param("id") Long id, @Param("status") String status);
 
+    List<Notice> selectScheduledNotices();
+
     List<Notice> selectExpiredNotices();
 }

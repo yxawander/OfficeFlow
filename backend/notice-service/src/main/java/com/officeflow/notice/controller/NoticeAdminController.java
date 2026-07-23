@@ -7,14 +7,20 @@ import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.notice.dto.NoticeCreateDTO;
 import com.officeflow.notice.dto.NoticeQueryDTO;
 import com.officeflow.notice.dto.NoticeUpdateDTO;
+import com.officeflow.notice.entity.NoticeAttachment;
+import com.officeflow.notice.mapper.NoticeAttachmentMapper;
 import com.officeflow.notice.service.NoticeService;
+import com.officeflow.notice.service.OssService;
+import com.officeflow.notice.service.impl.OssServiceImpl;
 import com.officeflow.notice.vo.AdminNoticeListVO;
+import com.officeflow.notice.vo.AttachmentVO;
 import com.officeflow.notice.vo.NoticeReadDetailVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -25,6 +31,8 @@ import java.util.List;
 public class NoticeAdminController {
 
     private final NoticeService noticeService;
+    private final OssService ossService;
+    private final NoticeAttachmentMapper noticeAttachmentMapper;
 
     @PostMapping("/notices")
     public ApiResponse<Long> createNotice(@Valid @RequestBody NoticeCreateDTO dto, HttpServletRequest request) {
@@ -65,6 +73,54 @@ public class NoticeAdminController {
     @GetMapping("/notices/{id}/read-details")
     public ApiResponse<NoticeReadDetailVO> getNoticeReadDetail(@PathVariable Long id) {
         return ApiResponse.ok(noticeService.getNoticeReadDetail(id));
+    }
+
+    @PostMapping("/attachments/upload")
+    public ApiResponse<AttachmentVO> uploadAttachment(@RequestParam("file") MultipartFile file,
+                                                       HttpServletRequest request) {
+        Long userId = getUserId(request);
+        String originalName = file.getOriginalFilename();
+        String objectKey = OssServiceImpl.generateObjectKey(originalName != null ? originalName : "file");
+        String fileUrl = ossService.upload(file, objectKey);
+
+        NoticeAttachment attachment = new NoticeAttachment();
+        attachment.setFileName(originalName);
+        attachment.setFileUrl(fileUrl);
+        attachment.setFileSize(file.getSize());
+        attachment.setFileType(file.getContentType());
+        attachment.setOssKey(objectKey);
+        attachment.setUploadedBy(userId);
+        noticeAttachmentMapper.insert(attachment);
+
+        AttachmentVO vo = new AttachmentVO();
+        vo.setId(attachment.getId());
+        vo.setFileName(attachment.getFileName());
+        vo.setFileUrl(attachment.getFileUrl());
+        vo.setFileSize(attachment.getFileSize());
+        vo.setFileType(attachment.getFileType());
+        return ApiResponse.ok(vo);
+    }
+
+    @GetMapping("/attachments/{id}")
+    public ApiResponse<String> getAttachmentUrl(@PathVariable Long id) {
+        NoticeAttachment attachment = noticeAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            return ApiResponse.fail("附件不存在");
+        }
+        return ApiResponse.ok(attachment.getFileUrl());
+    }
+
+    @DeleteMapping("/attachments/{id}")
+    public ApiResponse<Boolean> deleteAttachment(@PathVariable Long id) {
+        NoticeAttachment attachment = noticeAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            return ApiResponse.fail("附件不存在");
+        }
+        if (attachment.getOssKey() != null) {
+            ossService.delete(attachment.getOssKey());
+        }
+        noticeAttachmentMapper.deleteById(id);
+        return ApiResponse.ok(true);
     }
 
     private Long getUserId(HttpServletRequest request) {

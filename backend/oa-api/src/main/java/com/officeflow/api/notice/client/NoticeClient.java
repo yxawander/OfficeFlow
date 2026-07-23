@@ -12,7 +12,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "notice-service", path = "/api/notice")
+@FeignClient(name = "notice-service", contextId = "noticeClient", path = "/api/notice")
 public interface NoticeClient {
 
     @GetMapping("/notices")

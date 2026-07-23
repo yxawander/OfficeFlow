@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.List;
 import java.util.Map;
 
-@FeignClient(name = "user-service", path = "/api/user")
+@FeignClient(name = "user-service", contextId = "userClient", path = "/api/user")
 public interface UserClient {
 
     @GetMapping("/health")

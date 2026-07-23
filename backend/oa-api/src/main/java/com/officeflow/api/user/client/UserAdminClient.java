@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "user-service", path = "/api/user")
+@FeignClient(name = "user-service", contextId = "userAdminClient", path = "/api/user")
 public interface UserAdminClient {
 
     // ==================== User Management ====================

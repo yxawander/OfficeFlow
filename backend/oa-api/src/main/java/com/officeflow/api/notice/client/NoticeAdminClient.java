@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "notice-service", path = "/api/notice/admin")
+@FeignClient(name = "notice-service", contextId = "noticeAdminClient", path = "/api/notice/admin")
 public interface NoticeAdminClient {
 
     @PostMapping("/notices")

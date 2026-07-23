@@ -30,3 +30,5 @@ officeflow:
   jwt:
     secret: officeflow-secret-key-must-be-at-least-32-bytes
     expire-seconds: 86400
+  internal:
+    secret: officeflow-internal-secret

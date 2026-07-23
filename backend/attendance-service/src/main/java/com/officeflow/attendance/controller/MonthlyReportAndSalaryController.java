@@ -78,12 +78,6 @@ public class MonthlyReportAndSalaryController {
         Long userId = RequestUser.userId(httpRequest);
         String targetMonth = (month != null && !month.isBlank()) ? month : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
         
-        // 尝试自动结算一次
-        SalaryMonthlyStatement statement = monthlyReportAndSalaryService.getMySalaryStatement(userId, targetMonth);
-        if (statement == null) {
-            monthlyReportAndSalaryService.generateMonthlySalary(targetMonth);
-            statement = monthlyReportAndSalaryService.getMySalaryStatement(userId, targetMonth);
-        }
-        return ApiResponse.ok(statement);
+        return ApiResponse.ok(monthlyReportAndSalaryService.getMySalaryStatement(userId, targetMonth));
     }
 }

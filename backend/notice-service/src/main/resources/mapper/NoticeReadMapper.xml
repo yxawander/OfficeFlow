@@ -115,20 +115,14 @@
     <select id="selectReadDetailById" resultType="com.officeflow.notice.vo.NoticeReadDetailVO">
         SELECT
             n.id as noticeId,
-            (SELECT COUNT(DISTINCT id) FROM sys_user WHERE status = 1) as totalUsers,
+            #{totalActiveUsers} as totalUsers,
             COALESCE(n.read_count, 0) as readUsers,
-            (SELECT COUNT(DISTINCT id) FROM sys_user WHERE status = 1) - COALESCE(n.read_count, 0) as unreadUsers,
+            #{totalActiveUsers} - COALESCE(n.read_count, 0) as unreadUsers,
             CASE WHEN n.read_count = 0 THEN 0
-                 ELSE ROUND(n.read_count * 100.0 / (SELECT COUNT(DISTINCT id) FROM sys_user WHERE status = 1), 2)
+                 ELSE ROUND(n.read_count * 100.0 / #{totalActiveUsers}, 2)
             END as readRate
         FROM notice n
         WHERE n.id = #{noticeId}
-    </select>
-
-    <select id="countTotalUsersForNotice" resultType="java.lang.Long">
-        SELECT COUNT(DISTINCT user_id)
-        FROM sys_user
-        WHERE status = 1
     </select>
 
     <select id="countReadUsersForNotice" resultType="java.lang.Long">
@@ -137,21 +131,10 @@
         WHERE notice_id = #{noticeId} AND read_status = 1
     </select>
 
-    <select id="selectDeptStatsForNotice" resultType="com.officeflow.notice.vo.NoticeReadDetailVO$DeptStatVO">
-        SELECT
-            d.id as deptId,
-            d.dept_name as deptName,
-            COUNT(DISTINCT u.id) as totalUsers,
-            COUNT(DISTINCT CASE WHEN nr.read_status = 1 THEN u.id END) as readUsers,
-            COUNT(DISTINCT u.id) - COUNT(DISTINCT CASE WHEN nr.read_status = 1 THEN u.id END) as unreadUsers,
-            CASE WHEN COUNT(DISTINCT u.id) = 0 THEN 0
-                 ELSE ROUND(COUNT(DISTINCT CASE WHEN nr.read_status = 1 THEN u.id END) * 100.0 / COUNT(DISTINCT u.id), 2)
-            END as readRate
-        FROM sys_dept d
-        LEFT JOIN sys_user u ON d.id = u.dept_id AND u.status = 1
-        LEFT JOIN notice_read nr ON u.id = nr.user_id AND nr.notice_id = #{noticeId}
-        WHERE d.status = 1 AND d.is_deleted = 0
-        GROUP BY d.id, d.dept_name
+    <select id="selectReadUserIdsByNoticeId" resultType="java.lang.Long">
+        SELECT user_id
+        FROM notice_read
+        WHERE notice_id = #{noticeId} AND read_status = 1
     </select>
 
     <insert id="batchInsert">

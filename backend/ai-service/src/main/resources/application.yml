@@ -4,7 +4,7 @@ server:
 # ---- Document auto-loading ----
 app:
   document:
-    path: D:/Desktop/Project/os/OfficeFlow/docs/pdf
+    path: C:\Users\17002\Desktop\internship\OfficeFlow\docs\pdf
 
 spring:
   application:

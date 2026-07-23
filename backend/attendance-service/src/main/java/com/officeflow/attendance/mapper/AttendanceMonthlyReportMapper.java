@@ -109,9 +109,21 @@ public interface AttendanceMonthlyReportMapper {
     List<Map<String, Object>> selectApprovedOvertimeApplies(@Param("userId") Long userId, @Param("reportMonth") String reportMonth);
 
     @Select("""
-            SELECT TIMESTAMPDIFF(MINUTE, check_in_time, check_out_time) / 60.0 AS actualHours
+            SELECT GREATEST(
+                       TIMESTAMPDIFF(
+                           MINUTE,
+                           GREATEST(check_in_time, #{startTime}),
+                           LEAST(check_out_time, #{endTime})
+                       ),
+                       0
+                   ) / 60.0 AS actualHours
             FROM attendance_record
-            WHERE user_id = #{userId} AND work_date = DATE(#{workDate}) AND check_in_time IS NOT NULL AND check_out_time IS NOT NULL
+            WHERE user_id = #{userId}
+              AND work_date = DATE(#{startTime})
+              AND check_in_time IS NOT NULL
+              AND check_out_time IS NOT NULL
             """)
-    Double selectActualWorkHoursOnDate(@Param("userId") Long userId, @Param("workDate") Object workDate);
+    Double selectActualOvertimeHours(@Param("userId") Long userId,
+                                     @Param("startTime") Object startTime,
+                                     @Param("endTime") Object endTime);
 }

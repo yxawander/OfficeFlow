@@ -127,7 +127,8 @@
 
     <select id="selectPendingApplies" resultType="com.officeflow.flow.vo.FlowPendingVO">
         SELECT fa.id, fa.apply_no AS applyNo, fa.apply_type AS applyType,
-               fa.title, fa.start_time AS startTime, fa.end_time AS endTime,
+               fa.title, fa.reason, fa.duration_hours AS durationHours,
+               fa.start_time AS startTime, fa.end_time AS endTime,
                fa.created_at AS createdAt,
                COALESCE(su.real_name, su.username) AS applicantName,
                COALESCE(sd.dept_name, '') AS applicantDeptName

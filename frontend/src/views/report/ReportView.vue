@@ -14,7 +14,7 @@
 
     <!-- Filter Bar -->
     <div class="filter-card">
-      <div class="filter-item">
+      <div class="filter-item month-filter">
         <span class="filter-label">统计月份：</span>
         <el-date-picker
           v-model="queryForm.month"
@@ -27,7 +27,7 @@
         />
       </div>
 
-      <div class="filter-item">
+      <div class="filter-item dept-filter">
         <span class="filter-label">部门筛选：</span>
         <el-select v-model="queryForm.deptId" placeholder="全部部门" clearable @change="fetchReports">
           <el-option label="总经办" :value="1" />
@@ -189,7 +189,7 @@ const handleGenerate = async () => {
     ElMessage.success(`${queryForm.month} 月度考勤报表重新汇总成功！`)
     fetchReports()
   } catch (error) {
-    ElMessage.error(error.message || '生成报表失败')
+    console.error('生成报表失败', error)
   } finally {
     generating.value = false
   }
@@ -230,7 +230,8 @@ onMounted(() => {
   padding: 16px 20px;
   border-radius: 12px;
   box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
-  display: flex;
+  display: grid;
+  grid-template-columns: 360px 260px minmax(280px, 1fr);
   align-items: center;
   gap: 20px;
   margin-bottom: 20px;
@@ -239,18 +240,33 @@ onMounted(() => {
 .filter-item {
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .filter-label {
+  flex: 0 0 auto;
   font-size: 14px;
   color: #475569;
   font-weight: 500;
   margin-right: 8px;
+  white-space: nowrap;
+}
+
+.month-filter :deep(.el-date-editor) {
+  width: 220px;
+}
+
+.dept-filter :deep(.el-select) {
+  width: 160px;
 }
 
 .search-item {
-  margin-left: auto;
+  justify-content: flex-end;
   gap: 10px;
+}
+
+.search-item :deep(.el-input) {
+  width: min(320px, 100%);
 }
 
 .table-card {
@@ -290,5 +306,38 @@ onMounted(() => {
   margin-left: 4px;
   color: #94a3b8;
   cursor: pointer;
+}
+
+@media (max-width: 1080px) {
+  .filter-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-item {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .filter-card {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-label {
+    margin-right: 0;
+  }
+
+  .month-filter :deep(.el-date-editor),
+  .dept-filter :deep(.el-select),
+  .search-item :deep(.el-input) {
+    width: 100%;
+  }
 }
 </style>

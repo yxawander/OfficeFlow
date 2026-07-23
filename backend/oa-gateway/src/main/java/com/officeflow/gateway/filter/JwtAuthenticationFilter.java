@@ -3,6 +3,7 @@ package com.officeflow.gateway.filter;
 import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.common.security.JwtUtil;
 import com.officeflow.common.security.SecurityConstants;
+import com.officeflow.gateway.client.ApiPermissionClient;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -19,6 +20,8 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
+    private final ApiPermissionClient apiPermissionClient;
+
     private final List<String> whiteList = List.of(
             "/api/user/login",
             "/api/user/auth/login",
@@ -27,12 +30,26 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/flow/health",
             "/api/notice/health",
             "/api/report/health",
-            "/api/ai/",
+            "/api/ai/health",
             "/actuator"
+    );
+
+    private final List<String> permissionWhiteList = List.of(
+            "/api/user/logout",
+            "/api/user/profile",
+            "/api/user/password",
+            "/api/user/menus/current"
     );
 
     @Value("${officeflow.jwt.secret:officeflow-secret-key-must-be-at-least-32-bytes}")
     private String jwtSecret;
+
+    @Value("${officeflow.permission.enabled:true}")
+    private boolean permissionEnabled;
+
+    public JwtAuthenticationFilter(ApiPermissionClient apiPermissionClient) {
+        this.apiPermissionClient = apiPermissionClient;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -57,22 +74,58 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
+        Long userId = toLong(claims.get(SecurityConstants.CLAIM_USER_ID));
+        if (userId == null) {
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
+
         ServerWebExchange authenticatedExchange = exchange.mutate()
                 .request(builder -> builder
-                        .header(CommonConstants.LOGIN_USER_ID_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USER_ID)))
+                        .header(CommonConstants.LOGIN_USER_ID_HEADER, String.valueOf(userId))
                         .header(CommonConstants.LOGIN_USERNAME_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_USERNAME)))
                         .header(CommonConstants.LOGIN_ROLES_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_ROLES)))
                         .header(CommonConstants.LOGIN_DEPT_ID_HEADER, String.valueOf(claims.get(SecurityConstants.CLAIM_DEPT_ID))))
                 .build();
-        return chain.filter(authenticatedExchange);
+        if (!permissionEnabled || isPermissionWhitePath(path)) {
+            return chain.filter(authenticatedExchange);
+        }
+
+        String methodName = method == null ? "" : method.name();
+        return apiPermissionClient.check(userId, methodName, path)
+                .flatMap(decision -> {
+                    if (decision.allowed()) {
+                        return chain.filter(authenticatedExchange);
+                    }
+                    authenticatedExchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                    return authenticatedExchange.getResponse().setComplete();
+                })
+                .onErrorResume(ex -> {
+                    authenticatedExchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
+                    return authenticatedExchange.getResponse().setComplete();
+                });
     }
 
     private boolean isWhitePath(String path) {
         return whiteList.stream().anyMatch(path::startsWith);
     }
 
+    private boolean isPermissionWhitePath(String path) {
+        return permissionWhiteList.stream().anyMatch(path::startsWith);
+    }
+
     @Override
     public int getOrder() {
         return -100;
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.valueOf(String.valueOf(value));
     }
 }

@@ -162,7 +162,7 @@
             n.read_count as readCount,
             n.view_count as viewCount,
             CASE WHEN n.read_count = 0 THEN 0
-                 ELSE ROUND(n.read_count * 100.0 / (SELECT COUNT(DISTINCT id) FROM sys_user WHERE status = 1), 2)
+                 ELSE ROUND(n.read_count * 100.0 / #{totalActiveUsers}, 2)
             END as readRate,
             n.created_at as createdAt
         FROM notice n

@@ -56,7 +56,8 @@ public class MonthlyReportAndSalaryService {
             for (Map<String, Object> apply : overtimeApplies) {
                 double approvedHours = apply.get("approvedHours") != null ? Double.parseDouble(apply.get("approvedHours").toString()) : 0.0;
                 Object startTime = apply.get("startTime");
-                Double actualHours = monthlyReportMapper.selectActualWorkHoursOnDate(userId, startTime);
+                Object endTime = apply.get("endTime");
+                Double actualHours = monthlyReportMapper.selectActualOvertimeHours(userId, startTime, endTime);
                 if (actualHours == null) {
                     actualHours = approvedHours; // 如果那天无打卡流（如周末加班），以审批时间为准
                 }

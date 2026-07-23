@@ -36,4 +36,31 @@ public interface ApiPermissionMapper {
 
     @Update("UPDATE sys_api_permission SET status = 0 WHERE id = #{id}")
     int disable(@Param("id") Long id);
+
+    @Select("""
+            SELECT id, permission_name AS permissionName, permission_code AS permissionCode,
+                   service_name AS serviceName, request_method AS requestMethod, request_path AS requestPath, status
+            FROM sys_api_permission
+            WHERE status = 1
+              AND (request_method = #{method} OR request_method = 'ALL')
+            ORDER BY LENGTH(request_path) DESC, id ASC
+            """)
+    List<Map<String, Object>> listEnabledByMethod(@Param("method") String method);
+
+    @Select("""
+            SELECT COUNT(1)
+            FROM sys_user u
+            INNER JOIN sys_user_role ur ON ur.user_id = u.id
+            INNER JOIN sys_role r ON r.id = ur.role_id
+            INNER JOIN sys_role_api_permission rap ON rap.role_id = r.id
+            INNER JOIN sys_api_permission ap ON ap.id = rap.api_permission_id
+            WHERE u.id = #{userId}
+              AND u.status = 1
+              AND u.is_deleted = 0
+              AND r.status = 1
+              AND r.is_deleted = 0
+              AND ap.status = 1
+              AND ap.id = #{permissionId}
+            """)
+    int countUserPermission(@Param("userId") Long userId, @Param("permissionId") Long permissionId);
 }

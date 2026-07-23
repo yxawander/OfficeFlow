@@ -48,6 +48,10 @@ spring:
 officeflow:
   jwt:
     secret: officeflow-secret-key-must-be-at-least-32-bytes
+  permission:
+    enabled: true
+  internal:
+    secret: officeflow-internal-secret
 
 management:
   endpoints:

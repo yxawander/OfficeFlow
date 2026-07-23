@@ -14,5 +14,6 @@ public final class CommonConstants {
     public static final String LOGIN_USERNAME_HEADER = "X-Login-Username";
     public static final String LOGIN_ROLES_HEADER = "X-Login-Roles";
     public static final String LOGIN_DEPT_ID_HEADER = "X-Login-DeptId";
+    public static final String INTERNAL_TOKEN_HEADER = "X-OfficeFlow-Internal-Token";
 }
 

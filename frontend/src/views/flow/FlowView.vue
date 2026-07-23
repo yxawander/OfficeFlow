@@ -72,7 +72,7 @@
           <el-table v-else :data="pendingApplies" v-loading="loadingPending" border stripe style="width: 100%">
             <el-table-column prop="applyNo" label="申请单号" width="170" />
             <el-table-column prop="applicantName" label="申请人" width="120" />
-            <el-table-column prop="deptName" label="部门" width="120" />
+            <el-table-column prop="applicantDeptName" label="部门" width="120" />
             <el-table-column prop="applyType" label="类型" width="110">
               <template #default="{ row }">
                 <el-tag :type="getTypeTagType(row.applyType)">
@@ -369,7 +369,6 @@ const submitApply = async () => {
       loadMyApplies()
     } catch (error) {
       console.error(error)
-      ElMessage.error(error.message || '提交失败')
     } finally {
       submitting.value = false
     }
@@ -384,7 +383,7 @@ const handleCancel = async (id) => {
     loadMyApplies()
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('撤销失败')
+      console.error('撤销失败', e)
     }
   }
 }
@@ -420,7 +419,7 @@ const confirmAction = async () => {
     actionDialogVisible.value = false
     loadPendingApplies()
   } catch (error) {
-    ElMessage.error(error.message || '操作失败')
+    console.error('审批操作失败', error)
   } finally {
     submittingAction.value = false
   }

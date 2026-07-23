@@ -6,7 +6,9 @@ import com.officeflow.common.security.JwtUtil;
 import com.officeflow.common.security.SecurityConstants;
 import com.officeflow.user.dto.ApiPermissionRequest;
 import com.officeflow.user.dto.DeptRequest;
+import com.officeflow.user.dto.PasswordChangeRequest;
 import com.officeflow.user.dto.PostRequest;
+import com.officeflow.user.dto.ProfileUpdateRequest;
 import com.officeflow.user.dto.RoleRequest;
 import com.officeflow.user.dto.UserRequest;
 import com.officeflow.user.mapper.ApiPermissionMapper;
@@ -20,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.AntPathMatcher;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +34,8 @@ import java.util.Objects;
 
 @Service
 public class UserService {
+    private static final String ADMIN_ROLE_CODE = "ADMIN";
+
     private final UserMapper userMapper;
     private final DeptMapper deptMapper;
     private final PostMapper postMapper;
@@ -38,6 +43,7 @@ public class UserService {
     private final MenuMapper menuMapper;
     private final ApiPermissionMapper apiPermissionMapper;
     private final LogMapper logMapper;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Value("${officeflow.jwt.secret:officeflow-secret-key-must-be-at-least-32-bytes}")
     private String jwtSecret;
@@ -113,6 +119,32 @@ public class UserService {
         return profile;
     }
 
+    @Transactional
+    public void updateProfile(Long userId, ProfileUpdateRequest request) {
+        requireLogin(userId);
+        if (userMapper.updateProfile(userId, request) == 0) {
+            throw new BusinessException("当前用户不存在");
+        }
+    }
+
+    @Transactional
+    public void changePassword(Long userId, PasswordChangeRequest request) {
+        requireLogin(userId);
+        String currentPassword = userMapper.findPasswordById(userId);
+        if (currentPassword == null) {
+            throw new BusinessException("当前用户不存在");
+        }
+        if (!Objects.equals(currentPassword, request.oldPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+        if (Objects.equals(request.oldPassword(), request.newPassword())) {
+            throw new BusinessException("新密码不能与原密码相同");
+        }
+        if (userMapper.resetPassword(userId, request.newPassword()) == 0) {
+            throw new BusinessException("密码修改失败");
+        }
+    }
+
     public List<Map<String, Object>> currentMenus(Long userId) {
         requireLogin(userId);
         return buildTree(menuMapper.listByUserId(userId));
@@ -124,6 +156,10 @@ public class UserService {
 
     public List<Map<String, Object>> deptTree() {
         return buildTree(deptMapper.listAll());
+    }
+
+    public List<Map<String, Object>> deptList() {
+        return deptMapper.listAll();
     }
 
     public List<Map<String, Object>> postList() {
@@ -308,6 +344,39 @@ public class UserService {
         return apiPermissionMapper.listAll();
     }
 
+    public Map<String, Object> checkApiPermission(Long userId, String method, String path) {
+        requireLogin(userId);
+        String safeMethod = defaultText(method, "").toUpperCase();
+        String safePath = defaultText(path, "");
+
+        if (hasAdminRole(userId)) {
+            return permissionResult(true, true, "ADMIN", "系统管理员放行");
+        }
+
+        List<Map<String, Object>> matchedPermissions = apiPermissionMapper.listEnabledByMethod(safeMethod).stream()
+                .filter(permission -> pathMatcher.match(String.valueOf(permission.get("requestPath")), safePath))
+                .toList();
+        if (matchedPermissions.isEmpty()) {
+            return permissionResult(true, false, null, "未配置接口权限规则，默认放行");
+        }
+
+        int maxPathLength = matchedPermissions.stream()
+                .map(permission -> String.valueOf(permission.get("requestPath")).length())
+                .max(Integer::compareTo)
+                .orElse(0);
+        List<Map<String, Object>> effectivePermissions = matchedPermissions.stream()
+                .filter(permission -> String.valueOf(permission.get("requestPath")).length() == maxPathLength)
+                .toList();
+
+        for (Map<String, Object> permission : effectivePermissions) {
+            Long permissionId = toLong(permission.get("id"));
+            if (apiPermissionMapper.countUserPermission(userId, permissionId) > 0) {
+                return permissionResult(true, true, String.valueOf(permission.get("permissionCode")), "接口权限校验通过");
+            }
+        }
+        return permissionResult(false, true, String.valueOf(effectivePermissions.get(0).get("permissionCode")), "无接口访问权限");
+    }
+
     @Transactional
     public void createApiPermission(ApiPermissionRequest request) {
         apiPermissionMapper.insert(request, defaultInt(request.status(), 1));
@@ -374,6 +443,20 @@ public class UserService {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
         }
+    }
+
+    private boolean hasAdminRole(Long userId) {
+        return roleMapper.listByUserId(userId).stream()
+                .anyMatch(role -> ADMIN_ROLE_CODE.equals(String.valueOf(role.get("roleCode"))));
+    }
+
+    private Map<String, Object> permissionResult(boolean allowed, boolean configured, String permissionCode, String message) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("allowed", allowed);
+        result.put("configured", configured);
+        result.put("permissionCode", permissionCode);
+        result.put("message", message);
+        return result;
     }
 
     private String clientIp(HttpServletRequest request) {

@@ -12,6 +12,14 @@ export function getProfileApi() {
   return request.get('/api/user/profile')
 }
 
+export function updateProfileApi(data) {
+  return request.put('/api/user/profile', data)
+}
+
+export function changePasswordApi(data) {
+  return request.put('/api/user/password', data)
+}
+
 export function getCurrentMenusApi() {
   return request.get('/api/user/menus/current')
 }

@@ -31,6 +31,12 @@ const routes = [
         meta: { title: '角色权限', icon: 'Lock' }
       },
       {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/views/profile/ProfileView.vue'),
+        meta: { title: '个人中心', icon: 'User' }
+      },
+      {
         path: 'attendance',
         name: 'attendance',
         component: () => import('@/views/attendance/AttendanceView.vue'),
@@ -90,7 +96,7 @@ router.beforeEach((to) => {
 })
 
 function canVisit(path, menus) {
-  if (path === '/' || path === '/dashboard' || path === '/ai-chat' || path === '/report' || path === '/salary') {
+  if (path === '/' || path === '/profile') {
     return true
   }
   const stack = [...menus]

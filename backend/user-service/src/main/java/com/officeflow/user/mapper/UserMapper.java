@@ -1,6 +1,7 @@
 package com.officeflow.user.mapper;
 
 import com.officeflow.user.dto.UserRequest;
+import com.officeflow.user.dto.ProfileUpdateRequest;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -39,6 +40,9 @@ public interface UserMapper {
             WHERE u.id = #{id} AND u.is_deleted = 0
             """)
     Map<String, Object> findProfileById(@Param("id") Long id);
+
+    @Select("SELECT password FROM sys_user WHERE id = #{id} AND is_deleted = 0")
+    String findPasswordById(@Param("id") Long id);
 
     @Select("""
             <script>
@@ -103,6 +107,14 @@ public interface UserMapper {
             """)
     int updateUser(@Param("id") Long id, @Param("req") UserRequest request,
                    @Param("userType") String userType, @Param("status") Integer status);
+
+    @Update("""
+            UPDATE sys_user
+            SET real_name = #{req.realName}, gender = #{req.gender}, phone = #{req.phone},
+                email = #{req.email}, avatar = #{req.avatar}
+            WHERE id = #{id} AND is_deleted = 0
+            """)
+    int updateProfile(@Param("id") Long id, @Param("req") ProfileUpdateRequest request);
 
     @Update("UPDATE sys_user SET is_deleted = 1 WHERE id = #{id} AND id <> 1")
     int softDelete(@Param("id") Long id);

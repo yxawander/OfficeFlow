@@ -15,5 +15,9 @@ public final class CommonConstants {
     public static final String LOGIN_ROLES_HEADER = "X-Login-Roles";
     public static final String LOGIN_DEPT_ID_HEADER = "X-Login-DeptId";
     public static final String INTERNAL_TOKEN_HEADER = "X-OfficeFlow-Internal-Token";
+
+    // ---- Redis 缓存 Key ----
+    public static final String CACHE_USER_PERM_PREFIX = "user:perm:";
+    public static final String CACHE_API_RULES = "system:api-rules";
 }
 

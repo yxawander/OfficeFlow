@@ -59,6 +59,15 @@ public interface RoleMapper {
     @Select("SELECT api_permission_id FROM sys_role_api_permission WHERE role_id = #{roleId}")
     List<Long> listApiPermissionIdsByRoleId(@Param("roleId") Long roleId);
 
+    @Select("""
+            SELECT DISTINCT rap.api_permission_id
+            FROM sys_user_role ur
+            INNER JOIN sys_role r ON r.id = ur.role_id AND r.status = 1 AND r.is_deleted = 0
+            INNER JOIN sys_role_api_permission rap ON rap.role_id = r.id
+            WHERE ur.user_id = #{userId}
+            """)
+    List<Long> listApiPermissionIdsByUserId(@Param("userId") Long userId);
+
     @Delete("DELETE FROM sys_role_menu WHERE role_id = #{roleId}")
     int deleteRoleMenus(@Param("roleId") Long roleId);
 

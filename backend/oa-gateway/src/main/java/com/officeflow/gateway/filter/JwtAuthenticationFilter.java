@@ -3,7 +3,7 @@ package com.officeflow.gateway.filter;
 import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.common.security.JwtUtil;
 import com.officeflow.common.security.SecurityConstants;
-import com.officeflow.gateway.client.ApiPermissionClient;
+import com.officeflow.gateway.cache.CachedPermissionChecker;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -20,7 +20,7 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
-    private final ApiPermissionClient apiPermissionClient;
+    private final CachedPermissionChecker permissionChecker;
 
     private final List<String> whiteList = List.of(
             "/api/user/login",
@@ -47,8 +47,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Value("${officeflow.permission.enabled:true}")
     private boolean permissionEnabled;
 
-    public JwtAuthenticationFilter(ApiPermissionClient apiPermissionClient) {
-        this.apiPermissionClient = apiPermissionClient;
+    public JwtAuthenticationFilter(CachedPermissionChecker permissionChecker) {
+        this.permissionChecker = permissionChecker;
     }
 
     @Override
@@ -92,9 +92,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String methodName = method == null ? "" : method.name();
-        return apiPermissionClient.check(userId, methodName, path)
-                .flatMap(decision -> {
-                    if (decision.allowed()) {
+        return permissionChecker.check(userId, methodName, path)
+                .flatMap(allowed -> {
+                    if (allowed) {
                         return chain.filter(authenticatedExchange);
                     }
                     authenticatedExchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);

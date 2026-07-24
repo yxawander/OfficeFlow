@@ -10,6 +10,7 @@ logs/
 .idea/
 .vscode/
 *.iml
+.codebuddy
 
 # OS
 .DS_Store
@@ -24,4 +25,5 @@ dist/
 # Build artifacts
 *.jar
 *.war
+
 

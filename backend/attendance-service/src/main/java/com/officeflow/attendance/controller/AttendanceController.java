@@ -42,7 +42,7 @@ public class AttendanceController {
      */
     @PostMapping("/check-out")
     public ApiResponse<AttendanceRecord> checkOut(@RequestBody(required = false) CheckOutRequest request,
-                                                    HttpServletRequest httpRequest) {
+                                                  HttpServletRequest httpRequest) {
         Long userId = RequestUser.userId(httpRequest);
         return ApiResponse.ok(attendanceService.checkOut(userId, request, httpRequest));
     }

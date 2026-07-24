@@ -25,8 +25,9 @@ public class DeptController {
     }
 
     @GetMapping("/tree")
-    public ApiResponse<Object> tree() {
-        return ApiResponse.ok(userService.deptTree());
+    public ApiResponse<Object> tree(HttpServletRequest request) {
+        Long userId = RequestUser.userId(request);
+        return ApiResponse.ok(userService.deptTree(userId));
     }
 
     @GetMapping

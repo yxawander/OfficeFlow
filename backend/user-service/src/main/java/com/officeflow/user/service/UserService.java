@@ -26,8 +26,10 @@ import org.springframework.util.AntPathMatcher;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,8 +173,69 @@ public class UserService {
         return buildTree(menuMapper.listAll());
     }
 
-    public List<Map<String, Object>> deptTree() {
-        return buildTree(deptMapper.listAll());
+    public List<Map<String, Object>> deptTree(Long userId) {
+        List<Map<String, Object>> allDepts = deptMapper.listAll();
+        if (userId == null || hasAdminRole(userId)) {
+            return buildTree(allDepts);
+        }
+
+        List<Map<String, Object>> roles = roleMapper.listByUserId(userId);
+        boolean isAllScope = false;
+        boolean isDeptAndChildScope = false;
+
+        for (Map<String, Object> role : roles) {
+            String dataScope = String.valueOf(role.get("dataScope"));
+            if ("ALL".equals(dataScope)) {
+                isAllScope = true;
+                break;
+            } else if ("DEPT_AND_CHILD".equals(dataScope)) {
+                isDeptAndChildScope = true;
+            }
+        }
+
+        if (isAllScope) {
+            return buildTree(allDepts);
+        }
+
+        Map<String, Object> profile = userMapper.findProfileById(userId);
+        if (profile == null || profile.get("deptId") == null) {
+            return Collections.emptyList();
+        }
+        Long userDeptId = toLong(profile.get("deptId"));
+
+        List<Map<String, Object>> filteredDepts = new ArrayList<>();
+        if (isDeptAndChildScope) {
+            Set<Long> allowedDeptIds = new HashSet<>();
+            allowedDeptIds.add(userDeptId);
+
+            boolean added;
+            do {
+                added = false;
+                for (Map<String, Object> dept : allDepts) {
+                    Long id = toLong(dept.get("id"));
+                    Long parentId = defaultLong(toLong(dept.get("parentId")), 0L);
+                    if (!allowedDeptIds.contains(id) && allowedDeptIds.contains(parentId)) {
+                        allowedDeptIds.add(id);
+                        added = true;
+                    }
+                }
+            } while (added);
+
+            for (Map<String, Object> dept : allDepts) {
+                if (allowedDeptIds.contains(toLong(dept.get("id")))) {
+                    filteredDepts.add(dept);
+                }
+            }
+        } else {
+            // 'SELF' scope
+            for (Map<String, Object> dept : allDepts) {
+                if (userDeptId.equals(toLong(dept.get("id")))) {
+                    filteredDepts.add(dept);
+                }
+            }
+        }
+        
+        return buildTree(filteredDepts);
     }
 
     public List<Map<String, Object>> deptList() {

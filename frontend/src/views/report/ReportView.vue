@@ -36,6 +36,7 @@
           node-key="id"
           check-strictly
           clearable
+          default-expand-all
           placeholder="全部部门"
           @change="fetchReports"
         />

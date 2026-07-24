@@ -39,8 +39,8 @@
                 <span>上班打卡</span>
                 <span class="target-time">规定时间 09:00</span>
               </div>
-              <el-tag v-if="todayStatus.hasCheckIn" :type="todayStatus.lateMinutes > 0 ? 'danger' : 'success'" effect="light" round>
-                {{ todayStatus.lateMinutes > 0 ? `迟到 ${formatMinutes(todayStatus.lateMinutes)}` : '按时打卡' }}
+              <el-tag v-if="todayStatus.hasCheckIn" :type="(todayStatus.status === 'ABSENT' || todayStatus.lateMinutes > 0) ? 'danger' : 'success'" effect="light" round>
+                {{ todayStatus.status === 'ABSENT' ? '旷工' : (todayStatus.lateMinutes > 0 ? `迟到 ${formatMinutes(todayStatus.lateMinutes)}` : '按时打卡') }}
               </el-tag>
               <el-tag v-else type="info" effect="plain" round>未打卡</el-tag>
             </div>
@@ -79,8 +79,8 @@
                 <span>下班打卡</span>
                 <span class="target-time">规定时间 18:00</span>
               </div>
-              <el-tag v-if="todayStatus.hasCheckOut" :type="todayStatus.earlyLeaveMinutes > 0 ? 'warning' : 'success'" effect="light" round>
-                {{ todayStatus.earlyLeaveMinutes > 0 ? `早退 ${todayStatus.earlyLeaveMinutes} 分钟` : '正常下班' }}
+              <el-tag v-if="todayStatus.hasCheckOut" :type="(todayStatus.status === 'ABSENT' || todayStatus.earlyLeaveMinutes > 0) ? 'danger' : 'success'" effect="light" round>
+                {{ todayStatus.status === 'ABSENT' ? '旷工' : (todayStatus.earlyLeaveMinutes > 0 ? `早退 ${todayStatus.earlyLeaveMinutes} 分钟` : '正常下班') }}
               </el-tag>
               <el-tag v-else type="info" effect="plain" round>未打卡</el-tag>
             </div>
@@ -177,9 +177,20 @@
 
           <el-table-column label="状态" min-width="140" align="center">
             <template #default="{ row }">
-              <el-tag :type="getStatusTagType(row.status)" effect="light">
-                {{ formatStatusText(row.status, row.lateMinutes, row.earlyLeaveMinutes) }}
-              </el-tag>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
+                <el-tag :type="getStatusTagType(row.status)" effect="light">
+                  {{ formatStatusText(row.status, row.lateMinutes, row.earlyLeaveMinutes) }}
+                </el-tag>
+                <el-tag v-if="row.leaveMinutes > 0 && row.status !== 'ON_LEAVE'" type="info" effect="plain" size="small">
+                  事假({{ formatMinutes(row.leaveMinutes) }})
+                </el-tag>
+                <el-tag v-if="row.overtimeMinutes > 0" type="danger" effect="plain" size="small">
+                  🔥加班({{ formatMinutes(row.overtimeMinutes) }})
+                </el-tag>
+                <el-tag v-if="row.exceptionFlag === 'PENDING_APPEAL'" type="warning" effect="dark" size="small">
+                  待申诉
+                </el-tag>
+              </div>
             </template>
           </el-table-column>
 
@@ -191,17 +202,19 @@
 
           <el-table-column label="操作" width="130" align="center" fixed="right">
             <template #default="{ row }">
-              <el-tag v-if="row.correctionStatus === 'PENDING'" type="warning" effect="dark" size="small">
-                <el-icon class="el-icon--left"><Clock /></el-icon>补卡审核中
-              </el-tag>
-              <el-tag v-else-if="row.correctionStatus === 'REJECTED'" type="danger" effect="plain" size="small">
-                <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
-              </el-tag>
-              <div v-else-if="['LATE', 'MISSING_CARD', 'EARLY_LEAVE', 'LATE_AND_EARLY'].includes(row.status)" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                <el-tag v-if="row.correctionStatus === 'APPROVED'" type="success" size="small" effect="plain">
-                  部分通过
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <el-tag v-if="row.correctionStatus === 'PENDING'" type="warning" effect="dark" size="small">
+                  <el-icon class="el-icon--left"><Clock /></el-icon>补卡审核中
                 </el-tag>
+                <el-tag v-if="row.correctionStatus === 'REJECTED'" type="danger" effect="plain" size="small">
+                  <el-icon class="el-icon--left"><CircleClose /></el-icon>补卡已驳回
+                </el-tag>
+                <el-tag v-if="row.correctionStatus === 'APPROVED'" type="success" effect="plain" size="small">
+                  <el-icon class="el-icon--left"><Check /></el-icon>补卡已通过
+                </el-tag>
+                
                 <el-button
+                  v-if="['LATE', 'MISSING_CARD', 'EARLY_LEAVE', 'LATE_AND_EARLY'].includes(row.status)"
                   type="warning"
                   plain
                   size="small"
@@ -210,8 +223,8 @@
                 >
                   申请补卡
                 </el-button>
+                <span v-if="!['LATE', 'MISSING_CARD', 'EARLY_LEAVE', 'LATE_AND_EARLY'].includes(row.status) && !row.correctionStatus" class="text-muted">-</span>
               </div>
-              <span v-else class="text-muted">-</span>
             </template>
           </el-table-column>
         </el-table>
@@ -277,16 +290,18 @@
               @change="fetchDeptOverview"
               :clearable="false"
             />
-            <el-select 
+            <el-tree-select
               v-if="isAdminOrHr"
-              v-model="overviewDeptId" 
-              placeholder="全部部门" 
-              clearable 
+              v-model="overviewDeptId"
+              :data="deptList"
+              :props="{ label: 'deptName', children: 'children' }"
+              node-key="id"
+              check-strictly
+              clearable
+              placeholder="全部部门"
               style="width: 160px;"
               @change="fetchDeptOverview"
-            >
-              <el-option v-for="dept in deptList" :key="dept.id" :label="dept.name" :value="dept.id" />
-            </el-select>
+            />
             <el-button type="primary" plain size="default" @click="fetchDeptOverview">
               <el-icon><Refresh /></el-icon> 刷新数据
             </el-button>
@@ -1369,7 +1384,7 @@ const formatStatusText = (status, lateMins, earlyMins) => {
     case 'LATE': return `迟到 (${formatMinutes(lateMins)})`
     case 'EARLY_LEAVE': return `早退 (${formatMinutes(earlyMins)})`
     case 'LATE_AND_EARLY': return `迟到(${formatMinutes(lateMins)}) + 早退(${formatMinutes(earlyMins)})`
-    case 'ABSENT': return `旷工 (${formatMinutes(lateMins)})`
+    case 'ABSENT': return `旷工`
     case 'MISSING_CARD': return '缺卡'
     default: return status || '正常打卡'
   }
@@ -1398,7 +1413,7 @@ const formatDeptStatusText = (status, lateMins) => {
     case 'LATE': return `迟到 (${formatMinutes(lateMins)})`
     case 'EARLY_LEAVE': return '早退'
     case 'LATE_AND_EARLY': return `迟到且早退 (${formatMinutes(lateMins)})`
-    case 'ABSENT': return `旷工 (${formatMinutes(lateMins)})`
+    case 'ABSENT': return `旷工`
     case 'MISSING_CARD': return '缺卡'
     case 'NOT_CHECKED': return '未打卡'
     default: return status || '未打卡'

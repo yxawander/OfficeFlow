@@ -18,17 +18,20 @@ public class AttendanceInnerController {
     private AttendanceService attendanceService;
 
     @PostMapping("/correction")
-    public void updateAttendanceForCorrection(@RequestBody AttendanceCorrectionDTO dto) {
+    public com.officeflow.common.api.ApiResponse<Void> updateAttendanceForCorrection(@RequestBody AttendanceCorrectionDTO dto) {
         attendanceService.processCorrectionApprove(dto);
+        return com.officeflow.common.api.ApiResponse.ok();
     }
 
     @PostMapping("/leave")
-    public void updateAttendanceForLeave(@RequestBody AttendanceLeaveDTO dto) {
+    public com.officeflow.common.api.ApiResponse<Void> updateAttendanceForLeave(@RequestBody AttendanceLeaveDTO dto) {
         attendanceService.processLeaveApprove(dto);
+        return com.officeflow.common.api.ApiResponse.ok();
     }
 
     @PostMapping("/overtime")
-    public void updateAttendanceForOvertime(@RequestBody AttendanceOvertimeDTO dto) {
+    public com.officeflow.common.api.ApiResponse<Void> updateAttendanceForOvertime(@RequestBody AttendanceOvertimeDTO dto) {
         attendanceService.processOvertimeApprove(dto);
+        return com.officeflow.common.api.ApiResponse.ok();
     }
 }

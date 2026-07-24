@@ -39,9 +39,18 @@ public class MonthlyReportAndSalaryController {
             @RequestParam(name = "deptId", required = false) Long deptId,
             @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "page", defaultValue = "1") long page,
-            @RequestParam(name = "pageSize", defaultValue = "10") long pageSize) {
+            @RequestParam(name = "pageSize", defaultValue = "10") long pageSize,
+            HttpServletRequest request) {
+        String rolesStr = RequestUser.roles(request);
+        boolean isAdminOrHr = rolesStr != null && (rolesStr.contains("ADMIN") || rolesStr.contains("HR") || rolesStr.contains("MANAGER"));
+        Long filterUserId = null;
+        if (!isAdminOrHr) {
+            filterUserId = RequestUser.userId(request);
+            deptId = null; // Ignore department filter for normal users
+        }
+
         String targetMonth = (month != null && !month.isBlank()) ? month : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        return ApiResponse.ok(monthlyReportAndSalaryService.getMonthlyReports(targetMonth, deptId, keyword, page, pageSize));
+        return ApiResponse.ok(monthlyReportAndSalaryService.getMonthlyReports(targetMonth, deptId, keyword, filterUserId, page, pageSize));
     }
 
     /**

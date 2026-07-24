@@ -67,6 +67,10 @@
                       <span class="amount">￥{{ formatMoney(mySalary?.allowance) }}</span>
                     </div>
                     <div class="item-row">
+                      <span>考勤绩效奖金</span>
+                      <span class="amount highlight-income">￥{{ formatMoney(mySalary?.performanceBonus) }}</span>
+                    </div>
+                    <div class="item-row">
                       <div class="flex-col">
                         <span>加班费补贴</span>
                         <span class="sub-text" v-if="mySalary?.hourlyWage">({{ mySalary.overtimeHours }}小时 × ￥{{ formatMoney(mySalary.hourlyWage) }}/时 × 1.5)</span>
@@ -82,10 +86,23 @@
                     </div>
                     <div class="item-row">
                       <div class="flex-col">
-                        <span>迟到早退/缺卡扣款</span>
+                        <span>迟到早退/缺卡扣款 (仅扣绩效)</span>
                         <span class="sub-text" v-if="mySalary?.hourlyWage">({{ mySalary.offWorkHours }}小时 × ￥{{ formatMoney(mySalary.hourlyWage) }}/时)</span>
                       </div>
                       <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.lateDeduction) }}</span>
+                    </div>
+                    <div class="item-row">
+                      <div class="flex-col">
+                        <span>缺卡扣款 (仅扣绩效)</span>
+                      </div>
+                      <span class="amount text-danger">- ￥{{ formatMoney(mySalary?.missingCardDeduction) }}</span>
+                    </div>
+                    <div class="item-row" style="background: #fff1f2; padding: 10px; border-radius: 6px; margin: 4px 0 10px 0;">
+                      <div class="flex-col">
+                        <span style="color: #dc2626; font-weight: bold; font-size: 13px;">实际生效违纪扣款</span>
+                        <span class="sub-text" style="color: #ef4444;">(最多扣除全部考勤绩效 ￥{{ formatMoney(mySalary?.performanceBonus) }})</span>
+                      </div>
+                      <span class="amount text-danger">- ￥{{ formatMoney(Math.min((mySalary?.lateDeduction || 0) + (mySalary?.missingCardDeduction || 0), mySalary?.performanceBonus || 0)) }}</span>
                     </div>
                     <div class="item-row">
                       <div class="flex-col">
@@ -169,6 +186,10 @@
             <el-table-column prop="allowance" label="津贴" width="100" align="right">
               <template #default="{ row }">￥{{ formatMoney(row.allowance) }}</template>
             </el-table-column>
+
+            <el-table-column prop="performanceBonus" label="考勤绩效" width="100" align="right">
+              <template #default="{ row }">￥{{ formatMoney(row.performanceBonus) }}</template>
+            </el-table-column>
             
             <el-table-column prop="overtimePay" label="加班费" width="110" align="right">
               <template #default="{ row }">
@@ -179,7 +200,7 @@
             <el-table-column label="考勤总扣款" width="120" align="right">
               <template #default="{ row }">
                 <span class="danger-text">
-                  - ￥{{ formatMoney(row.lateDeduction + row.absentDeduction + row.leaveDeduction) }}
+                  - ￥{{ formatMoney((row.absentDeduction || 0) + (row.leaveDeduction || 0) + Math.min((row.lateDeduction || 0) + (row.missingCardDeduction || 0), row.performanceBonus || 0)) }}
                 </span>
               </template>
             </el-table-column>
@@ -258,6 +279,10 @@
                 <span class="amount">￥{{ formatMoney(detailSalary?.allowance) }}</span>
               </div>
               <div class="item-row">
+                <span>考勤绩效奖金</span>
+                <span class="amount highlight-income">￥{{ formatMoney(detailSalary?.performanceBonus) }}</span>
+              </div>
+              <div class="item-row">
                 <div class="flex-col">
                   <span>加班费补贴</span>
                   <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.overtimeHours }}小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时 × 1.5)</span>
@@ -273,10 +298,23 @@
               </div>
               <div class="item-row">
                 <div class="flex-col">
-                  <span>迟到早退/缺卡扣款</span>
+                  <span>迟到早退/缺卡扣款 (仅扣绩效)</span>
                   <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.offWorkHours }}小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时)</span>
                 </div>
                 <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.lateDeduction) }}</span>
+              </div>
+              <div class="item-row">
+                <div class="flex-col">
+                  <span>缺卡扣款 (仅扣绩效)</span>
+                </div>
+                <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.missingCardDeduction) }}</span>
+              </div>
+              <div class="item-row" style="background: #fff1f2; padding: 10px; border-radius: 6px; margin: 4px 0 10px 0;">
+                <div class="flex-col">
+                  <span style="color: #dc2626; font-weight: bold; font-size: 13px;">实际生效违纪扣款</span>
+                  <span class="sub-text" style="color: #ef4444;">(最多扣除全部考勤绩效 ￥{{ formatMoney(detailSalary?.performanceBonus) }})</span>
+                </div>
+                <span class="amount text-danger">- ￥{{ formatMoney(Math.min((detailSalary?.lateDeduction || 0) + (detailSalary?.missingCardDeduction || 0), detailSalary?.performanceBonus || 0)) }}</span>
               </div>
               <div class="item-row">
                 <div class="flex-col">

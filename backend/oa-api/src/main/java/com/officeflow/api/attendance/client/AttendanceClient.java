@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface AttendanceClient {
 
     @PostMapping("/api/inner/attendance/correction")
-    void updateAttendanceForCorrection(@RequestBody AttendanceCorrectionDTO dto);
+    com.officeflow.common.api.ApiResponse<Void> updateAttendanceForCorrection(@RequestBody AttendanceCorrectionDTO dto);
 
     @PostMapping("/api/inner/attendance/leave")
-    void updateAttendanceForLeave(@RequestBody AttendanceLeaveDTO dto);
+    com.officeflow.common.api.ApiResponse<Void> updateAttendanceForLeave(@RequestBody AttendanceLeaveDTO dto);
 
     @PostMapping("/api/inner/attendance/overtime")
-    void updateAttendanceForOvertime(@RequestBody AttendanceOvertimeDTO dto);
+    com.officeflow.common.api.ApiResponse<Void> updateAttendanceForOvertime(@RequestBody AttendanceOvertimeDTO dto);
 }

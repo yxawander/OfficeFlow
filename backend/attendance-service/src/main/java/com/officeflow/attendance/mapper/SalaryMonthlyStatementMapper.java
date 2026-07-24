@@ -13,17 +13,19 @@ import java.util.Map;
 public interface SalaryMonthlyStatementMapper {
 
     @Insert("""
-            INSERT INTO salary_monthly_statement (user_id, settle_month, base_salary, overtime_pay, allowance, late_deduction, absent_deduction, leave_deduction, actual_salary, status, created_at, daily_wage, hourly_wage, overtime_hours, off_work_hours, absent_days, leave_days)
-            VALUES (#{userId}, #{settleMonth}, #{baseSalary}, #{overtimePay}, #{allowance}, #{lateDeduction}, #{absentDeduction}, #{leaveDeduction}, #{actualSalary}, #{status}, NOW(), #{dailyWage}, #{hourlyWage}, #{overtimeHours}, #{offWorkHours}, #{absentDays}, #{leaveDays})
+            INSERT INTO salary_monthly_statement (user_id, settle_month, base_salary, overtime_pay, allowance, performance_bonus, late_deduction, missing_card_deduction, absent_deduction, leave_deduction, actual_salary, status, created_at, daily_wage, hourly_wage, overtime_hours, off_work_hours, absent_days, leave_days)
+            VALUES (#{userId}, #{settleMonth}, #{baseSalary}, #{overtimePay}, #{allowance}, #{performanceBonus}, #{lateDeduction}, #{missingCardDeduction}, #{absentDeduction}, #{leaveDeduction}, #{actualSalary}, #{status}, NOW(), #{dailyWage}, #{hourlyWage}, #{overtimeHours}, #{offWorkHours}, #{absentDays}, #{leaveDays})
             ON DUPLICATE KEY UPDATE
                 base_salary = VALUES(base_salary),
                 overtime_pay = VALUES(overtime_pay),
                 allowance = VALUES(allowance),
+                performance_bonus = VALUES(performance_bonus),
                 late_deduction = VALUES(late_deduction),
+                missing_card_deduction = VALUES(missing_card_deduction),
                 absent_deduction = VALUES(absent_deduction),
                 leave_deduction = VALUES(leave_deduction),
                 actual_salary = VALUES(actual_salary),
-                status = VALUES(status),
+                status = IF(status = 'PUBLISHED', 'PUBLISHED', VALUES(status)),
                 daily_wage = VALUES(daily_wage),
                 hourly_wage = VALUES(hourly_wage),
                 overtime_hours = VALUES(overtime_hours),
@@ -37,7 +39,7 @@ public interface SalaryMonthlyStatementMapper {
             <script>
             SELECT s.id, s.user_id AS userId, s.settle_month AS settleMonth,
                    s.base_salary AS baseSalary, s.overtime_pay AS overtimePay,
-                   s.allowance, s.late_deduction AS lateDeduction,
+                   s.allowance, s.performance_bonus AS performanceBonus, s.late_deduction AS lateDeduction, s.missing_card_deduction AS missingCardDeduction,
                    s.absent_deduction AS absentDeduction, s.leave_deduction AS leaveDeduction,
                    s.actual_salary AS actualSalary, s.status, s.created_at AS createdAt,
                    s.daily_wage AS dailyWage, s.hourly_wage AS hourlyWage, s.overtime_hours AS overtimeHours,
@@ -108,9 +110,13 @@ public interface SalaryMonthlyStatementMapper {
     Map<String, Object> getUserSalaryConfig(@Param("userId") Long userId);
 
     @Select("""
-            SELECT COALESCE(SUM(late_minutes + early_leave_minutes), 0)
+            SELECT COALESCE(SUM(
+              GREATEST(0, late_minutes - GREATEST(0, COALESCE(leave_minutes,0) - early_leave_minutes)) + 
+              GREATEST(0, early_leave_minutes - COALESCE(leave_minutes,0))
+            ), 0)
             FROM attendance_record
             WHERE user_id = #{userId} AND DATE_FORMAT(work_date, '%Y-%m') = #{settleMonth}
+              AND is_absent = 0 AND status != 'ABSENT'
             """)
     Integer selectSumLateAndEarlyMinutes(@Param("userId") Long userId, @Param("settleMonth") String settleMonth);
 

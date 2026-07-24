@@ -120,6 +120,7 @@ import { ElMessage } from 'element-plus'
 import NoticeAdminView from './NoticeAdminView.vue'
 import {
   getNoticeListApi,
+  searchNoticeApi,
   getNoticeDetailApi,
   markNoticeReadApi,
   batchReadNoticeApi,
@@ -158,7 +159,13 @@ const currentDetail = ref({})
 const loadList = async () => {
   loading.value = true
   try {
-    const res = await getNoticeListApi({ ...query })
+    const hasKeyword = !!query.keyword
+    const api = hasKeyword ? searchNoticeApi : getNoticeListApi
+    const params = { ...query }
+    if (hasKeyword) {
+      delete params.readStatus // 搜索接口不支持 readStatus 过滤
+    }
+    const res = await api(params)
     if (res.code === 200 && res.data) {
       list.value = res.data.records || []
       total.value = res.data.total || 0

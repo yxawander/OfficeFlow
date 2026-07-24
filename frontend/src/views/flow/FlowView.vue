@@ -22,6 +22,29 @@
     <el-tabs v-model="activeTab" class="flow-tabs" @tab-click="handleTabClick">
       <el-tab-pane label="我的申请单据" name="my">
         <div class="panel">
+          <div class="search-bar">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索标题或申请事由..."
+              clearable
+              style="width: 260px"
+              @keyup.enter="handleSearch"
+              @clear="handleSearch"
+            />
+            <el-select v-model="searchApplyType" placeholder="申请类型" clearable style="width: 140px" @change="handleSearch">
+              <el-option label="请假" value="LEAVE" />
+              <el-option label="加班" value="OVERTIME" />
+              <el-option label="补卡" value="CORRECTION" />
+            </el-select>
+            <el-select v-model="searchStatus" placeholder="审批状态" clearable style="width: 140px" @change="handleSearch">
+              <el-option label="待审批" value="PENDING" />
+              <el-option label="已同意" value="APPROVED" />
+              <el-option label="已驳回" value="REJECTED" />
+              <el-option label="已撤销" value="CANCELED" />
+            </el-select>
+            <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+            <el-button @click="resetSearch">重置</el-button>
+          </div>
           <el-table :data="myApplies" v-loading="loadingMy" border stripe style="width: 100%">
             <el-table-column prop="applyNo" label="申请单号" width="170" />
             <el-table-column prop="applyType" label="类型" width="110">
@@ -398,6 +421,7 @@ const router = useRouter()
 import {
   createApplyApi,
   getMyAppliesApi,
+  searchAppliesApi,
   getApplyDetailApi,
   getPendingAppliesApi,
   getProcessedAppliesApi,
@@ -433,6 +457,11 @@ const processedApplies = ref([])
 const loadingMy = ref(false)
 const loadingPending = ref(false)
 const loadingProcessed = ref(false)
+
+// 搜索条件
+const searchKeyword = ref('')
+const searchApplyType = ref('')
+const searchStatus = ref('')
 
 // 申请弹窗
 const applyDialogVisible = ref(false)
@@ -514,10 +543,21 @@ const openDetailDialog = async (row) => {
   detailDialogVisible.value = true
 }
 
+const buildSearchParams = () => {
+  const params = { pageNum: 1, pageSize: 50 }
+  if (searchKeyword.value) params.keyword = searchKeyword.value
+  if (searchApplyType.value) params.applyType = searchApplyType.value
+  if (searchStatus.value) params.status = searchStatus.value
+  return params
+}
+
 const loadMyApplies = async () => {
   loadingMy.value = true
   try {
-    const res = await getMyAppliesApi({ pageNum: 1, pageSize: 50 })
+    const hasFilter = searchKeyword.value || searchApplyType.value || searchStatus.value
+    const api = hasFilter ? searchAppliesApi : getMyAppliesApi
+    const params = hasFilter ? buildSearchParams() : { pageNum: 1, pageSize: 50 }
+    const res = await api(params)
     if (res.code === 200 && res.data) {
       myApplies.value = res.data.records || []
     }
@@ -526,6 +566,17 @@ const loadMyApplies = async () => {
   } finally {
     loadingMy.value = false
   }
+}
+
+const handleSearch = () => {
+  loadMyApplies()
+}
+
+const resetSearch = () => {
+  searchKeyword.value = ''
+  searchApplyType.value = ''
+  searchStatus.value = ''
+  loadMyApplies()
 }
 
 const loadPendingApplies = async () => {
@@ -850,6 +901,13 @@ onMounted(() => {
 
 .panel {
   margin-top: 12px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
 }
 
 .text-muted {

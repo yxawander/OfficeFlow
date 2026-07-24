@@ -190,6 +190,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getAdminNoticeListApi,
+  searchAdminNoticeApi,
   createNoticeApi,
   updateNoticeApi,
   publishNoticeApi,
@@ -250,16 +251,33 @@ const stats = ref(null)
 const loadList = async () => {
   loading.value = true
   try {
-    const params = { ...query, onlyPublished: false }
-    if (query.dateRange && query.dateRange.length === 2) {
-      params.startDate = query.dateRange[0] + ' 00:00:00'
-      params.endDate = query.dateRange[1] + ' 23:59:59'
-    }
-    delete params.dateRange
-    const res = await getAdminNoticeListApi(params)
-    if (res.code === 200 && res.data) {
-      list.value = res.data.records || []
-      total.value = res.data.total || 0
+    const hasKeyword = !!query.keyword
+    if (hasKeyword) {
+      // ES 搜索：keyword + status + 分页
+      const params = {
+        keyword: query.keyword,
+        status: query.status || undefined,
+        pageNum: query.pageNum,
+        pageSize: query.pageSize
+      }
+      const res = await searchAdminNoticeApi(params)
+      if (res.code === 200 && res.data) {
+        list.value = res.data.records || []
+        total.value = res.data.total || 0
+      }
+    } else {
+      // MySQL 列表：支持日期范围等扩展过滤
+      const params = { ...query, onlyPublished: false }
+      if (query.dateRange && query.dateRange.length === 2) {
+        params.startDate = query.dateRange[0] + ' 00:00:00'
+        params.endDate = query.dateRange[1] + ' 23:59:59'
+      }
+      delete params.dateRange
+      const res = await getAdminNoticeListApi(params)
+      if (res.code === 200 && res.data) {
+        list.value = res.data.records || []
+        total.value = res.data.total || 0
+      }
     }
   } finally {
     loading.value = false

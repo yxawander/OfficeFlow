@@ -246,4 +246,60 @@
         AND is_deleted = 0
     </select>
 
+    <select id="selectAllForEs" resultType="com.officeflow.notice.document.NoticeDocument">
+        SELECT n.id, n.title,
+               n.content              AS content,
+               n.notice_type          AS noticeType,
+               n.priority,
+               n.publisher_id         AS publisherId,
+               n.publisher_name       AS publisherName,
+               n.status,
+               n.publish_time         AS publishTime,
+               n.expire_time          AS expireTime,
+               n.read_count           AS readCount,
+               n.view_count           AS viewCount,
+               n.is_deleted           AS isDeleted,
+               n.created_at           AS createdAt,
+               GROUP_CONCAT(CASE ns.scope_type
+                   WHEN 'ALL'  THEN 'ALL'
+                   WHEN 'USER' THEN CONCAT('U:', ns.scope_id)
+                   WHEN 'DEPT' THEN CONCAT('D:', ns.scope_id)
+                   ELSE NULL
+               END SEPARATOR ',')     AS scopeKeysStr
+        FROM notice n
+        LEFT JOIN notice_scope ns ON n.id = ns.notice_id
+        WHERE n.is_deleted = 0
+        GROUP BY n.id
+        LIMIT 10000
+    </select>
+
+    <select id="selectRecentForEs" resultType="com.officeflow.notice.document.NoticeDocument">
+        SELECT n.id, n.title,
+               n.content              AS content,
+               n.notice_type          AS noticeType,
+               n.priority,
+               n.publisher_id         AS publisherId,
+               n.publisher_name       AS publisherName,
+               n.status,
+               n.publish_time         AS publishTime,
+               n.expire_time          AS expireTime,
+               n.read_count           AS readCount,
+               n.view_count           AS viewCount,
+               n.is_deleted           AS isDeleted,
+               n.created_at           AS createdAt,
+               GROUP_CONCAT(CASE ns.scope_type
+                   WHEN 'ALL'  THEN 'ALL'
+                   WHEN 'USER' THEN CONCAT('U:', ns.scope_id)
+                   WHEN 'DEPT' THEN CONCAT('D:', ns.scope_id)
+                   ELSE NULL
+               END SEPARATOR ',')     AS scopeKeysStr
+        FROM notice n
+        LEFT JOIN notice_scope ns ON n.id = ns.notice_id
+        WHERE n.is_deleted = 0
+          AND (n.updated_at >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+               OR n.created_at >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE))
+        GROUP BY n.id
+        LIMIT 1000
+    </select>
+
 </mapper>

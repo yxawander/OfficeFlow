@@ -5,6 +5,7 @@ import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.GlobalExceptionHandler;
 import com.officeflow.flow.dto.FlowApplyCreateDTO;
 import com.officeflow.flow.mapper.FlowAttachmentMapper;
+import com.officeflow.flow.service.FlowSearchService;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.service.OssService;
 import com.officeflow.flow.vo.FlowApplyDetailVO;
@@ -44,12 +45,15 @@ class FlowControllerTest {
     @Mock
     private FlowAttachmentMapper flowAttachmentMapper;
 
+    @Mock
+    private FlowSearchService flowSearchService;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new FlowController(flowService, ossService, flowAttachmentMapper))
+        mockMvc = MockMvcBuilders.standaloneSetup(new FlowController(flowService, ossService, flowAttachmentMapper, flowSearchService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();

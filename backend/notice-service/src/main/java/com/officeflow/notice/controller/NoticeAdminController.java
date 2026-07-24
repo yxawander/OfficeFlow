@@ -8,6 +8,7 @@ import com.officeflow.notice.dto.NoticeQueryDTO;
 import com.officeflow.notice.dto.NoticeUpdateDTO;
 import com.officeflow.notice.entity.NoticeAttachment;
 import com.officeflow.notice.mapper.NoticeAttachmentMapper;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.service.NoticeService;
 import com.officeflow.notice.service.OssService;
 import com.officeflow.notice.service.impl.OssServiceImpl;
@@ -30,6 +31,13 @@ public class NoticeAdminController {
     private final NoticeService noticeService;
     private final OssService ossService;
     private final NoticeAttachmentMapper noticeAttachmentMapper;
+    private final NoticeSearchService noticeSearchService;
+
+    @GetMapping("/notices/search")
+    public ApiResponse<PageResult<AdminNoticeListVO>> searchNotices(@RequestParam(required = false) String keyword,
+                                                                     NoticeQueryDTO dto) {
+        return ApiResponse.ok(noticeSearchService.searchAdmin(keyword, dto));
+    }
 
     @PostMapping("/notices")
     public ApiResponse<Long> createNotice(@Valid @RequestBody NoticeCreateDTO dto, HttpServletRequest request) {

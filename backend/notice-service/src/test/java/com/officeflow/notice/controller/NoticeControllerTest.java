@@ -4,6 +4,7 @@ import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.GlobalExceptionHandler;
 import com.officeflow.notice.dto.BatchReadDTO;
 import com.officeflow.notice.dto.NoticeReadStatusDTO;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.service.NoticeService;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
@@ -36,12 +37,15 @@ class NoticeControllerTest {
     @Mock
     private NoticeService noticeService;
 
+    @Mock
+    private NoticeSearchService noticeSearchService;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NoticeController(noticeService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new NoticeController(noticeService, noticeSearchService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();

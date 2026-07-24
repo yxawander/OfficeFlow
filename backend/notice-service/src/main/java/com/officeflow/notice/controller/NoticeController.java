@@ -6,6 +6,7 @@ import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.notice.dto.BatchReadDTO;
 import com.officeflow.notice.dto.NoticeQueryDTO;
 import com.officeflow.notice.dto.NoticeReadStatusDTO;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.service.NoticeService;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
@@ -23,6 +24,16 @@ import org.springframework.web.bind.annotation.*;
 public class NoticeController {
 
     private final NoticeService noticeService;
+    private final NoticeSearchService noticeSearchService;
+
+    @GetMapping("/notices/search")
+    public ApiResponse<PageResult<NoticeListVO>> searchNotices(@RequestParam(required = false) String keyword,
+                                                                NoticeQueryDTO dto,
+                                                                HttpServletRequest request) {
+        Long userId = getUserId(request);
+        Long deptId = getDeptId(request);
+        return ApiResponse.ok(noticeSearchService.searchUser(keyword, dto, userId, deptId));
+    }
 
     @GetMapping("/notices")
     public ApiResponse<PageResult<NoticeListVO>> getNoticeList(NoticeQueryDTO dto, HttpServletRequest request) {

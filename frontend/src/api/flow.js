@@ -14,6 +14,11 @@ export function getApplyDetailApi(id) {
   return request.get(`/flow/applies/${id}`)
 }
 
+// 搜索我的申请（关键词模糊匹配标题和原因）
+export function searchAppliesApi(params) {
+  return request.get('/api/flow/applies/search', { params })
+}
+
 // 获取我的申请列表
 export function getMyAppliesApi(params) {
   return request.get('/flow/applies/my', { params })

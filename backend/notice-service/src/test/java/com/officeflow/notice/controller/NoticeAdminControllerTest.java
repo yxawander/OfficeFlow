@@ -7,6 +7,7 @@ import com.officeflow.notice.dto.NoticeCreateDTO;
 import com.officeflow.notice.dto.NoticeScopeDTO;
 import com.officeflow.notice.dto.NoticeUpdateDTO;
 import com.officeflow.notice.mapper.NoticeAttachmentMapper;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.service.NoticeService;
 import com.officeflow.notice.service.OssService;
 import com.officeflow.notice.vo.AdminNoticeListVO;
@@ -43,6 +44,9 @@ class NoticeAdminControllerTest {
     @Mock
     private NoticeAttachmentMapper noticeAttachmentMapper;
 
+    @Mock
+    private NoticeSearchService noticeSearchService;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
@@ -51,7 +55,7 @@ class NoticeAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NoticeAdminController(noticeService, ossService, noticeAttachmentMapper))
+        mockMvc = MockMvcBuilders.standaloneSetup(new NoticeAdminController(noticeService, ossService, noticeAttachmentMapper, noticeSearchService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();

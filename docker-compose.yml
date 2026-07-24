@@ -57,8 +57,24 @@ services:
     volumes:
       - officeflow-pgvector-data:/var/lib/postgresql/data
 
+  elasticsearch:
+    build: ./docker/elasticsearch
+    container_name: officeflow-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      TZ: Asia/Shanghai
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - officeflow-es-data:/usr/share/elasticsearch/data
+
 volumes:
   officeflow-mysql-data:
   officeflow-redis-data:
   officeflow-nacos-data:
   officeflow-pgvector-data:
+  officeflow-es-data:

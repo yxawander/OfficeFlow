@@ -9,6 +9,7 @@ public class FlowApplyQueryDTO {
     private Integer offset;
     private String applyType;
     private String status;
+    private String keyword;
     private String startDate;
     private String endDate;
 }

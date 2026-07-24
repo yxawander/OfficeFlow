@@ -10,7 +10,7 @@ logs/
 .idea/
 .vscode/
 *.iml
-.codebuddy
+.codebuddy/
 
 # OS
 .DS_Store
@@ -26,5 +26,3 @@ dist/
 *.jar
 *.war
 
-
-".codebuddy/" 

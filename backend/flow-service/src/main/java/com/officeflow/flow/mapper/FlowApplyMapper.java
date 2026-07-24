@@ -55,4 +55,8 @@ public interface FlowApplyMapper {
             LIMIT 1
             """)
     java.util.Map<String, Object> selectCorrectionByFlowApplyId(@Param("flowApplyId") Long flowApplyId);
+
+    List<com.officeflow.flow.document.FlowApplyDocument> selectRecentForEs(@Param("minutes") int minutes);
+
+    List<com.officeflow.flow.document.FlowApplyDocument> selectAllForEs();
 }

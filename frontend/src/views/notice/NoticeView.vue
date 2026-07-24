@@ -4,70 +4,88 @@
       <!-- 用户侧：公告列表 -->
       <el-tab-pane label="公告列表" name="list">
         <div class="toolbar">
-          <el-form :inline="true" :model="query" class="search-form">
-            <el-form-item label="关键词">
-              <el-input v-model="query.keyword" placeholder="标题/内容" clearable style="width:200px" @keyup.enter="loadList" />
-            </el-form-item>
-            <el-form-item label="类型">
-              <el-select v-model="query.noticeType" placeholder="全部" clearable style="width:130px">
+          <div class="search-bar">
+            <div class="search-input-wrapper">
+              <el-icon class="search-prefix-icon"><Search /></el-icon>
+              <input
+                v-model="query.keyword"
+                class="search-input-native"
+                placeholder="搜索公告标题或正文内容..."
+                @keyup.enter="loadList"
+              />
+              <el-button v-if="query.keyword" class="search-clear-btn" link @click="query.keyword='';loadList()">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div class="search-filters">
+              <el-select v-model="query.noticeType" placeholder="全部类型" clearable>
                 <el-option v-for="o in NOTICE_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="优先级">
-              <el-select v-model="query.priority" placeholder="全部" clearable style="width:120px">
+              <el-select v-model="query.priority" placeholder="全部优先级" clearable>
                 <el-option v-for="o in NOTICE_PRIORITY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="阅读状态">
-              <el-select v-model="query.readStatus" placeholder="全部" clearable style="width:120px">
+              <el-select v-model="query.readStatus" placeholder="阅读状态" clearable>
                 <el-option :value="0" label="未读" />
                 <el-option :value="1" label="已读" />
               </el-select>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="loadList">查询</el-button>
+              <div class="filter-spacer"></div>
+              <div class="unread-badge">
+                <el-icon><Bell /></el-icon>
+                <span>未读 <strong>{{ unreadCount.total }}</strong></span>
+              </div>
+              <el-button type="primary" @click="loadList">
+                <el-icon><Search /></el-icon>
+                搜索
+              </el-button>
               <el-button @click="resetQuery">重置</el-button>
-            </el-form-item>
-          </el-form>
-          <div class="unread-badge">
-            未读公告：
-            <el-tag type="danger">{{ unreadCount.total }}</el-tag>
-            <el-button link type="primary" :disabled="selectedIds.length === 0" @click="batchRead">标记选中为已读</el-button>
+              <el-button v-if="selectedIds.length > 0" type="primary" plain @click="batchRead">
+                标记已读 ({{ selectedIds.length }})
+              </el-button>
+            </div>
           </div>
         </div>
 
-        <el-table :data="list" v-loading="loading" border stripe @selection-change="onSelectionChange">
-          <el-table-column type="selection" width="48" />
-          <el-table-column label="标题" min-width="220">
-            <template #default="{ row }">
-              <a class="notice-title" @click="openDetail(row)">{{ row.title }}</a>
-            </template>
-          </el-table-column>
-          <el-table-column label="类型" width="110">
-            <template #default="{ row }"><el-tag>{{ getNoticeTypeLabel(row.noticeType) }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="优先级" width="100">
-            <template #default="{ row }">
-              <el-tag :type="getNoticePriorityTag(row.priority)" size="small">{{ getNoticePriorityLabel(row.priority) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="publisherName" label="发布人" width="110" />
-          <el-table-column prop="publishTime" label="发布时间" width="170" />
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag :type="row.readStatus === 1 ? 'success' : 'info'" size="small">
-                {{ row.readStatus === 1 ? '已读' : '未读' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="90" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="openDetail(row)">查看</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-loading="loading" class="notice-cards-grid">
+          <div
+            v-for="row in list"
+            :key="row.id"
+            class="notice-card"
+            :class="{ 'is-selected': selectedIds.includes(row.id), 'is-unread': row.readStatus !== 1 }"
+            @click="openDetail(row)"
+          >
+            <div class="card-accent" :class="'priority-' + (row.priority || 'NORMAL').toLowerCase()">
+              <div class="card-accent-icon">
+                <span class="card-accent-type">{{ getNoticeTypeLabel(row.noticeType) }}</span>
+                <div class="card-select" @click.stop="toggleSelect(row)">
+                  <span v-if="selectedIds.includes(row.id)" class="select-check">✓</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">{{ row.title }}</h3>
+              <p class="card-excerpt">{{ row.summary || stripHtml(row.content) || '暂无内容' }}</p>
+              <div class="card-tags">
+                <el-tag size="small">{{ getNoticeTypeLabel(row.noticeType) }}</el-tag>
+                <el-tag :type="getNoticePriorityTag(row.priority)" size="small">{{ getNoticePriorityLabel(row.priority) }}</el-tag>
+                <el-tag v-if="row.readStatus !== 1" type="danger" size="small" effect="dark">未读</el-tag>
+              </div>
+            </div>
+            <div class="card-footer">
+              <span class="card-publisher">
+                <el-icon><User /></el-icon>
+                {{ row.publisherName }}
+              </span>
+              <span class="card-time">{{ row.publishTime }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!loading && list.length === 0" class="empty-state">
+          <el-empty description="暂无公告" />
+        </div>
 
         <el-pagination
+          v-if="total > 0"
           class="pager"
           background
           layout="total, prev, pager, next"
@@ -84,32 +102,73 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 详情抽屉 -->
-    <el-drawer v-model="detailVisible" :title="currentDetail.title" size="580px">
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailVisible" :title="currentDetail.title" width="720px" class="detail-dialog" destroy-on-close>
       <div v-if="currentDetail.id" class="notice-detail">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="类型">{{ getNoticeTypeLabel(currentDetail.noticeType) }}</el-descriptions-item>
-          <el-descriptions-item label="优先级">
-            <el-tag :type="getNoticePriorityTag(currentDetail.priority)" size="small">{{ getNoticePriorityLabel(currentDetail.priority) }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="发布人">{{ currentDetail.publisherName }}</el-descriptions-item>
-          <el-descriptions-item label="发布时间">{{ currentDetail.publishTime }}</el-descriptions-item>
-          <el-descriptions-item label="有效期至" :span="2">{{ currentDetail.expireTime || '长期有效' }}</el-descriptions-item>
-        </el-descriptions>
+        <div class="detail-meta">
+          <div class="meta-row">
+            <div class="meta-item">
+              <span class="meta-label">公告类型</span>
+              <el-tag size="default">{{ getNoticeTypeLabel(currentDetail.noticeType) }}</el-tag>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">优先级</span>
+              <el-tag :type="getNoticePriorityTag(currentDetail.priority)" size="default" effect="dark">{{ getNoticePriorityLabel(currentDetail.priority) }}</el-tag>
+            </div>
+          </div>
+          <div class="meta-row">
+            <div class="meta-item">
+              <span class="meta-label">发布人</span>
+              <span class="meta-value">
+                <el-icon><User /></el-icon>
+                {{ currentDetail.publisherName }}
+              </span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">发布时间</span>
+              <span class="meta-value">
+                <el-icon><Clock /></el-icon>
+                {{ currentDetail.publishTime }}
+              </span>
+            </div>
+          </div>
+          <div class="meta-row">
+            <div class="meta-item meta-full">
+              <span class="meta-label">有效期</span>
+              <span class="meta-value" :class="{ 'text-muted': !currentDetail.expireTime }">
+                {{ currentDetail.expireTime || '长期有效' }}
+              </span>
+            </div>
+          </div>
+        </div>
 
+        <div class="detail-divider">
+          <span>正文内容</span>
+        </div>
         <div class="notice-content" v-html="currentDetail.content"></div>
 
-        <div class="notice-attachments" v-if="(currentDetail.attachmentList || []).length">
-          <h4>附件</h4>
-          <ul>
-            <li v-for="a in currentDetail.attachmentList" :key="a.id">
-              <a :href="a.fileUrl" target="_blank" rel="noopener">{{ a.fileName }}</a>
-              <span class="file-size">{{ formatSize(a.fileSize) }}</span>
-            </li>
-          </ul>
+        <div v-if="(currentDetail.attachmentList || []).length" class="notice-attachments">
+          <div class="detail-divider">
+            <span>附件列表</span>
+          </div>
+          <div
+            v-for="a in currentDetail.attachmentList"
+            :key="a.id"
+            class="attachment-item"
+            @click="window.open(a.fileUrl, '_blank')"
+          >
+            <div class="attachment-icon">
+              <el-icon size="24"><Document /></el-icon>
+            </div>
+            <div class="attachment-info">
+              <span class="attachment-name">{{ a.fileName }}</span>
+              <span class="attachment-size">{{ formatSize(a.fileSize) }}</span>
+            </div>
+            <el-icon class="attachment-arrow"><Download /></el-icon>
+          </div>
         </div>
       </div>
-    </el-drawer>
+    </el-dialog>
   </div>
 </template>
 
@@ -120,6 +179,7 @@ import { ElMessage } from 'element-plus'
 import NoticeAdminView from './NoticeAdminView.vue'
 import {
   getNoticeListApi,
+  searchNoticeApi,
   getNoticeDetailApi,
   markNoticeReadApi,
   batchReadNoticeApi,
@@ -149,7 +209,7 @@ const query = reactive({
   priority: '',
   readStatus: '',
   pageNum: 1,
-  pageSize: 10
+  pageSize: 8
 })
 
 const detailVisible = ref(false)
@@ -158,7 +218,13 @@ const currentDetail = ref({})
 const loadList = async () => {
   loading.value = true
   try {
-    const res = await getNoticeListApi({ ...query })
+    const hasKeyword = !!query.keyword
+    const api = hasKeyword ? searchNoticeApi : getNoticeListApi
+    const params = { ...query }
+    if (hasKeyword) {
+      delete params.readStatus // 搜索接口不支持 readStatus 过滤
+    }
+    const res = await api(params)
     if (res.code === 200 && res.data) {
       list.value = res.data.records || []
       total.value = res.data.total || 0
@@ -190,8 +256,18 @@ const openDetail = async (row) => {
   }
 }
 
-const onSelectionChange = (rows) => {
-  selectedIds.value = rows.map((r) => r.id)
+const toggleSelect = (row) => {
+  const idx = selectedIds.value.indexOf(row.id)
+  if (idx > -1) {
+    selectedIds.value.splice(idx, 1)
+  } else {
+    selectedIds.value.push(row.id)
+  }
+}
+
+const stripHtml = (html) => {
+  if (!html) return ''
+  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
 }
 
 const batchRead = async () => {
@@ -229,45 +305,408 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ── 搜索工具栏 ── */
 .toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  width: 100%;
 }
+.search-bar {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  box-sizing: border-box;
+}
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  width: 100%;
+}
+.search-prefix-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 18px;
+  z-index: 1;
+  pointer-events: none;
+}
+.search-input-native {
+  width: 100%;
+  height: 48px;
+  padding: 0 44px 0 44px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.search-input-native::placeholder {
+  color: #94a3b8;
+}
+.search-input-native:focus {
+  border-color: var(--el-color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.08);
+}
+.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 16px;
+}
+
+/* ── 筛选行：自适应布局 ── */
+.search-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.search-filters .el-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+.filter-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 未读徽章 ── */
 .unread-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-top: 4px;
+  gap: 5px;
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.notice-title {
-  color: var(--el-color-primary);
+.unread-badge .el-icon {
+  color: var(--el-color-danger);
+  font-size: 16px;
+}
+.unread-badge strong {
+  color: var(--el-color-danger);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ── 卡片网格 ── */
+.notice-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  min-height: 380px;
+}
+
+.notice-card {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+}
+.notice-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+.notice-card.is-selected {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+}
+.notice-card.is-unread {
+  background: #fefefe;
+}
+
+/* ── 卡片顶部色条 ── */
+.card-accent {
+  position: relative;
+  height: 72px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-end;
+}
+.card-accent.priority-urgent {
+  background: linear-gradient(135deg, #f56c6c 0%, #e63946 100%);
+}
+.card-accent.priority-important {
+  background: linear-gradient(135deg, #e6a23c 0%, #d97706 100%);
+}
+.card-accent.priority-normal {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+}
+
+.card-accent-icon {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-accent-type {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.card-select {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
 }
-.notice-title:hover {
-  text-decoration: underline;
+.card-select:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
-.pager {
-  margin-top: 12px;
-  justify-content: flex-end;
+.select-check {
+  line-height: 1;
 }
-.notice-content {
-  margin-top: 16px;
-  line-height: 1.8;
-  word-break: break-word;
+
+/* ── 卡片正文 ── */
+.card-body {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
-.notice-attachments {
-  margin-top: 16px;
+.card-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.notice-attachments ul {
-  padding-left: 18px;
+.card-excerpt {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.notice-attachments .file-size {
-  color: #999;
-  margin-left: 8px;
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+/* ── 卡片底部 ── */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
   font-size: 12px;
+  color: #94a3b8;
+}
+.card-publisher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-time {
+  white-space: nowrap;
+}
+
+/* ── 空状态 ── */
+.empty-state {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+/* ── 分页居中 ── */
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+  padding-bottom: 8px;
+}
+
+/* ── 详情抽屉 ── */
+.drawer-title-bar {
+  display: flex;
+  align-items: center;
+}
+.drawer-title-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.detail-meta {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.meta-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 14px;
+}
+.meta-row:last-child {
+  margin-bottom: 0;
+}
+.meta-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meta-item.meta-full {
+  flex: none;
+  width: 100%;
+}
+.meta-label {
+  font-size: 12px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.meta-value {
+  font-size: 14px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.meta-value.text-muted {
+  color: #94a3b8;
+}
+
+.detail-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+.detail-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.notice-content {
+  line-height: 1.9;
+  word-break: break-word;
+  font-size: 15px;
+  color: #334155;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+}
+.notice-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+  margin: 12px 0;
+}
+.notice-content :deep(video) {
+  max-width: 100%;
+  height: auto;
+}
+.notice-content :deep(table) {
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+.notice-content :deep(pre) {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.notice-attachments {
+  margin-top: 0;
+}
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+.attachment-item:hover {
+  background: #f1f5f9;
+}
+.attachment-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  border-radius: 8px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.attachment-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.attachment-name {
+  font-size: 14px;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-size {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.attachment-arrow {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 </style>

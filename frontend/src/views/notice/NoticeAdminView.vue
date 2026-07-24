@@ -1,26 +1,35 @@
 <template>
   <div class="notice-admin">
     <!-- 搜索栏 -->
-    <el-form :inline="true" :model="query" class="search-bar">
-      <el-form-item label="关键词">
-        <el-input v-model="query.keyword" placeholder="搜索标题" clearable style="width:180px" @keyup.enter="handleSearch" />
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="query.status" placeholder="全部" clearable style="width:130px">
-          <el-option v-for="o in NOTICE_STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="发布日期">
-        <el-date-picker v-model="query.dateRange" type="daterange" range-separator="-" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width:220px" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="resetQuery">重置</el-button>
-        <el-button type="primary" icon="Plus" @click="openCreate">+ 创建公告</el-button>
-      </el-form-item>
-    </el-form>
+    <div class="admin-toolbar">
+      <div class="admin-search-card">
+        <div class="admin-search-main">
+          <div class="admin-search-input-wrap">
+            <el-icon class="admin-search-icon"><Search /></el-icon>
+            <input
+              v-model="query.keyword"
+              class="admin-search-input"
+              placeholder="搜索公告标题..."
+              @keyup.enter="handleSearch"
+            />
+          </div>
+          <el-select v-model="query.status" placeholder="全部状态" clearable>
+            <el-option v-for="o in NOTICE_STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-date-picker v-model="query.dateRange" type="daterange" range-separator="—" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" />
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>
+          </el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </div>
+        <el-button class="create-btn" type="primary" @click="openCreate">
+          <el-icon><Plus /></el-icon>
+          创建公告
+        </el-button>
+      </div>
+    </div>
 
-    <el-table :data="list" v-loading="loading" border stripe>
+    <el-table :data="list" v-loading="loading" class="admin-table" stripe>
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
       <el-table-column label="类型" width="80">
         <template #default="{ row }"><el-tag size="small">{{ getNoticeTypeLabel(row.noticeType) }}</el-tag></template>
@@ -41,7 +50,7 @@
       <el-table-column prop="publisherName" label="发布人" width="100" />
       <el-table-column prop="publishTime" label="发布时间" width="160" />
       <el-table-column label="阅读率" width="80">
-        <template #default="{ row }">{{ row.readRate || '0.0%' }}</template>
+        <template #default="{ row }">{{ formatReadRate(row.readRate) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
@@ -53,6 +62,7 @@
     </el-table>
 
     <el-pagination
+      v-if="total > 0"
       class="pager"
       background
       layout="total, prev, pager, next"
@@ -62,9 +72,13 @@
       @current-change="handlePageChange"
     />
 
+    <div v-if="!loading && list.length === 0" class="admin-empty">
+      <el-empty description="暂无公告数据" />
+    </div>
+
     <!-- 新建 / 编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑公告' : '创建公告'" width="700px" destroy-on-close @closed="resetForm">
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="90px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑公告' : '创建公告'" width="1100px" class="admin-form-dialog" destroy-on-close @closed="resetForm">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="90px" class="admin-form">
         <el-form-item label="公告标题" prop="title">
           <el-input v-model="form.title" maxlength="128" show-word-limit placeholder="请输入标题（最多128字）" />
         </el-form-item>
@@ -99,9 +113,19 @@
             style="width:260px"
           />
         </el-form-item>
-        <el-form-item label="公告内容" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="8" placeholder="请输入公告内容（支持 HTML 富文本）" />
-          <div class="form-hint">提示：内容支持 HTML 标签，如 &lt;b&gt;加粗&lt;/b&gt;、&lt;p&gt;段落&lt;/p&gt; 等</div>
+        <el-form-item label="公告内容" prop="content" class="editor-form-item">
+          <div class="editor-layout">
+            <div class="editor-panel">
+              <div class="editor-wrapper">
+                <Toolbar :editor="editorRef" :defaultConfig="toolbarConfig" mode="default" />
+                <Editor :defaultConfig="editorConfig" mode="default" v-model="form.content" @onCreated="handleEditorCreated" />
+              </div>
+            </div>
+            <div class="preview-panel">
+              <div class="preview-header"><el-icon><View /></el-icon> 预览</div>
+              <div class="preview-content" v-html="form.content || '<p style=color:#94a3b8;text-align:center;padding-top:80px;>请在左侧编辑内容</p>'"></div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="附件">
           <el-upload
@@ -152,33 +176,59 @@
     </el-dialog>
 
     <!-- 阅读详情弹窗 -->
-    <el-dialog v-model="statsVisible" title="阅读详情" width="600px" destroy-on-close>
+    <el-dialog v-model="statsVisible" title="阅读详情" width="620px" destroy-on-close>
       <template v-if="stats">
-        <div class="read-stats-header">
-          <div class="stat-item">
-            <div class="stat-label">应读人数</div>
-            <div class="stat-value">{{ stats.totalUsers || 0 }}</div>
+        <div class="stats-cards">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#eff6ff;color:#3b82f6;">
+              <el-icon size="22"><User /></el-icon>
+            </div>
+            <div class="stat-card-body">
+              <span class="stat-card-value">{{ stats.totalUsers || 0 }}</span>
+              <span class="stat-card-label">应读人数</span>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-label">已读人数</div>
-            <div class="stat-value">{{ stats.readUsers || 0 }}</div>
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#f0fdf4;color:#22c55e;">
+              <el-icon size="22"><Check /></el-icon>
+            </div>
+            <div class="stat-card-body">
+              <span class="stat-card-value">{{ stats.readUsers || 0 }}</span>
+              <span class="stat-card-label">已读人数</span>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-label">未读人数</div>
-            <div class="stat-value">{{ stats.unreadUsers || 0 }}</div>
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#fef3c7;color:#f59e0b;">
+              <el-icon size="22"><Clock /></el-icon>
+            </div>
+            <div class="stat-card-body">
+              <span class="stat-card-value">{{ stats.unreadUsers || 0 }}</span>
+              <span class="stat-card-label">未读人数</span>
+            </div>
           </div>
-          <div class="stat-item">
-            <div class="stat-label">阅读率</div>
-            <div class="stat-value">{{ stats.readRate || '0.0 %' }}</div>
+          <div class="stat-card stat-card-accent">
+            <div class="stat-card-icon" style="background:#fef2f2;color:#ef4444;">
+              <el-icon size="22"><DataAnalysis /></el-icon>
+            </div>
+            <div class="stat-card-body">
+              <span class="stat-card-value highlight">{{ formatReadRate(stats.readRate) }}</span>
+              <span class="stat-card-label">阅读率</span>
+            </div>
           </div>
         </div>
-        <el-divider />
-        <el-table :data="stats.deptStats || []" border size="small" style="width:100%">
-          <el-table-column prop="deptName" label="部门" min-width="120" />
+        <div class="stats-section-title">
+          <span>部门阅读明细</span>
+        </div>
+        <el-table :data="stats.deptStats || []" class="stats-table" stripe>
+          <el-table-column prop="deptName" label="部门" min-width="130" />
           <el-table-column prop="totalUsers" label="应读" width="80" align="center" />
           <el-table-column prop="readUsers" label="已读" width="80" align="center" />
           <el-table-column prop="unreadUsers" label="未读" width="80" align="center" />
-          <el-table-column prop="readRate" label="阅读率" width="100" align="center" />
+          <el-table-column label="阅读率" width="110" align="center">
+            <template #default="{ row }">
+              <el-progress :percentage="parseReadRate(row.readRate)" :stroke-width="8" :show-text="true" :color="getReadRateColor(row.readRate)" />
+            </template>
+          </el-table-column>
         </el-table>
       </template>
     </el-dialog>
@@ -186,10 +236,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, shallowRef, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getAdminNoticeListApi,
+  searchAdminNoticeApi,
   createNoticeApi,
   updateNoticeApi,
   publishNoticeApi,
@@ -212,16 +263,47 @@ import {
   getNoticePriorityTag,
   getNoticeStatusTag
 } from '@/constants'
+import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import '@wangeditor/editor/dist/css/style.css'
 
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
-const query = reactive({ keyword: '', status: '', dateRange: null, pageNum: 1, pageSize: 10 })
+const query = reactive({ keyword: '', status: '', dateRange: null, pageNum: 1, pageSize: 8 })
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const formRef = ref()
+const editorRef = shallowRef()
+
+const toolbarConfig = {
+  excludeKeys: ['group-video', 'insertTable', 'divider', 'codeBlock', 'emotion']
+}
+
+const editorConfig = {
+  placeholder: '请输入公告内容...',
+  autoFocus: false,
+  MENU_CONF: {
+    uploadImage: {
+      async customUpload(file, insertFn) {
+        try {
+          const res = await uploadNoticeAttachmentApi(file)
+          if (res.code === 200 && res.data) {
+            const url = res.data.fileUrl || res.data.url
+            if (url) insertFn(url, file.name, url)
+          }
+        } catch {
+          ElMessage.error('图片上传失败')
+        }
+      }
+    }
+  }
+}
+
+const handleEditorCreated = (editor) => {
+  editorRef.value = editor
+}
 const form = reactive({
   id: null,
   title: '',
@@ -250,16 +332,33 @@ const stats = ref(null)
 const loadList = async () => {
   loading.value = true
   try {
-    const params = { ...query, onlyPublished: false }
-    if (query.dateRange && query.dateRange.length === 2) {
-      params.startDate = query.dateRange[0] + ' 00:00:00'
-      params.endDate = query.dateRange[1] + ' 23:59:59'
-    }
-    delete params.dateRange
-    const res = await getAdminNoticeListApi(params)
-    if (res.code === 200 && res.data) {
-      list.value = res.data.records || []
-      total.value = res.data.total || 0
+    const hasKeyword = !!query.keyword
+    if (hasKeyword) {
+      // ES 搜索：keyword + status + 分页
+      const params = {
+        keyword: query.keyword,
+        status: query.status || undefined,
+        pageNum: query.pageNum,
+        pageSize: query.pageSize
+      }
+      const res = await searchAdminNoticeApi(params)
+      if (res.code === 200 && res.data) {
+        list.value = res.data.records || []
+        total.value = res.data.total || 0
+      }
+    } else {
+      // MySQL 列表：支持日期范围等扩展过滤
+      const params = { ...query, onlyPublished: false }
+      if (query.dateRange && query.dateRange.length === 2) {
+        params.startDate = query.dateRange[0] + ' 00:00:00'
+        params.endDate = query.dateRange[1] + ' 23:59:59'
+      }
+      delete params.dateRange
+      const res = await getAdminNoticeListApi(params)
+      if (res.code === 200 && res.data) {
+        list.value = res.data.records || []
+        total.value = res.data.total || 0
+      }
     }
   } finally {
     loading.value = false
@@ -276,6 +375,12 @@ const resetQuery = () => {
 }
 const handlePageChange = (p) => {
   query.pageNum = p
+  loadList()
+}
+
+const handleSizeChange = (s) => {
+  query.pageSize = s
+  query.pageNum = 1
   loadList()
 }
 
@@ -468,17 +573,134 @@ const openReadDetail = async (row) => {
   }
 }
 
+const parseReadRate = (rate) => {
+  if (rate == null) return 0
+  return parseFloat(String(rate).replace('%', '')) || 0
+}
+
+const formatReadRate = (rate) => {
+  return parseReadRate(rate) + '%'
+}
+
+const getReadRateColor = (rate) => {
+  const val = parseReadRate(rate)
+  if (val >= 80) return '#22c55e'
+  if (val >= 50) return '#f59e0b'
+  return '#ef4444'
+}
+
 onMounted(() => { loadScopeOptions(); loadList() })
 </script>
 
 <style scoped>
-.search-bar {
-  margin-bottom: 12px;
+/* ── 搜索栏 ── */
+.admin-toolbar {
+  margin-bottom: 20px;
 }
+.admin-search-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.admin-search-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.admin-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+}
+.admin-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 16px;
+  z-index: 1;
+  pointer-events: none;
+}
+.admin-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 16px 0 40px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.admin-search-input::placeholder {
+  color: #94a3b8;
+}
+.admin-search-input:focus {
+  border-color: var(--el-color-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(64,158,255,0.06);
+}
+.admin-search-main .el-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+.admin-search-main .el-date-picker {
+  width: 230px;
+  flex-shrink: 0;
+}
+.create-btn {
+  flex-shrink: 0;
+}
+
+/* ── 表格 ── */
+.admin-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+/* ── 分页 ── */
 .pager {
-  margin-top: 12px;
-  justify-content: flex-end;
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  padding-bottom: 8px;
 }
+
+/* ── 空状态 ── */
+.admin-empty {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+/* ── 表单 ── */
+.admin-form-dialog :deep(.el-dialog__header) {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 20px 24px 16px;
+}
+.admin-form-dialog :deep(.el-dialog__body) {
+  padding: 20px 24px;
+}
+.admin-form-dialog :deep(.el-dialog__footer) {
+  border-top: 1px solid #f1f5f9;
+  padding: 16px 24px;
+}
+
 .scope-editor {
   width: 100%;
 }
@@ -498,22 +720,172 @@ onMounted(() => { loadScopeOptions(); loadList() })
   font-size: 12px;
   margin-top: 4px;
 }
-.read-stats-header {
+
+/* ── 富文本编辑器 + 预览 ── */
+.editor-form-item {
+  display: block;
+}
+.editor-form-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+}
+.editor-layout {
   display: flex;
-  justify-content: space-around;
-  padding: 8px 0;
+  gap: 16px;
+  width: 100%;
+  min-height: 420px;
 }
-.stat-item {
-  text-align: center;
+.editor-panel {
+  flex: 1;
+  min-width: 0;
 }
-.stat-label {
+.editor-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.editor-wrapper :deep(.w-e-toolbar) {
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+}
+.editor-wrapper :deep(.w-e-text-container) {
+  border: 0;
+  border-radius: 0;
+}
+.editor-wrapper :deep(.w-e-text-container [data-slate-editor]) {
+  min-height: 340px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #1e293b;
+}
+.editor-wrapper :deep(.w-e-text-container [data-slate-editor] p) {
+  margin: 0 0 8px;
+}
+
+/* ── 预览面板 ── */
+.preview-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
   font-size: 13px;
-  color: #606266;
-  margin-bottom: 8px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
 }
-.stat-value {
-  font-size: 24px;
-  font-weight: 500;
-  color: #303133;
+.preview-content {
+  flex: 1;
+  padding: 20px 16px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #334155;
+  word-break: break-word;
+}
+.preview-content :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.preview-content :deep(p) {
+  margin: 0 0 8px;
+}
+.preview-content :deep(h1),
+.preview-content :deep(h2),
+.preview-content :deep(h3) {
+  margin: 12px 0 8px;
+}
+.preview-content :deep(blockquote) {
+  border-left: 3px solid #e2e8f0;
+  padding-left: 12px;
+  color: #94a3b8;
+  margin: 8px 0;
+}
+.preview-content :deep(ul),
+.preview-content :deep(ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.preview-content :deep(a) {
+  color: var(--el-color-primary);
+}
+
+/* ── 阅读统计 ── */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.stat-card-accent {
+  background: #fef2f2;
+}
+.stat-card-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+.stat-card-value.highlight {
+  color: #ef4444;
+}
+.stat-card-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.stats-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+.stats-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+.stats-table {
+  border-radius: 10px;
+  overflow: hidden;
 }
 </style>

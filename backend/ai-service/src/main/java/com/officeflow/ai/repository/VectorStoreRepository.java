@@ -124,4 +124,19 @@ public class VectorStoreRepository {
         jdbcTemplate.update(
                 "DELETE FROM loaded_documents WHERE source = ?", source);
     }
+
+    /**
+     * 列出所有已加载的文档
+     */
+    public List<Map<String, Object>> listLoadedDocuments() {
+        return jdbcTemplate.queryForList(
+                "SELECT id, source, file_hash, chunk_count, loaded_at FROM loaded_documents ORDER BY loaded_at DESC");
+    }
+
+    /**
+     * 清空 loaded_documents 表
+     */
+    public void clearLoadedDocuments() {
+        jdbcTemplate.update("DELETE FROM loaded_documents");
+    }
 }

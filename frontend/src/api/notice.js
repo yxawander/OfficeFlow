@@ -6,6 +6,11 @@ export function getNoticeListApi(params) {
   return request.get('/notice/notices', { params })
 }
 
+// 公告搜索（ES全文检索，自动降级MySQL）
+export function searchNoticeApi(params) {
+  return request.get('/notice/notices/search', { params })
+}
+
 // 公告详情
 export function getNoticeDetailApi(id) {
   return request.get(`/notice/notices/${id}`)
@@ -55,6 +60,11 @@ export function deleteNoticeApi(id) {
 // 管理列表（分页，含状态/阅读率）
 export function getAdminNoticeListApi(params) {
   return request.get('/notice/admin/notices', { params })
+}
+
+// 管理侧公告搜索（ES全文检索，自动降级MySQL）
+export function searchAdminNoticeApi(params) {
+  return request.get('/notice/admin/notices/search', { params })
 }
 
 // 阅读统计

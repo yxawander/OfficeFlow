@@ -12,6 +12,7 @@ import com.officeflow.flow.mapper.FlowApplyMapper;
 import com.officeflow.flow.mapper.FlowApproveRecordMapper;
 import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.mapper.FlowCcMapper;
+import com.officeflow.flow.service.FlowSearchService;
 import com.officeflow.flow.vo.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -58,6 +59,9 @@ class FlowServiceImplTest {
 
     @Mock
     private UserAdminClient userAdminClient;
+
+    @Mock
+    private FlowSearchService flowSearchService;
 
     @InjectMocks
     private FlowServiceImpl flowService;

@@ -21,6 +21,8 @@ import com.officeflow.notice.vo.AttachmentVO;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
 import com.officeflow.notice.vo.NoticeReadDetailVO;
+import com.officeflow.notice.document.NoticeDocument;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.vo.UnreadCountVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +52,7 @@ public class NoticeServiceImpl implements NoticeService {
     private final NoticeReadMapper noticeReadMapper;
     private final NoticeAttachmentMapper noticeAttachmentMapper;
     private final UserAdminClient userAdminClient;
+    private final NoticeSearchService noticeSearchService;
     @Override
     public PageResult<NoticeListVO> getNoticeList(NoticeQueryDTO dto, Long userId, Long deptId, List<String> roles) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
@@ -186,6 +189,7 @@ public class NoticeServiceImpl implements NoticeService {
             noticeAttachmentMapper.updateNoticeId(dto.getAttachmentIds(), notice.getId());
         }
 
+        syncToEs(notice.getId());
         return notice.getId();
     }
 
@@ -226,6 +230,7 @@ public class NoticeServiceImpl implements NoticeService {
             }
         }
 
+        syncToEs(id);
         return true;
     }
 
@@ -241,6 +246,7 @@ public class NoticeServiceImpl implements NoticeService {
         }
 
         noticeMapper.updateStatusById(id, "PUBLISHED");
+        syncToEs(id);
         return true;
     }
 
@@ -256,6 +262,7 @@ public class NoticeServiceImpl implements NoticeService {
         }
 
         noticeMapper.updateStatusById(id, "OFFLINE");
+        syncToEs(id);
         return true;
     }
 
@@ -273,6 +280,7 @@ public class NoticeServiceImpl implements NoticeService {
         noticeMapper.deleteById(id);
         noticeScopeMapper.deleteByNoticeId(id);
         noticeAttachmentMapper.deleteByNoticeId(id);
+        noticeSearchService.deleteAsync(id);
         return true;
     }
 
@@ -311,6 +319,7 @@ public class NoticeServiceImpl implements NoticeService {
             noticeMapper.updateStatusById(notice.getId(), "PUBLISHED");
             count++;
             log.info("Auto published notice: id={}, title={}", notice.getId(), notice.getTitle());
+            syncToEs(notice.getId());
         }
         return count;
     }
@@ -411,5 +420,51 @@ public class NoticeServiceImpl implements NoticeService {
             }
         }
         return result;
+    }
+
+    private void syncToEs(Long noticeId) {
+        try {
+            Notice notice = noticeMapper.selectById(noticeId);
+            if (notice == null) {
+                return;
+            }
+            List<NoticeScope> scopes = noticeScopeMapper.selectByNoticeId(noticeId);
+            NoticeDocument doc = NoticeDocument.builder()
+                    .id(notice.getId())
+                    .title(notice.getTitle())
+                    .content(notice.getContent())
+                    .noticeType(notice.getNoticeType())
+                    .priority(notice.getPriority())
+                    .publisherId(notice.getPublisherId())
+                    .publisherName(notice.getPublisherName())
+                    .status(notice.getStatus())
+                    .publishTime(notice.getPublishTime())
+                    .expireTime(notice.getExpireTime())
+                    .readCount(notice.getReadCount())
+                    .viewCount(notice.getViewCount())
+                    .isDeleted(notice.getIsDeleted() != null ? notice.getIsDeleted().intValue() : 0)
+                    .createdAt(notice.getCreatedAt())
+                    .scopeKeys(buildScopeKeys(scopes))
+                    .build();
+            noticeSearchService.indexAsync(doc);
+        } catch (Exception e) {
+            log.error("Failed to sync notice to ES: id={}", noticeId, e);
+        }
+    }
+
+    private List<String> buildScopeKeys(List<NoticeScope> scopes) {
+        if (CollectionUtils.isEmpty(scopes)) {
+            return List.of("ALL");
+        }
+        return scopes.stream().map(scope -> {
+            if ("ALL".equals(scope.getScopeType())) {
+                return "ALL";
+            } else if ("USER".equals(scope.getScopeType())) {
+                return "U:" + scope.getScopeId();
+            } else if ("DEPT".equals(scope.getScopeType())) {
+                return "D:" + scope.getScopeId();
+            }
+            return null;
+        }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
     }
 }

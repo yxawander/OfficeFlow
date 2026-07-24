@@ -39,4 +39,8 @@ public interface NoticeMapper {
     List<Notice> selectScheduledNotices();
 
     List<Notice> selectExpiredNotices();
+
+    List<com.officeflow.notice.document.NoticeDocument> selectAllForEs();
+
+    List<com.officeflow.notice.document.NoticeDocument> selectRecentForEs(@Param("minutes") int minutes);
 }

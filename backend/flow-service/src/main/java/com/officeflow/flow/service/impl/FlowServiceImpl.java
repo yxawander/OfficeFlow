@@ -19,6 +19,8 @@ import com.officeflow.flow.mapper.FlowApplyMapper;
 import com.officeflow.flow.mapper.FlowApproveRecordMapper;
 import com.officeflow.flow.mapper.FlowAttachmentMapper;
 import com.officeflow.flow.mapper.FlowCcMapper;
+import com.officeflow.flow.document.FlowApplyDocument;
+import com.officeflow.flow.service.FlowSearchService;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.vo.*;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,7 @@ public class FlowServiceImpl implements FlowService {
     private final StringRedisTemplate stringRedisTemplate;
     private final UserAdminClient userAdminClient;
     private final AttendanceClient attendanceClient;
+    private final FlowSearchService flowSearchService;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String AUTO_REJECT_LOCK_KEY = "flow:auto-reject:lock";
@@ -144,6 +147,8 @@ public class FlowServiceImpl implements FlowService {
             flowAttachmentMapper.updateFlowApplyId(dto.getAttachmentIds(), apply.getId());
         }
 
+        syncToEs(apply);
+
         return flowApplyMapper.selectDetailById(apply.getId());
     }
 
@@ -201,6 +206,8 @@ public class FlowServiceImpl implements FlowService {
         if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
             flowApplyMapper.updateCorrectionStatusByFlowApplyId(apply.getId(), "REVOKED");
         }
+
+        syncToEs(flowApplyMapper.selectById(id));
     }
 
     @Override
@@ -281,6 +288,8 @@ public class FlowServiceImpl implements FlowService {
                 flowAttachmentMapper.updateFlowApplyId(dto.getAttachmentIds(), id);
             }
         }
+
+        syncToEs(flowApplyMapper.selectById(id));
     }
 
     @Override
@@ -296,6 +305,7 @@ public class FlowServiceImpl implements FlowService {
 
         flowApplyMapper.deleteById(id);
         flowAttachmentMapper.deleteByApplyId(id);
+        flowSearchService.deleteAsync(id);
     }
 
     @Override
@@ -376,6 +386,8 @@ public class FlowServiceImpl implements FlowService {
                 throw new BusinessException("考勤服务错误: " + res.message());
             }
         }
+
+        syncToEs(flowApplyMapper.selectById(id));
     }
 
     @Override
@@ -409,6 +421,8 @@ public class FlowServiceImpl implements FlowService {
         if ("CORRECTION".equalsIgnoreCase(apply.getApplyType())) {
             flowApplyMapper.updateCorrectionStatusByFlowApplyId(apply.getId(), "REJECTED");
         }
+
+        syncToEs(flowApplyMapper.selectById(apply.getId()));
     }
 
     @Override
@@ -611,6 +625,24 @@ public class FlowServiceImpl implements FlowService {
             vo.setApplicantName(userNames.getOrDefault(vo.getApplicantId(), ""));
             vo.setApplicantDeptName(deptNames.getOrDefault(vo.getApplicantDeptId(), ""));
             vo.setApproverName(userNames.getOrDefault(vo.getApproverId(), ""));
+        }
+    }
+
+    private FlowApplyDocument buildDocument(FlowApply apply) {
+        Map<Long, String> userNames = buildUserDisplayNameMap();
+        Map<Long, String> deptNames = buildDeptNameMap();
+        return FlowApplyDocument.from(apply,
+                userNames.getOrDefault(apply.getApplicantId(), ""),
+                deptNames.getOrDefault(apply.getApplicantDeptId(), ""),
+                userNames.getOrDefault(apply.getApproverId(), ""));
+    }
+
+    private void syncToEs(FlowApply apply) {
+        try {
+            FlowApplyDocument doc = buildDocument(apply);
+            flowSearchService.indexAsync(doc);
+        } catch (Exception e) {
+            log.warn("Failed to submit ES index task: applyId={}", apply.getId(), e);
         }
     }
 }

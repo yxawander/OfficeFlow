@@ -74,6 +74,9 @@
         <if test="dto.status != null and dto.status != ''">
             AND fa.status = #{dto.status}
         </if>
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (fa.title LIKE CONCAT('%', #{dto.keyword}, '%') OR fa.reason LIKE CONCAT('%', #{dto.keyword}, '%'))
+        </if>
         <if test="dto.startDate != null and dto.startDate != ''">
             AND fa.created_at >= #{dto.startDate}
         </if>
@@ -93,6 +96,9 @@
         </if>
         <if test="dto.status != null and dto.status != ''">
             AND fa.status = #{dto.status}
+        </if>
+        <if test="dto.keyword != null and dto.keyword != ''">
+            AND (fa.title LIKE CONCAT('%', #{dto.keyword}, '%') OR fa.reason LIKE CONCAT('%', #{dto.keyword}, '%'))
         </if>
         <if test="dto.startDate != null and dto.startDate != ''">
             AND fa.created_at >= #{dto.startDate}
@@ -253,6 +259,55 @@
         <if test="dto.endDate != null and dto.endDate != ''">
             AND fa.approved_at &lt;= #{dto.endDate}
         </if>
+    </select>
+
+    <select id="selectAllForEs" resultType="com.officeflow.flow.document.FlowApplyDocument">
+        SELECT fa.id, fa.apply_no     AS applyNo,
+               fa.apply_type          AS applyType,
+               fa.title, fa.reason,
+               fa.status,
+               fa.applicant_id        AS applicantId,
+               u1.real_name           AS applicantName,
+               fa.applicant_dept_id   AS applicantDeptId,
+               d.dept_name            AS applicantDeptName,
+               fa.approver_id         AS approverId,
+               u2.real_name           AS approverName,
+               fa.start_time          AS startTime,
+               fa.end_time            AS endTime,
+               fa.duration_hours      AS durationHours,
+               fa.is_deleted          AS isDeleted,
+               fa.created_at          AS createdAt
+        FROM flow_apply fa
+        LEFT JOIN sys_user u1 ON u1.id = fa.applicant_id
+        LEFT JOIN sys_user u2 ON u2.id = fa.approver_id
+        LEFT JOIN sys_dept d ON d.id = fa.applicant_dept_id
+        WHERE fa.is_deleted = 0
+        LIMIT 10000
+    </select>
+
+    <select id="selectRecentForEs" resultType="com.officeflow.flow.document.FlowApplyDocument">
+        SELECT fa.id, fa.apply_no     AS applyNo,
+               fa.apply_type          AS applyType,
+               fa.title, fa.reason,
+               fa.status,
+               fa.applicant_id        AS applicantId,
+               u1.real_name           AS applicantName,
+               fa.applicant_dept_id   AS applicantDeptId,
+               d.dept_name            AS applicantDeptName,
+               fa.approver_id         AS approverId,
+               u2.real_name           AS approverName,
+               fa.start_time          AS startTime,
+               fa.end_time            AS endTime,
+               fa.duration_hours      AS durationHours,
+               fa.is_deleted          AS isDeleted,
+               fa.created_at          AS createdAt
+        FROM flow_apply fa
+        LEFT JOIN sys_user u1 ON u1.id = fa.applicant_id
+        LEFT JOIN sys_user u2 ON u2.id = fa.approver_id
+        LEFT JOIN sys_dept d ON d.id = fa.applicant_dept_id
+        WHERE fa.updated_at >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+           OR fa.created_at >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+        LIMIT 1000
     </select>
 
 </mapper>

@@ -9,6 +9,7 @@ import com.officeflow.flow.dto.FlowApplyQueryDTO;
 import com.officeflow.flow.dto.FlowApplyUpdateDTO;
 import com.officeflow.flow.entity.FlowAttachment;
 import com.officeflow.flow.mapper.FlowAttachmentMapper;
+import com.officeflow.flow.service.FlowSearchService;
 import com.officeflow.flow.service.FlowService;
 import com.officeflow.flow.service.OssService;
 import com.officeflow.flow.service.impl.OssServiceImpl;
@@ -33,6 +34,7 @@ public class FlowController {
     private final FlowService flowService;
     private final OssService ossService;
     private final FlowAttachmentMapper flowAttachmentMapper;
+    private final FlowSearchService flowSearchService;
 
     @PostMapping("/applies")
     public ApiResponse<FlowApplyDetailVO> createApply(@Valid @RequestBody FlowApplyCreateDTO dto,
@@ -47,6 +49,16 @@ public class FlowController {
                                                                   HttpServletRequest request) {
         Long userId = getUserId(request);
         return ApiResponse.ok(flowService.getMyApplies(dto, userId));
+    }
+
+    @GetMapping("/applies/search")
+    public ApiResponse<PageResult<FlowApplyListVO>> searchApplies(
+            @RequestParam(required = false) String keyword,
+            FlowApplyQueryDTO dto,
+            HttpServletRequest request) {
+        Long userId = getUserId(request);
+        Long deptId = getDeptId(request);
+        return ApiResponse.ok(flowSearchService.search(keyword, dto, userId, deptId));
     }
 
     @GetMapping("/applies/{id}")

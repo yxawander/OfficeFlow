@@ -14,6 +14,7 @@ import com.officeflow.notice.mapper.NoticeAttachmentMapper;
 import com.officeflow.notice.mapper.NoticeMapper;
 import com.officeflow.notice.mapper.NoticeReadMapper;
 import com.officeflow.notice.mapper.NoticeScopeMapper;
+import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.vo.AdminNoticeListVO;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
@@ -58,6 +59,9 @@ class NoticeServiceImplTest {
 
     @Mock
     private NoticeAttachmentMapper noticeAttachmentMapper;
+
+    @Mock
+    private NoticeSearchService noticeSearchService;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -322,7 +326,7 @@ class NoticeServiceImplTest {
         Boolean result = noticeService.updateNotice(1L, updateDTO);
 
         assertThat(result).isTrue();
-        verify(noticeMapper).selectById(1L);
+        verify(noticeMapper, times(2)).selectById(1L);
         verify(noticeMapper).updateById(any(Notice.class));
         verify(noticeScopeMapper).deleteByNoticeId(1L);
         verify(noticeScopeMapper).insert(any(NoticeScope.class));
@@ -365,7 +369,7 @@ class NoticeServiceImplTest {
         Boolean result = noticeService.publishNotice(1L);
 
         assertThat(result).isTrue();
-        verify(noticeMapper).selectById(1L);
+        verify(noticeMapper, times(2)).selectById(1L);
         verify(noticeMapper).updateStatusById(1L, "PUBLISHED");
     }
 
@@ -406,7 +410,7 @@ class NoticeServiceImplTest {
         Boolean result = noticeService.offlineNotice(1L);
 
         assertThat(result).isTrue();
-        verify(noticeMapper).selectById(1L);
+        verify(noticeMapper, times(2)).selectById(1L);
         verify(noticeMapper).updateStatusById(1L, "OFFLINE");
     }
 

@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS sys_operation_log (
 CREATE TABLE IF NOT EXISTS sys_user_salary (
     user_id BIGINT PRIMARY KEY COMMENT '员工ID',
     base_salary DECIMAL(10,2) NOT NULL COMMENT '基本工资',
-    performance_bonus DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '考勤绩效奖金(用于扣减违纪罚款)',
+    performance_bonus DECIMAL(10,2) NOT NULL DEFAULT 1000.00 COMMENT '考勤绩效奖金(用于扣减违纪罚款)',
     allowance DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '补贴/津贴',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工薪资档案';
@@ -690,18 +690,18 @@ VALUES
     (4, 2, '2026-07-10', '2026-07-10 08:55:00', '127.0.0.1', '正常上班', '2026-07-10 20:00:00', '127.0.0.1', '干了2小时就跑了', 665, 0, 0, 'NORMAL', 'USER_CHECK', 0, 0, 0, 120, 'NORMAL');
 
 -- 初始化员工薪资档案测试数据
-INSERT IGNORE INTO sys_user_salary (user_id, base_salary, allowance)
+INSERT IGNORE INTO sys_user_salary (user_id, base_salary, performance_bonus, allowance)
 VALUES
-    (1, 15000.00, 1000.00),
-    (2, 28000.00, 2000.00),
-    (3, 12000.00, 500.00),
-    (4, 10000.00, 500.00),
-    (5, 20000.00, 1500.00),
-    (6, 18000.00, 1500.00),
-    (7, 19000.00, 800.00),
-    (8, 17000.00, 800.00),
-    (9, 11000.00, 500.00),
-    (10, 9000.00, 500.00);
+    (1, 15000.00, 1000.00, 1000.00),
+    (2, 28000.00, 1000.00, 2000.00),
+    (3, 12000.00, 1000.00, 500.00),
+    (4, 10000.00, 1000.00, 500.00),
+    (5, 20000.00, 1000.00, 1500.00),
+    (6, 18000.00, 1000.00, 1500.00),
+    (7, 19000.00, 1000.00, 800.00),
+    (8, 17000.00, 1000.00, 800.00),
+    (9, 11000.00, 1000.00, 500.00),
+    (10, 9000.00, 1000.00, 500.00);
 
 -- 初始化待审批测试单据 (供研发主管登录测试审批功能)
 INSERT IGNORE INTO flow_apply (id, apply_no, applicant_id, applicant_dept_id, apply_type, title, reason, start_time, end_time, duration_hours, approver_id, status, approved_at)

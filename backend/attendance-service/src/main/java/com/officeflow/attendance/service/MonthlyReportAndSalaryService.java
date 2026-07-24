@@ -145,7 +145,7 @@ public class MonthlyReportAndSalaryService {
             }
 
             // 考勤绩效池：扣除迟到早退及缺卡违纪罚款 (绝不触碰底薪)
-            BigDecimal performanceBonus = salaryConfig.get("performanceBonus") != null ? new BigDecimal(salaryConfig.get("performanceBonus").toString()) : new BigDecimal("500.00");
+            BigDecimal performanceBonus = salaryConfig.get("performanceBonus") != null ? new BigDecimal(salaryConfig.get("performanceBonus").toString()) : new BigDecimal("1000.00");
             
             Integer offWorkMinutes = salaryStatementMapper.selectSumLateAndEarlyMinutes(userId, settleMonth);
             int missingCardCount = report != null ? report.getMissingCardCount() : 0;
@@ -274,7 +274,7 @@ public class MonthlyReportAndSalaryService {
         BigDecimal lateDeduction = hourlyRate.multiply(BigDecimal.valueOf(offWorkHours)).setScale(2, RoundingMode.HALF_UP);
         BigDecimal missingCardDeduction = hourlyRate.multiply(BigDecimal.valueOf(missingCardCount * 4.0)).setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal performanceBonus = salaryConfig.get("performanceBonus") != null ? new BigDecimal(salaryConfig.get("performanceBonus").toString()) : new BigDecimal("500.00");
+        BigDecimal performanceBonus = salaryConfig.get("performanceBonus") != null ? new BigDecimal(salaryConfig.get("performanceBonus").toString()) : new BigDecimal("1000.00");
 
         // V2.0 合规级：绩效池计算，迟到与缺卡只能从绩效中扣除，扣完即止，不触碰底薪
         BigDecimal actualBonus = performanceBonus.subtract(lateDeduction).subtract(missingCardDeduction);

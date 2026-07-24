@@ -209,7 +209,7 @@ async function removeConversation(id) {
 function triggerUpload() {
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.pdf,.txt'
+  input.accept = '.pdf,.txt,.md'
   input.onchange = async (e) => {
     const file = e.target.files[0]
     if (!file) return

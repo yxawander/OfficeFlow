@@ -101,7 +101,8 @@ public interface SalaryMonthlyStatementMapper {
     @Select("""
             SELECT
               COALESCE(us.base_salary, p.base_salary, 8000.00) AS baseSalary,
-              COALESCE(us.allowance, 500.00) AS allowance
+              COALESCE(us.allowance, 500.00) AS allowance,
+              COALESCE(us.performance_bonus, 1000.00) AS performanceBonus
             FROM sys_user u
             LEFT JOIN sys_user_salary us ON us.user_id = u.id
             LEFT JOIN sys_post p ON p.id = u.post_id

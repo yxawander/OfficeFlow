@@ -3,6 +3,7 @@ package com.officeflow.ai.controller;
 import com.officeflow.ai.service.ConversationService;
 import com.officeflow.ai.service.PdfLoaderService;
 import com.officeflow.ai.service.RagService;
+import com.officeflow.common.ratelimit.RateLimit;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,8 @@ public class RagController {
      * 上传文件到知识库（仅管理员可用）
      * 文件保存到 docs/pdf 目录，提取文本后向量化入库，重启时自动跳过未变更文件
      */
+    @RateLimit(key = "ai:upload-file", maxRequests = 5, windowSeconds = 60,
+            message = "文件上传过于频繁，请稍后再试")
     @PostMapping("/upload-file")
     public Map<String, Object> uploadFile(@RequestParam("file") MultipartFile file,
                                            HttpServletRequest request) {
@@ -102,6 +105,8 @@ public class RagController {
      * 上传纯文本到知识库（仅管理员可用）
      * POST /api/ai/rag/upload
      */
+    @RateLimit(key = "ai:upload-text", maxRequests = 10, windowSeconds = 60,
+            message = "文本上传过于频繁，请稍后再试")
     @PostMapping("/upload")
     public Map<String, Object> upload(@RequestBody Map<String, String> body,
                                        HttpServletRequest request) {
@@ -121,6 +126,8 @@ public class RagController {
 
     /* ── RAG 问答 ── */
 
+    @RateLimit(key = "ai:query", maxRequests = 20, windowSeconds = 60,
+            message = "AI 问答请求过于频繁，请稍后再试")
     @GetMapping("/query")
     public Map<String, Object> query(@RequestParam String question,
                                       @RequestParam(required = false) String conversationId) {

@@ -7,6 +7,7 @@ public enum ResultCode {
     FORBIDDEN(403, "forbidden"),
     NOT_FOUND(404, "not found"),
     CONFLICT(409, "conflict"),
+    TOO_MANY_REQUESTS(429, "too many requests"),
     FAIL(500, "fail"),
     SERVICE_UNAVAILABLE(503, "service unavailable");
 

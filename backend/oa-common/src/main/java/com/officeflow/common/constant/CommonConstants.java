@@ -19,5 +19,6 @@ public final class CommonConstants {
     // ---- Redis 缓存 Key ----
     public static final String CACHE_USER_PERM_PREFIX = "user:perm:";
     public static final String CACHE_API_RULES = "system:api-rules";
+    public static final String RATE_LIMIT_PREFIX = "rate_limit:";
 }
 

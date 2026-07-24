@@ -20,7 +20,7 @@ spring:
   # ---- DashScope (Tongyi Qianwen) ----
   ai:
     dashscope:
-      api-key: sk-e9fefcf7010241ca99356cd501c9ca1b
+      api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
           model: qwen-plus
@@ -29,6 +29,17 @@ spring:
       embedding:
         options:
           model: text-embedding-v3
+
+  # ---- Redis (rate limiting) ----
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
 
   # ---- PostgreSQL DataSource (pgvector) ----
   datasource:

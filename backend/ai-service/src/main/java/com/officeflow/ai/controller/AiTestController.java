@@ -1,5 +1,6 @@
 package com.officeflow.ai.controller;
 
+import com.officeflow.common.ratelimit.RateLimit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -33,6 +34,8 @@ public class AiTestController {
     /**
      * 测试对话：向通义千问发送问题
      */
+    @RateLimit(key = "ai:chat-test", maxRequests = 10, windowSeconds = 60,
+            message = "AI 对话请求过于频繁，请稍后再试")
     @GetMapping("/chat")
     public Map<String, Object> chat(@RequestParam(defaultValue = "你好，请用一句话介绍你自己") String question) {
         Map<String, Object> result = new LinkedHashMap<>();

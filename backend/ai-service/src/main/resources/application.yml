@@ -20,7 +20,7 @@ spring:
   # ---- DashScope (Tongyi Qianwen) ----
   ai:
     dashscope:
-      api-key: ${DASHSCOPE_API_KEY}
+      api-key: sk-e9fefcf7010241ca99356cd501c9ca1b
       chat:
         options:
           model: qwen-plus

@@ -1,16 +1,17 @@
 package com.officeflow.ai.runner;
 
+import com.officeflow.ai.config.DocumentPathResolver;
 import com.officeflow.ai.repository.VectorStoreRepository;
 import com.officeflow.ai.service.PdfLoaderService;
 import com.officeflow.ai.service.RagService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Map;
 
 @Slf4j
@@ -21,24 +22,23 @@ public class DocumentInitRunner implements ApplicationRunner {
     private final PdfLoaderService pdfLoaderService;
     private final RagService ragService;
     private final VectorStoreRepository vectorStoreRepository;
-
-    @Value("${app.document.path:docs/pdf}")
-    private String documentPath;
+    private final DocumentPathResolver documentPathResolver;
 
     @Override
     public void run(ApplicationArguments args) {
+        Path resolvedDocumentPath = documentPathResolver.resolveDirectory();
         log.info("=== Document auto-loading started ===");
-        log.info("Scanning PDF directory: {}", documentPath);
+        log.info("Scanning PDF directory: {}", resolvedDocumentPath);
 
-        File dir = new File(documentPath);
+        File dir = resolvedDocumentPath.toFile();
         if (!dir.exists() || !dir.isDirectory()) {
-            log.warn("PDF directory does not exist or is not a directory: {}", documentPath);
+            log.warn("PDF directory does not exist or is not a directory: {}", resolvedDocumentPath);
             return;
         }
 
         File[] pdfFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".pdf"));
         if (pdfFiles == null || pdfFiles.length == 0) {
-            log.info("No PDF files found in {}", documentPath);
+            log.info("No PDF files found in {}", resolvedDocumentPath);
             return;
         }
 

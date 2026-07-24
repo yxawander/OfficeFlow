@@ -168,6 +168,7 @@ public class AttendanceService {
                 request != null ? request.longitude() : null,
                 request != null ? request.accuracyMeters() : null);
 
+        LocalTime workStartTime = parseTime(rule.get("workStartTime"), WORK_START_TIME);
         LocalTime workEndTime = parseTime(rule.get("workEndTime"), WORK_END_TIME);
         int earlyLeaveThresholdMinutes = parseInt(rule.get("earlyLeaveThresholdMinutes"), EARLY_LEAVE_THRESHOLD_MINUTES);
         
@@ -175,12 +176,13 @@ public class AttendanceService {
 
         // 计算工作时长
         int workMinutes = (int) Duration.between(existing.getCheckInTime(), now).toMinutes();
+        int standardWorkMinutes = (int) Duration.between(workStartTime, workEndTime).toMinutes();
         int earlyLeaveMinutes = 0;
         String status = existing.getStatus();
 
         // 重新计算并校验已申请的加班时长 (净工时校验)
         if (existing.getOvertimeMinutes() != null && existing.getOvertimeMinutes() > 0) {
-            int netOvertime = Math.max(0, workMinutes - 480);
+            int netOvertime = Math.max(0, workMinutes - standardWorkMinutes);
             int validOvertime = Math.min(existing.getOvertimeMinutes(), netOvertime);
             existing.setOvertimeMinutes(validOvertime);
         }
@@ -704,7 +706,13 @@ public class AttendanceService {
         // 净工时校验逻辑 (企业合规级三重校验)
         AttendanceRecord record = attendanceRecordMapper.findByUserIdAndWorkDate(dto.getUserId(), dto.getWorkDate());
         int actualWorkMinutes = record != null && record.getWorkMinutes() != null ? record.getWorkMinutes() : 0;
-        int netOvertime = Math.max(0, actualWorkMinutes - 480);
+        
+        Map<String, Object> rule = getEffectiveRule(dto.getDeptId());
+        LocalTime workStartTime = parseTime(rule.get("workStartTime"), WORK_START_TIME);
+        LocalTime workEndTime = parseTime(rule.get("workEndTime"), WORK_END_TIME);
+        int standardWorkMinutes = (int) Duration.between(workStartTime, workEndTime).toMinutes();
+        
+        int netOvertime = Math.max(0, actualWorkMinutes - standardWorkMinutes);
         int finalOvertime = Math.min(minutes, netOvertime);
         
         // 如果今天还没下班（actualWorkMinutes 为 0），先预设为审批时长，等下班更新时会重新校验。

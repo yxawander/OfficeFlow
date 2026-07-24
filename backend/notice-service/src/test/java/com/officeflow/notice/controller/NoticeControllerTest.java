@@ -4,8 +4,10 @@ import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.GlobalExceptionHandler;
 import com.officeflow.notice.dto.BatchReadDTO;
 import com.officeflow.notice.dto.NoticeReadStatusDTO;
+import com.officeflow.notice.mapper.NoticeAttachmentMapper;
 import com.officeflow.notice.service.NoticeSearchService;
 import com.officeflow.notice.service.NoticeService;
+import com.officeflow.notice.service.OssService;
 import com.officeflow.notice.vo.NoticeDetailVO;
 import com.officeflow.notice.vo.NoticeListVO;
 import com.officeflow.notice.vo.UnreadCountVO;
@@ -40,12 +42,19 @@ class NoticeControllerTest {
     @Mock
     private NoticeSearchService noticeSearchService;
 
+    @Mock
+    private OssService ossService;
+
+    @Mock
+    private NoticeAttachmentMapper noticeAttachmentMapper;
+
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NoticeController(noticeService, noticeSearchService))
+        mockMvc = MockMvcBuilders.standaloneSetup(
+                        new NoticeController(noticeService, noticeSearchService, ossService, noticeAttachmentMapper))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper();

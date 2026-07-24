@@ -684,8 +684,15 @@ public class AttendanceService {
             }
         }
 
+        int currentOvertime = record.getOvertimeMinutes() != null ? record.getOvertimeMinutes() : 0;
+        if (currentOvertime > 0 && hasCheckIn && hasCheckOut) {
+            int standardWorkMinutes = (int) Duration.between(workStartTime, workEndTime).toMinutes();
+            int netOvertime = Math.max(0, workMinutes - standardWorkMinutes);
+            currentOvertime = Math.min(currentOvertime, netOvertime);
+        }
+
         attendanceRecordMapper.updateAttendanceRecordStats(
-                record.getId(), workMinutes, lateMinutes, earlyLeaveMinutes, isAbsent, isMissingCard, status
+                record.getId(), workMinutes, lateMinutes, earlyLeaveMinutes, isAbsent, isMissingCard, status, currentOvertime
         );
     }
 

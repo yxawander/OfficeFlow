@@ -243,6 +243,7 @@ public interface AttendanceRecordMapper {
                 is_absent = #{isAbsent},
                 is_missing_card = #{isMissingCard},
                 status = #{status},
+                overtime_minutes = #{overtimeMinutes},
                 source = 'MANUAL'
             WHERE id = #{recordId}
             """)
@@ -252,7 +253,8 @@ public interface AttendanceRecordMapper {
                                     @Param("earlyLeaveMinutes") int earlyLeaveMinutes,
                                     @Param("isAbsent") int isAbsent,
                                     @Param("isMissingCard") int isMissingCard,
-                                    @Param("status") String status);
+                                    @Param("status") String status,
+                                    @Param("overtimeMinutes") int overtimeMinutes);
 
     @Insert("""
             INSERT INTO attendance_record (user_id, dept_id, work_date, status, source, leave_minutes, is_absent)

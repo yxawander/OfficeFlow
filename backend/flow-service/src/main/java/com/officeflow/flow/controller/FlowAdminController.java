@@ -25,7 +25,7 @@ public class FlowAdminController {
     @GetMapping("/applies/approved")
     public ApiResponse<PageResult<FlowApprovedVO>> getAllApprovedApplies(FlowApplyQueryDTO dto,
                                                                           HttpServletRequest request) {
-        Long deptId = getDeptId(request);
+        Long deptId = isAdmin(request) ? null : getDeptId(request);
         return ApiResponse.ok(flowService.getAllApprovedApplies(dto, deptId));
     }
 
@@ -61,5 +61,16 @@ public class FlowAdminController {
             return Long.parseLong(deptIdStr);
         }
         return null;
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        String rolesStr = request.getHeader(CommonConstants.LOGIN_ROLES_HEADER);
+        if (rolesStr == null) {
+            return false;
+        }
+        String cleaned = rolesStr.replace("[", "").replace("]", "").trim();
+        return java.util.Arrays.stream(cleaned.split(","))
+                .map(String::trim)
+                .anyMatch(r -> "ADMIN".equals(r));
     }
 }

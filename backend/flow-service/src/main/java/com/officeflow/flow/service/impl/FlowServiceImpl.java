@@ -93,6 +93,7 @@ public class FlowServiceImpl implements FlowService {
         if (managerId == null) {
             throw new BusinessException("未找到直属领导，无法提交申请");
         }
+        log.info("createApply: applicantId={}, managerId={}, deptId={}", applicantId, managerId, deptId);
         apply.setApproverId(managerId);
         apply.setApplyType(applyType);
         apply.setTitle(dto.getTitle());
@@ -215,9 +216,13 @@ public class FlowServiceImpl implements FlowService {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
         dto.setOffset(offset);
 
+        log.info("getPendingApplies service: approverId={}, deptId={}, applyType={}, pageNum={}, pageSize={}",
+                approverId, deptId, dto.getApplyType(), dto.getPageNum(), dto.getPageSize());
         List<FlowPendingVO> records = flowApplyMapper.selectPendingApplies(dto, approverId, deptId);
+        log.info("getPendingApplies SQL returned {} records", records.size());
         resolvePendingNames(records);
         Long total = flowApplyMapper.countPendingApplies(dto, approverId, deptId);
+        log.info("getPendingApplies count total: {}", total);
 
         return PageResult.of(total, dto.getPageNum(), dto.getPageSize(), records);
     }

@@ -93,15 +93,20 @@ public class FlowController {
     public ApiResponse<PageResult<FlowPendingVO>> getPendingApplies(FlowApplyQueryDTO dto,
                                                                     HttpServletRequest request) {
         Long approverId = getUserId(request);
-        Long deptId = getDeptId(request);
-        return ApiResponse.ok(flowService.getPendingApplies(dto, approverId, deptId));
+        String rolesStr = request.getHeader(CommonConstants.LOGIN_ROLES_HEADER);
+        boolean admin = isAdmin(request);
+        Long deptId = admin ? null : getDeptId(request);
+        log.info("getPendingApplies: approverId={}, roles={}, isAdmin={}, deptId={}", approverId, rolesStr, admin, deptId);
+        PageResult<FlowPendingVO> result = flowService.getPendingApplies(dto, approverId, deptId);
+        log.info("getPendingApplies result: total={}, records={}", result.total(), result.records() != null ? result.records().size() : 0);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/applies/processed")
     public ApiResponse<PageResult<FlowProcessedVO>> getProcessedApplies(FlowApplyQueryDTO dto,
                                                                          HttpServletRequest request) {
         Long approverId = getUserId(request);
-        Long deptId = getDeptId(request);
+        Long deptId = isAdmin(request) ? null : getDeptId(request);
         return ApiResponse.ok(flowService.getProcessedApplies(dto, approverId, deptId));
     }
 
@@ -119,6 +124,17 @@ public class FlowController {
             return Long.parseLong(deptIdStr);
         }
         return null;
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        String rolesStr = request.getHeader(CommonConstants.LOGIN_ROLES_HEADER);
+        if (rolesStr == null) {
+            return false;
+        }
+        String cleaned = rolesStr.replace("[", "").replace("]", "").trim();
+        return java.util.Arrays.stream(cleaned.split(","))
+                .map(String::trim)
+                .anyMatch(r -> "ADMIN".equals(r));
     }
 
     @PostMapping("/attachments/upload")

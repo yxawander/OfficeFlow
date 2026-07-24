@@ -97,8 +97,8 @@
       </el-tab-pane>
 
       <!-- 管理侧：仅 ADMIN 可见 -->
-      <el-tab-pane v-if="isAdmin" label="公告管理" name="admin">
-        <NoticeAdminView />
+      <el-tab-pane v-if="canManageNotices" label="公告管理" name="admin">
+        <NoticeAdminView :restrict-scope="isManagerOnly" />
       </el-tab-pane>
     </el-tabs>
 
@@ -195,6 +195,8 @@ import {
 
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.hasRole('ADMIN'))
+const canManageNotices = computed(() => userStore.hasRole('ADMIN') || userStore.hasRole('MANAGER'))
+const isManagerOnly = computed(() => userStore.hasRole('MANAGER') && !userStore.hasRole('ADMIN'))
 
 const activeTab = ref('list')
 const loading = ref(false)

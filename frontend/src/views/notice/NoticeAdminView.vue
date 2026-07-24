@@ -83,7 +83,7 @@
           <el-input v-model="form.title" maxlength="128" show-word-limit placeholder="请输入标题（最多128字）" />
         </el-form-item>
         <el-form-item label="公告类型" prop="noticeType">
-          <el-radio-group v-model="form.noticeType">
+          <el-radio-group v-model="form.noticeType" :disabled="restrictScope">
             <el-radio-button v-for="o in NOTICE_TYPE_OPTIONS" :key="o.value" :label="o.value">{{ o.label }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
@@ -141,8 +141,8 @@
         <el-form-item label="可见范围">
           <div class="scope-editor">
             <div v-for="(s, i) in form.scopes" :key="i" class="scope-row">
-              <el-select v-model="s.scopeType" style="width:140px" @change="onScopeTypeChange(s)">
-                <el-option v-for="o in NOTICE_SCOPE_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-select v-model="s.scopeType" style="width:140px" :disabled="restrictScope" @change="onScopeTypeChange(s)">
+                <el-option v-for="o in effectiveScopeOptions" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
               <template v-if="s.scopeType === 'ALL'">
                 <span class="scope-all-hint">所有员工可见</span>
@@ -162,9 +162,9 @@
                   <el-option v-for="r in roleOptions" :key="r.value" :label="r.label" :value="r.value" />
                 </el-select>
               </template>
-              <el-button size="small" type="danger" text @click="removeScope(i)">删除</el-button>
+              <el-button v-if="form.scopes.length > 1 || !restrictScope" size="small" type="danger" text @click="removeScope(i)">删除</el-button>
             </div>
-            <el-button link type="primary" size="small" @click="addScope">+ 添加范围</el-button>
+            <el-button v-if="!restrictScope" link type="primary" size="small" @click="addScope">+ 添加范围</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -236,7 +236,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, shallowRef, onMounted } from 'vue'
+import { ref, reactive, shallowRef, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getAdminNoticeListApi,
@@ -265,6 +265,19 @@ import {
 } from '@/constants'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import '@wangeditor/editor/dist/css/style.css'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const props = defineProps({
+  restrictScope: { type: Boolean, default: false }
+})
+
+const effectiveScopeOptions = computed(() => {
+  if (props.restrictScope) {
+    return NOTICE_SCOPE_TYPE_OPTIONS.filter(o => o.value === 'DEPT')
+  }
+  return NOTICE_SCOPE_TYPE_OPTIONS
+})
 
 const loading = ref(false)
 const list = ref([])
@@ -406,7 +419,9 @@ const openEdit = async (row) => {
     form.scopes =
       d.scopes && d.scopes.length
         ? d.scopes.map((s) => ({ scopeType: s.scopeType, scopeId: s.scopeId || null, scopeName: s.scopeName || '' }))
-        : [{ scopeType: 'ALL', scopeId: null, scopeName: '全员' }]
+        : props.restrictScope
+          ? [{ scopeType: 'DEPT', scopeId: userStore.profile?.deptId || null, scopeName: userStore.profile?.deptName || '' }]
+          : [{ scopeType: 'ALL', scopeId: null, scopeName: '全员' }]
     form.attachmentIds = (d.attachmentList || []).map((a) => a.id)
     fileList.value = (d.attachmentList || []).map((a) => ({ name: a.fileName, url: a.fileUrl, id: a.id }))
   }
@@ -416,18 +431,23 @@ const openEdit = async (row) => {
 const resetForm = () => {
   form.id = null
   form.title = ''
-  form.noticeType = 'COMPANY'
+  form.noticeType = props.restrictScope ? 'DEPT' : 'COMPANY'
   form.priority = 'NORMAL'
   form.content = ''
   form.scheduledTime = ''
   form.expireTime = ''
-  form.scopes = [{ scopeType: 'ALL', scopeId: null, scopeName: '全员' }]
+  form.scopes = props.restrictScope
+    ? [{ scopeType: 'DEPT', scopeId: userStore.profile?.deptId || null, scopeName: userStore.profile?.deptName || '' }]
+    : [{ scopeType: 'ALL', scopeId: null, scopeName: '全员' }]
   form.attachmentIds = []
   fileList.value = []
   formRef.value?.clearValidate?.()
 }
 
-const addScope = () => form.scopes.push({ scopeType: 'DEPT', scopeId: null, scopeName: '' })
+const addScope = () => {
+  if (props.restrictScope) return // 部门主管只能有一个部门范围
+  form.scopes.push({ scopeType: 'DEPT', scopeId: null, scopeName: '' })
+}
 const removeScope = (i) => form.scopes.splice(i, 1)
 const onScopeTypeChange = (s) => {
   s.scopeId = null

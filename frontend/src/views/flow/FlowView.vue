@@ -6,7 +6,7 @@
         <h1 class="hero-title">审批中心</h1>
         <p class="hero-subtitle">提交请假、加班与补卡申请，高效完成团队审批</p>
       </div>
-      <div class="hero-actions">
+      <div class="hero-actions" v-if="!isAdmin">
         <el-button class="hero-btn hero-btn-leave" @click="openApplyDialog('LEAVE')">
           <el-icon><EditPen /></el-icon>
           <span>请假申请</span>
@@ -24,7 +24,7 @@
 
     <!-- 统计卡片 -->
     <div class="stats-row">
-      <div class="stat-card" :class="{ 'is-active': activeTab === 'my' }" @click="activeTab='my';handleTabClick({paneName:'my'})">
+      <div v-if="!isAdmin" class="stat-card" :class="{ 'is-active': activeTab === 'my' }" @click="activeTab='my';handleTabClick({paneName:'my'})">
         <div class="stat-icon stat-icon-my">
           <el-icon size="20"><Document /></el-icon>
         </div>
@@ -57,7 +57,7 @@
     <div class="content-card">
       <el-tabs v-model="activeTab" class="flow-tabs" @tab-click="handleTabClick">
         <!-- 我的申请 -->
-        <el-tab-pane label="我的申请单据" name="my">
+        <el-tab-pane v-if="!isAdmin" label="我的申请单据" name="my">
           <div class="tab-panel">
             <div class="panel-search">
               <div class="search-input-wrap">
@@ -590,6 +590,8 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const activeTab = ref('my')
 
+const isAdmin = computed(() => userStore.hasRole('ADMIN'))
+
 const canHandleApproval = computed(() => {
   const user = userStore.profile || {}
   const roles = user.roles || []
@@ -999,7 +1001,11 @@ const getStatusTagType = (status) => {
 }
 
 onMounted(() => {
-  loadMyApplies()
+  if (isAdmin.value) {
+    activeTab.value = 'pending'
+  } else {
+    loadMyApplies()
+  }
   if (canHandleApproval.value) {
     loadPendingApplies()
     loadProcessedApplies()

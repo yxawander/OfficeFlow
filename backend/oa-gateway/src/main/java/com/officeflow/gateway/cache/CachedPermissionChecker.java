@@ -36,19 +36,19 @@ public class CachedPermissionChecker {
     public Mono<Boolean> check(Long userId, String method, String path) {
         return Mono.fromCallable(() -> checkFromCache(userId, method, path))
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(result -> {
-                    if (result != null) {
-                        return Mono.just(result);
-                    }
-                    log.debug("Cache miss for user {}, falling back to HTTP", userId);
-                    return apiPermissionClient.check(userId, method, path)
-                            .map(ApiPermissionClient.PermissionDecision::allowed);
-                })
+                // Mono.fromCallable 在返回 null 时会完成为空流，flatMap 不会执行。
+                // 必须用 switchIfEmpty 显式回源，否则网关会直接返回 200 空响应。
+                .switchIfEmpty(Mono.defer(() -> checkRemotely(userId, method, path)))
                 .onErrorResume(ex -> {
                     log.warn("Permission check error for user {}, falling back to HTTP", userId, ex);
-                    return apiPermissionClient.check(userId, method, path)
-                            .map(ApiPermissionClient.PermissionDecision::allowed);
+                    return checkRemotely(userId, method, path);
                 });
+    }
+
+    private Mono<Boolean> checkRemotely(Long userId, String method, String path) {
+        log.debug("Cache miss for user {}, falling back to HTTP", userId);
+        return apiPermissionClient.check(userId, method, path)
+                .map(ApiPermissionClient.PermissionDecision::allowed);
     }
 
     @SuppressWarnings("unchecked")

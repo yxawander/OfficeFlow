@@ -39,7 +39,7 @@ public class UserPermissionCacheService {
         this.apiPermissionMapper = apiPermissionMapper;
     }
 
-    public void cacheUserPermissions(Long userId) {
+    public Map<String, Object> cacheUserPermissions(Long userId) {
         boolean isAdmin = roleMapper.listByUserId(userId).stream()
                 .anyMatch(role -> "ADMIN".equals(String.valueOf(role.get("roleCode"))));
         Set<Long> apiPermIds = roleMapper.listApiPermissionIdsByUserId(userId).stream()
@@ -50,12 +50,21 @@ public class UserPermissionCacheService {
         context.put("apiPermIds", apiPermIds);
         redisTemplate.opsForValue().set(CommonConstants.CACHE_USER_PERM_PREFIX + userId, context, Duration.ofSeconds(jwtExpireSeconds));
         log.debug("Cached permissions for user {}", userId);
+        return context;
     }
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> getCachedUserPermissions(Long userId) {
         Object value = redisTemplate.opsForValue().get(CommonConstants.CACHE_USER_PERM_PREFIX + userId);
         return (value instanceof Map<?, ?> map) ? (Map<String, Object>) map : null;
+    }
+
+    /**
+     * 获取用户权限上下文；角色变更清理缓存后，立即从数据库重建。
+     */
+    public Map<String, Object> getOrLoadUserPermissions(Long userId) {
+        Map<String, Object> cached = getCachedUserPermissions(userId);
+        return cached != null ? cached : cacheUserPermissions(userId);
     }
 
     public void evictUserPermissions(Long userId) {

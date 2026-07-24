@@ -1,5 +1,6 @@
 package com.officeflow.ai.controller;
 
+import com.officeflow.ai.config.DocumentPathResolver;
 import com.officeflow.ai.service.ConversationService;
 import com.officeflow.ai.service.PdfLoaderService;
 import com.officeflow.ai.service.RagService;
@@ -7,7 +8,6 @@ import com.officeflow.common.ratelimit.RateLimit;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,7 +16,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,9 +30,7 @@ public class RagController {
     private final RagService ragService;
     private final ConversationService conversationService;
     private final PdfLoaderService pdfLoaderService;
-
-    @Value("${app.document.path:docs/pdf}")
-    private String documentPath;
+    private final DocumentPathResolver documentPathResolver;
 
     private static final String HEADER_USER_ID = "X-Login-User-Id";
     private static final String HEADER_ROLES = "X-Login-Roles";
@@ -53,13 +50,14 @@ public class RagController {
 
         String filename = file.getOriginalFilename();
         if (filename == null || (!filename.toLowerCase().endsWith(".pdf")
-                && !filename.toLowerCase().endsWith(".txt"))) {
-            return Map.of("status", "FAIL", "error", "仅支持 PDF 和 TXT 文件");
+                && !filename.toLowerCase().endsWith(".txt")
+                && !filename.toLowerCase().endsWith(".md"))) {
+            return Map.of("status", "FAIL", "error", "仅支持 PDF、TXT 和 MD 文件");
         }
 
         try {
             // 1. 确保 docs/pdf 目录存在（使用绝对路径）
-            Path docDir = Paths.get(documentPath).toAbsolutePath();
+            Path docDir = documentPathResolver.resolveDirectory();
             Files.createDirectories(docDir);
 
             // 2. 永久保存文件到 docs/pdf
@@ -172,7 +170,7 @@ public class RagController {
         ragService.deleteDocument(source);
         // 尝试删除 docs/pdf 中的物理文件
         try {
-            Path filePath = Paths.get(documentPath).toAbsolutePath().resolve(source);
+            Path filePath = documentPathResolver.resolveDirectory().resolve(source);
             Files.deleteIfExists(filePath);
         } catch (Exception e) {
             log.warn("Failed to delete physical file: {}", e.getMessage());

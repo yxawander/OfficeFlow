@@ -66,10 +66,10 @@
           <div>
             <!-- 显示当前路由所配置的标题 -->
             <div class="page-title">{{ pageTitle }}</div>
-            <div class="page-desc">统一网关、权限拦截、前后端分离</div>
+
           </div>
         </div>
-        
+
         <!-- 用户信息下拉菜单 -->
         <el-dropdown>
           <el-button>

@@ -437,9 +437,10 @@ public class UserService {
         String safeMethod = defaultText(method, "").toUpperCase();
         String safePath = defaultText(path, "");
 
-        // 优先从 Redis 缓存获取用户权限上下文
-        Map<String, Object> userPerm = permissionCacheService.getCachedUserPermissions(userId);
-        if (userPerm != null && Boolean.TRUE.equals(userPerm.get("admin"))) {
+        // 角色或接口权限变更会清理缓存；未命中时必须先从数据库重建，
+        // 否则当前管理员会被暂时按普通用户校验，直到重新登录预热缓存。
+        Map<String, Object> userPerm = permissionCacheService.getOrLoadUserPermissions(userId);
+        if (Boolean.TRUE.equals(userPerm.get("admin"))) {
             return permissionResult(true, true, "ADMIN", "系统管理员放行");
         }
 
@@ -466,7 +467,7 @@ public class UserService {
 
         // 从缓存获取用户的 API 权限 ID 集合（HashSet，用 Collection 接收）
         @SuppressWarnings("unchecked")
-        Collection<Object> cachedPermIds = userPerm != null ? (Collection<Object>) userPerm.get("apiPermIds") : null;
+        Collection<Object> cachedPermIds = (Collection<Object>) userPerm.get("apiPermIds");
 
         if (cachedPermIds != null) {
             Set<Long> permIdSet = cachedPermIds.stream()
@@ -479,8 +480,7 @@ public class UserService {
                 }
             }
         } else {
-            // 缓存未命中：回退到 DB 查询，并补充缓存
-            permissionCacheService.cacheUserPermissions(userId);
+            // 兼容旧缓存或异常缓存结构，最终仍以数据库权限关系为准。
             for (Map<String, Object> permission : effectivePermissions) {
                 if (apiPermissionMapper.countUserPermission(userId, toLong(permission.get("id"))) > 0) {
                     return permissionResult(true, true, String.valueOf(permission.get("permissionCode")), "接口权限校验通过");

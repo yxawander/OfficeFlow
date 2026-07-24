@@ -1,16 +1,18 @@
 package com.officeflow.ai.runner;
 
+import com.officeflow.ai.config.DocumentPathResolver;
 import com.officeflow.ai.repository.VectorStoreRepository;
 import com.officeflow.ai.service.PdfLoaderService;
 import com.officeflow.ai.service.RagService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 @Slf4j
@@ -21,37 +23,39 @@ public class DocumentInitRunner implements ApplicationRunner {
     private final PdfLoaderService pdfLoaderService;
     private final RagService ragService;
     private final VectorStoreRepository vectorStoreRepository;
-
-    @Value("${app.document.path:docs/pdf}")
-    private String documentPath;
+    private final DocumentPathResolver documentPathResolver;
 
     @Override
     public void run(ApplicationArguments args) {
+        Path resolvedDocumentPath = documentPathResolver.resolveDirectory();
         log.info("=== Document auto-loading started ===");
-        log.info("Scanning PDF directory: {}", documentPath);
+        log.info("Scanning document directory: {}", resolvedDocumentPath);
 
-        File dir = new File(documentPath);
+        File dir = resolvedDocumentPath.toFile();
         if (!dir.exists() || !dir.isDirectory()) {
-            log.warn("PDF directory does not exist or is not a directory: {}", documentPath);
+            log.warn("Document directory does not exist or is not a directory: {}", resolvedDocumentPath);
             return;
         }
 
-        File[] pdfFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".pdf"));
-        if (pdfFiles == null || pdfFiles.length == 0) {
-            log.info("No PDF files found in {}", documentPath);
+        File[] docFiles = dir.listFiles((d, name) -> {
+            String lower = name.toLowerCase();
+            return lower.endsWith(".pdf") || lower.endsWith(".txt") || lower.endsWith(".md");
+        });
+        if (docFiles == null || docFiles.length == 0) {
+            log.info("No document files (pdf/txt/md) found in {}", resolvedDocumentPath);
             return;
         }
 
-        log.info("Found {} PDF file(s) to process", pdfFiles.length);
+        log.info("Found {} document file(s) to process", docFiles.length);
 
         int loaded = 0;
         int skipped = 0;
         int updated = 0;
 
-        for (File pdfFile : pdfFiles) {
-            String source = pdfFile.getName();
+        for (File docFile : docFiles) {
+            String source = docFile.getName();
             try {
-                String currentHash = pdfLoaderService.computeFileHash(pdfFile);
+                String currentHash = pdfLoaderService.computeFileHash(docFile);
                 boolean alreadyLoaded = vectorStoreRepository.isSourceLoaded(source);
 
                 if (alreadyLoaded) {
@@ -66,8 +70,13 @@ public class DocumentInitRunner implements ApplicationRunner {
                     }
                 }
 
-                // Extract text from PDF
-                String text = pdfLoaderService.extractText(pdfFile);
+                // Extract text based on file type
+                String text;
+                if (source.toLowerCase().endsWith(".pdf")) {
+                    text = pdfLoaderService.extractText(docFile);
+                } else {
+                    text = Files.readString(docFile.toPath());
+                }
                 if (text == null || text.trim().isEmpty()) {
                     log.warn("[WARN] {} - no text extracted, skipping", source);
                     skipped++;

@@ -79,7 +79,7 @@
     </select>
 
     <select id="countUnreadByType" resultType="java.util.Map">
-        SELECT n.notice_type as type, COUNT(DISTINCT n.id) as count
+        SELECT n.notice_type as `key`, COUNT(DISTINCT n.id) as `value`
         FROM notice n
         LEFT JOIN notice_scope ns ON n.id = ns.notice_id
         LEFT JOIN notice_read nr ON n.id = nr.notice_id AND nr.user_id = #{userId}
@@ -96,7 +96,7 @@
     </select>
 
     <select id="countUnreadByPriority" resultType="java.util.Map">
-        SELECT n.priority, COUNT(DISTINCT n.id) as count
+        SELECT n.priority as `key`, COUNT(DISTINCT n.id) as `value`
         FROM notice n
         LEFT JOIN notice_scope ns ON n.id = ns.notice_id
         LEFT JOIN notice_read nr ON n.id = nr.notice_id AND nr.user_id = #{userId}

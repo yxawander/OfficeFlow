@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Service
+@SuppressWarnings("null")
 public class UserService {
     private static final String ADMIN_ROLE_CODE = "ADMIN";
 

@@ -6,7 +6,6 @@ import com.officeflow.api.user.vo.UserOptionVO;
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
-import com.officeflow.common.api.ResultCode;
 import com.officeflow.notice.dto.*;
 import com.officeflow.notice.entity.Notice;
 import com.officeflow.notice.entity.NoticeAttachment;
@@ -43,6 +42,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class NoticeServiceImpl implements NoticeService {
 
     private final NoticeMapper noticeMapper;
@@ -122,7 +122,6 @@ public class NoticeServiceImpl implements NoticeService {
 
         noticeReadMapper.batchInsert(list);
 
-        List<NoticeReadDetailVO> readDetails = new ArrayList<>();
         for (Long noticeId : dto.getNoticeIds()) {
             NoticeRead existing = noticeReadMapper.selectByNoticeIdAndUserId(noticeId, userId);
             if (existing != null && existing.getReadStatus() == 0) {
@@ -143,8 +142,8 @@ public class NoticeServiceImpl implements NoticeService {
             vo.setByPriority(new HashMap<>());
         } else {
             vo.setTotal(noticeReadMapper.countUnreadByUserId(userId));
-            vo.setByType(noticeReadMapper.countUnreadByType(userId));
-            vo.setByPriority(noticeReadMapper.countUnreadByPriority(userId));
+            vo.setByType(convertToLongMap(noticeReadMapper.countUnreadByType(userId)));
+            vo.setByPriority(convertToLongMap(noticeReadMapper.countUnreadByPriority(userId)));
         }
 
         return vo;
@@ -396,5 +395,21 @@ public class NoticeServiceImpl implements NoticeService {
             vo.setFileType(a.getFileType());
             return vo;
         }).collect(Collectors.toList());
+    }
+
+    private Map<String, Long> convertToLongMap(List<Map<String, Object>> list) {
+        Map<String, Long> result = new java.util.LinkedHashMap<>();
+        if (list != null) {
+            for (Map<String, Object> row : list) {
+                String key = String.valueOf(row.get("key"));
+                Object value = row.get("value");
+                Long longValue = 0L;
+                if (value instanceof Number) {
+                    longValue = ((Number) value).longValue();
+                }
+                result.put(key, longValue);
+            }
+        }
+        return result;
     }
 }

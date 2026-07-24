@@ -160,6 +160,7 @@
             n.publisher_id as publisherId,
             n.publisher_name as publisherName,
             n.publish_time as publishTime,
+            n.scheduled_time as scheduledTime,
             n.status,
             n.read_count as readCount,
             n.view_count as viewCount,

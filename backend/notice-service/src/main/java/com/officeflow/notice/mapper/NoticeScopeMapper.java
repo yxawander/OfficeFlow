@@ -1,9 +1,7 @@
 package com.officeflow.notice.mapper;
 
 import com.officeflow.notice.entity.NoticeScope;
-import com.officeflow.notice.dto.NoticeScopeDTO;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 

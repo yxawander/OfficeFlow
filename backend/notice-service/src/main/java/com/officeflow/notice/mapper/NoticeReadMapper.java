@@ -20,9 +20,9 @@ public interface NoticeReadMapper {
 
     Long countUnreadByUserIdAndFilters(@Param("userId") Long userId, @Param("noticeType") String noticeType, @Param("priority") String priority);
 
-    Map<String, Long> countUnreadByType(Long userId);
+    List<Map<String, Object>> countUnreadByType(Long userId);
 
-    Map<String, Long> countUnreadByPriority(Long userId);
+    List<Map<String, Object>> countUnreadByPriority(Long userId);
 
     NoticeReadDetailVO selectReadDetailById(@Param("noticeId") Long noticeId, @Param("totalActiveUsers") Long totalActiveUsers);
 

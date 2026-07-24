@@ -1,14 +1,12 @@
 package com.officeflow.api.notice.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-
-import java.time.LocalDateTime;
-import java.util.List;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class NoticeUpdateDTO extends NoticeCreateDTO {
-    @NotBlank(message = "公告ID不能为空")
-    private String id;
+    @NotNull(message = "公告ID不能为空")
+    private Long id;
 }

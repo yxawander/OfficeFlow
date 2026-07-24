@@ -3,7 +3,6 @@ package com.officeflow.notice.service.impl;
 import com.officeflow.api.user.client.UserAdminClient;
 import com.officeflow.api.user.vo.DeptVO;
 import com.officeflow.api.user.vo.UserOptionVO;
-import com.officeflow.api.user.vo.UserVO;
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.exception.BusinessException;
@@ -29,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -235,21 +235,40 @@ class NoticeServiceImplTest {
     void getUnreadCount_NoFilters() {
         when(noticeReadMapper.countUnreadByUserId(100L)).thenReturn(5L);
 
-        Map<String, Long> byType = new HashMap<>();
-        byType.put("COMPANY", 2L);
-        byType.put("DEPT", 3L);
+        List<Map<String, Object>> byType = new ArrayList<>();
+        Map<String, Object> typeItem1 = new HashMap<>();
+        typeItem1.put("key", "COMPANY");
+        typeItem1.put("value", 2L);
+        byType.add(typeItem1);
+        Map<String, Object> typeItem2 = new HashMap<>();
+        typeItem2.put("key", "DEPT");
+        typeItem2.put("value", 3L);
+        byType.add(typeItem2);
         when(noticeReadMapper.countUnreadByType(100L)).thenReturn(byType);
 
-        Map<String, Long> byPriority = new HashMap<>();
-        byPriority.put("HIGH", 1L);
-        byPriority.put("NORMAL", 4L);
+        List<Map<String, Object>> byPriority = new ArrayList<>();
+        Map<String, Object> priItem1 = new HashMap<>();
+        priItem1.put("key", "HIGH");
+        priItem1.put("value", 1L);
+        byPriority.add(priItem1);
+        Map<String, Object> priItem2 = new HashMap<>();
+        priItem2.put("key", "NORMAL");
+        priItem2.put("value", 4L);
+        byPriority.add(priItem2);
         when(noticeReadMapper.countUnreadByPriority(100L)).thenReturn(byPriority);
 
         UnreadCountVO result = noticeService.getUnreadCount(100L, null, null);
 
+        Map<String, Long> expectedByType = new HashMap<>();
+        expectedByType.put("COMPANY", 2L);
+        expectedByType.put("DEPT", 3L);
+        Map<String, Long> expectedByPriority = new HashMap<>();
+        expectedByPriority.put("HIGH", 1L);
+        expectedByPriority.put("NORMAL", 4L);
+
         assertThat(result.getTotal()).isEqualTo(5L);
-        assertThat(result.getByType()).isEqualTo(byType);
-        assertThat(result.getByPriority()).isEqualTo(byPriority);
+        assertThat(result.getByType()).isEqualTo(expectedByType);
+        assertThat(result.getByPriority()).isEqualTo(expectedByPriority);
 
         verify(noticeReadMapper).countUnreadByUserId(100L);
         verify(noticeReadMapper).countUnreadByType(100L);

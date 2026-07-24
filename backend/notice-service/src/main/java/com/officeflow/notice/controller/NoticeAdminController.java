@@ -2,7 +2,6 @@ package com.officeflow.notice.controller;
 
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
-import com.officeflow.common.api.ResultCode;
 import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.notice.dto.NoticeCreateDTO;
 import com.officeflow.notice.dto.NoticeQueryDTO;
@@ -21,8 +20,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @Slf4j
 @RestController

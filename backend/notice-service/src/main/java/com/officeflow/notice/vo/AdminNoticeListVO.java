@@ -21,5 +21,7 @@ public class AdminNoticeListVO {
     private Integer viewCount;
     private BigDecimal readRate;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime scheduledTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 }

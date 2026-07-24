@@ -142,7 +142,6 @@ public class MonthlyReportAndSalaryService {
             List<AttendanceMonthlyReport> userReports = monthlyReportMapper.selectReports(settleMonth, null, null, 0, 1000);
             AttendanceMonthlyReport report = userReports.stream().filter(r -> r.getUserId().equals(userId)).findFirst().orElse(null);
 
-            int lateCount = report != null ? report.getLateCount() : 0;
             int absentCount = report != null ? report.getAbsentCount() : 0;
             double leaveDaysVal = report != null && report.getLeaveDays() != null ? report.getLeaveDays().doubleValue() : 0.0;
             double overtimeHoursVal = report != null && report.getOvertimeHours() != null ? report.getOvertimeHours().doubleValue() : 0.0;

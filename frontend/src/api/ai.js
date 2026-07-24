@@ -6,7 +6,7 @@ import request from './request'
  * @returns {Promise<{answer: string, sources: string[], costMs: number}>}
  */
 export function ragQuery(question) {
-  return request.get('/api/ai/rag/query', {
+  return request.get('/ai/rag/query', {
     params: { question },
     timeout: 60000
   })
@@ -16,12 +16,12 @@ export function ragQuery(question) {
  * 查询知识库状态
  */
 export function getRagStatus() {
-  return request.get('/api/ai/rag/status')
+  return request.get('/ai/rag/status')
 }
 
 /**
  * 健康检查
  */
 export function getAiHealth() {
-  return request.get('/api/ai/health')
+  return request.get('/ai/health')
 }

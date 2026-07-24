@@ -235,6 +235,23 @@
             placeholder="详细说明申请原因"
           />
         </el-form-item>
+
+        <el-form-item label="附件">
+          <el-upload
+            :http-request="customFlowUpload"
+            :file-list="flowFileList"
+            :on-remove="removeFlowFile"
+            list-type="text"
+            multiple
+          >
+            <el-button size="small" type="primary" plain>
+              <el-icon><Upload /></el-icon> 选择文件
+            </el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持图片、PDF、Word 等格式，单文件不超过10MB</div>
+            </template>
+          </el-upload>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -274,26 +291,76 @@
     <!-- 申请单详情弹窗 -->
     <el-dialog
       v-model="detailDialogVisible"
-      title="审批单详情"
-      width="500px"
+      title="审批记录详情"
+      width="560px"
     >
-      <el-descriptions :column="1" border v-if="currentDetailRow">
-        <el-descriptions-item label="单号">{{ currentDetailRow.applyNo }}</el-descriptions-item>
-        <el-descriptions-item label="类型">
-          <el-tag :type="getTypeTagType(currentDetailRow.applyType)">{{ formatApplyType(currentDetailRow.applyType) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusTagType(currentDetailRow.status)">{{ formatStatusText(currentDetailRow.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="标题">{{ currentDetailRow.title }}</el-descriptions-item>
-        <el-descriptions-item label="事由">{{ currentDetailRow.reason }}</el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ currentDetailRow.startTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ currentDetailRow.endTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="currentDetailRow.applyType === 'LEAVE' ? '时长 (天)' : '时长 (小时)'">
-          {{ currentDetailRow.applyType === 'LEAVE' ? (currentDetailRow.durationHours / 8) : (currentDetailRow.durationHours || 0) }}
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentDetailRow.createdAt }}</el-descriptions-item>
-      </el-descriptions>
+      <template v-if="currentDetailRow">
+        <!-- 基本信息 -->
+        <div class="detail-header">
+          <div class="detail-info-line">
+            <span class="detail-label">申请单号：</span>
+            <span>{{ currentDetailRow.applyNo }}</span>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">申请类型：</span>
+            <el-tag :type="getTypeTagType(currentDetailRow.applyType)" size="small">{{ formatApplyType(currentDetailRow.applyType) }}</el-tag>
+            <el-tag :type="getStatusTagType(currentDetailRow.status)" size="small" style="margin-left:8px">{{ formatStatusText(currentDetailRow.status) }}</el-tag>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">标题：</span>
+            <span>{{ currentDetailRow.title }}</span>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">事由：</span>
+            <span>{{ currentDetailRow.reason }}</span>
+          </div>
+          <div class="detail-info-line" v-if="currentDetailRow.startTime">
+            <span class="detail-label">时间：</span>
+            <span>{{ currentDetailRow.startTime }} ~ {{ currentDetailRow.endTime }}</span>
+          </div>
+        </div>
+
+        <el-divider />
+
+        <!-- 审批流程时间线 -->
+        <div class="approval-timeline">
+          <h4 class="timeline-title">审批流程</h4>
+          <div v-if="currentDetailRow.approveRecords && currentDetailRow.approveRecords.length > 0">
+            <div
+              v-for="(record, idx) in currentDetailRow.approveRecords"
+              :key="idx"
+              class="timeline-item"
+            >
+              <div class="timeline-node" :class="record.action === 'APPROVE' ? 'node-approve' : 'node-reject'">
+                <el-icon v-if="record.action === 'APPROVE'"><Check /></el-icon>
+                <el-icon v-else><Close /></el-icon>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-actor">
+                  <strong>{{ record.approverName || '系统' }}</strong>
+                  <el-tag :type="record.action === 'APPROVE' ? 'success' : 'danger'" size="small" effect="light">
+                    {{ record.action === 'APPROVE' ? '审批通过' : '审批驳回' }}
+                  </el-tag>
+                </div>
+                <div class="timeline-comment" v-if="record.comment">{{ record.comment }}</div>
+                <div class="timeline-time">{{ record.approvedAt }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="timeline-empty">暂无审批记录</div>
+        </div>
+
+        <!-- 附件 -->
+        <div v-if="currentDetailRow.attachments && currentDetailRow.attachments.length > 0" class="detail-attachments">
+          <el-divider />
+          <h4 class="timeline-title">附件</h4>
+          <div v-for="att in currentDetailRow.attachments" :key="att.id" class="attachment-link">
+            <el-icon><Link /></el-icon>
+            <span>{{ att.fileName }}</span>
+          </div>
+        </div>
+      </template>
+
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
@@ -305,6 +372,7 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Upload, Check, Close, Link } from '@element-plus/icons-vue'
 
 const router = useRouter()
 import {
@@ -315,7 +383,9 @@ import {
   getProcessedAppliesApi,
   approveApplyApi,
   rejectApplyApi,
-  cancelApplyApi
+  cancelApplyApi,
+  uploadFlowAttachmentApi,
+  deleteFlowAttachmentApi
 } from '@/api/flow'
 import { recheckApi } from '@/api/attendance'
 import { useUserStore } from '@/stores/user'
@@ -348,6 +418,8 @@ const loadingProcessed = ref(false)
 const applyDialogVisible = ref(false)
 const submitting = ref(false)
 const applyFormRef = ref(null)
+const flowFileList = ref([])
+const flowAttachmentIds = ref([])
 
 const applyForm = reactive({
   applyType: 'LEAVE',
@@ -498,6 +570,8 @@ const openApplyDialog = (type) => {
     applyForm.endTime = ''
     applyForm.durationHours = type === 'LEAVE' ? 8 : 1
   }
+  flowFileList.value = []
+  flowAttachmentIds.value = []
   
   applyDialogVisible.value = true
 }
@@ -522,6 +596,40 @@ const calculateDuration = (val) => {
       const diffHours = (end - start) / (1000 * 3600)
       applyForm.durationHours = Math.max(0.5, Math.round(diffHours * 10) / 10)
     }
+  }
+}
+
+// 附件上传处理
+const customFlowUpload = async ({ file }) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await uploadFlowAttachmentApi(formData)
+    if (res.code === 200 && res.data) {
+      flowAttachmentIds.value.push(res.data.id)
+      flowFileList.value.push({
+        uid: res.data.id,
+        name: res.data.fileName,
+        url: res.data.fileUrl,
+        status: 'success'
+      })
+    } else {
+      throw new Error(res.message || '上传失败')
+    }
+  } catch (e) {
+    ElMessage.error('附件上传失败: ' + (e.message || '未知错误'))
+    throw e
+  }
+}
+
+const removeFlowFile = async (file) => {
+  try {
+    if (file.uid) {
+      await deleteFlowAttachmentApi(file.uid)
+      flowAttachmentIds.value = flowAttachmentIds.value.filter(id => id !== file.uid)
+    }
+  } catch (e) {
+    console.error('删除附件失败', e)
   }
 }
 
@@ -571,7 +679,8 @@ const submitApply = async () => {
           reason: applyForm.reason,
           startTime: applyForm.startTime,
           endTime: applyForm.endTime,
-          durationHours: applyForm.durationHours // Ensure this sends hours!
+          durationHours: applyForm.durationHours,
+          attachmentIds: flowAttachmentIds.value
         })
       }
 
@@ -725,5 +834,102 @@ onMounted(() => {
 
 .text-muted {
   color: #94a3b8;
+}
+
+/* 详情弹窗 - 时间线 */
+.detail-header {
+  padding: 4px 0;
+}
+.detail-info-line {
+  padding: 6px 0;
+  font-size: 14px;
+  line-height: 24px;
+}
+.detail-label {
+  color: #909399;
+  font-weight: 500;
+}
+
+.approval-timeline {
+  padding: 4px 0;
+}
+.timeline-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #303133;
+}
+.timeline-item {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 20px;
+  position: relative;
+}
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 34px;
+  bottom: 0;
+  width: 2px;
+  background: #e4e7ed;
+}
+.timeline-node {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 14px;
+}
+.timeline-node.node-approve {
+  background: #67c23a;
+}
+.timeline-node.node-reject {
+  background: #f56c6c;
+}
+.timeline-content {
+  flex: 1;
+  background: #fafafa;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+.timeline-actor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.timeline-comment {
+  font-size: 13px;
+  color: #606266;
+}
+.timeline-time {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+.timeline-empty {
+  text-align: center;
+  color: #c0c4cc;
+  padding: 20px 0;
+}
+.detail-attachments {
+  margin-top: 4px;
+}
+.attachment-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #409eff;
+  cursor: pointer;
+}
+.attachment-link:hover {
+  text-decoration: underline;
 }
 </style>

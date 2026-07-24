@@ -1,28 +1,27 @@
 // ===================== 公告模块常量 =====================
 export const NOTICE_TYPE_OPTIONS = [
   { value: 'COMPANY', label: '公司公告' },
-  { value: 'DEPT', label: '部门公告' }
+  { value: 'DEPT', label: '部门公告' },
+  { value: 'SYSTEM', label: '系统公告' }
 ]
 
 export const NOTICE_PRIORITY_OPTIONS = [
   { value: 'URGENT', label: '紧急' },
-  { value: 'HIGH', label: '重要' },
-  { value: 'NORMAL', label: '普通' },
-  { value: 'LOW', label: '低' }
+  { value: 'IMPORTANT', label: '重要' },
+  { value: 'NORMAL', label: '普通' }
 ]
 
 export const NOTICE_STATUS_OPTIONS = [
   { value: 'DRAFT', label: '草稿' },
   { value: 'PUBLISHED', label: '已发布' },
-  { value: 'OFFLINE', label: '已下线' },
-  { value: 'REVIEWING', label: '待审核' },
-  { value: 'REJECTED', label: '已驳回' }
+  { value: 'OFFLINE', label: '已下线' }
 ]
 
 export const NOTICE_SCOPE_TYPE_OPTIONS = [
   { value: 'ALL', label: '全员' },
   { value: 'DEPT', label: '按部门' },
-  { value: 'USER', label: '按人员' }
+  { value: 'USER', label: '按人员' },
+  { value: 'ROLE', label: '按角色' }
 ]
 
 export const READ_STATUS_OPTIONS = [
@@ -61,8 +60,8 @@ export const getApplyTypeLabel = (v) => applyTypeMap[v] || v || '-'
 export const getApplyStatusLabel = (v) => applyStatusMap[v] || v || '-'
 
 export const getNoticePriorityTag = (v) =>
-  ({ URGENT: 'danger', HIGH: 'warning', NORMAL: '', LOW: 'info' })[v] || ''
+  ({ URGENT: 'danger', IMPORTANT: 'warning', NORMAL: '' })[v] || ''
 export const getNoticeStatusTag = (v) =>
-  ({ DRAFT: 'info', PUBLISHED: 'success', OFFLINE: 'info', REVIEWING: 'warning', REJECTED: 'danger' })[v] || ''
+  ({ DRAFT: 'info', PUBLISHED: 'success', OFFLINE: 'info' })[v] || ''
 export const getApplyStatusTag = (v) =>
   ({ DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', CANCELLED: 'info' })[v] || ''

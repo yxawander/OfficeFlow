@@ -11,12 +11,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
 @Component
+@SuppressWarnings("null")
 public class PermissionInterceptor implements HandlerInterceptor {
 
     private static final List<String> ADMIN_ROLES = Arrays.asList("ADMIN", "MANAGER");

@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 @DisplayName("公告管理控制器单元测试")
 class NoticeAdminControllerTest {
 
@@ -69,7 +70,7 @@ class NoticeAdminControllerTest {
         createDTO.setScopes(List.of(scopeDTO));
 
         updateDTO = new NoticeUpdateDTO();
-        updateDTO.setId("1");
+        updateDTO.setId(1L);
         updateDTO.setTitle("更新标题");
         updateDTO.setContent("更新内容");
         updateDTO.setNoticeType("DEPT");

@@ -2,7 +2,6 @@ package com.officeflow.notice.controller;
 
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
-import com.officeflow.common.api.ResultCode;
 import com.officeflow.common.constant.CommonConstants;
 import com.officeflow.notice.dto.BatchReadDTO;
 import com.officeflow.notice.dto.NoticeQueryDTO;

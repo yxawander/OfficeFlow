@@ -17,6 +17,7 @@ import java.util.List;
 
 @Slf4j
 @Component
+@SuppressWarnings("null")
 public class PermissionInterceptor implements HandlerInterceptor {
 
     private static final List<String> ADMIN_ROLES = Arrays.asList("ADMIN", "MANAGER");

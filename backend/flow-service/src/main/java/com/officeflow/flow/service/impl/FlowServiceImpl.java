@@ -398,6 +398,7 @@ public class FlowServiceImpl implements FlowService {
     }
 
     @Override
+    @SuppressWarnings("null")
     public int autoRejectOverdueApplies() {
         Boolean locked = stringRedisTemplate.opsForValue()
                 .setIfAbsent(AUTO_REJECT_LOCK_KEY, "1", Duration.ofMinutes(5));

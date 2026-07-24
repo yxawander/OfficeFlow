@@ -13,6 +13,8 @@ import com.officeflow.attendance.mapper.AttendanceRecordMapper;
 import com.officeflow.attendance.mapper.AttendanceRuleMapper;
 import com.officeflow.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.Map;
 @Service
 public class AttendanceService {
 
+    private static final Logger log = LoggerFactory.getLogger(AttendanceService.class);
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final AttendanceCorrectionApplyMapper attendanceCorrectionApplyMapper;
     private final AttendanceRuleMapper attendanceRuleMapper;
@@ -57,15 +60,22 @@ public class AttendanceService {
         this.attendanceCorrectionApplyMapper = attendanceCorrectionApplyMapper;
     }
 
-    @Transactional
     public AttendanceRecord checkIn(Long userId, CheckInRequest request, HttpServletRequest httpRequest) {
         if (userId == null) {
             throw new BusinessException("未获取到当前登录用户");
         }
         LocalDate today = LocalDate.now();
         AttendanceRecord existing = attendanceRecordMapper.findByUserIdAndWorkDate(userId, today);
-        if (existing != null && existing.getCheckInTime() != null) {
-            throw new BusinessException("今日已完成上班打卡，请勿重复打卡");
+        if (existing != null) {
+            if ("ON_LEAVE".equals(existing.getStatus())) {
+                throw new BusinessException("您今天在休假中，打卡无效");
+            }
+            if ("ABSENT".equals(existing.getStatus())) {
+                throw new BusinessException("您今天已被记为旷工，打卡无效");
+            }
+            if (existing.getCheckInTime() != null) {
+                throw new BusinessException("今日已完成上班打卡，请勿重复打卡");
+            }
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -90,6 +100,7 @@ public class AttendanceService {
             lateMinutes = (int) Duration.between(workStartTime, currentTime).toMinutes();
             if (lateMinutes >= absentThresholdMinutes) {
                 status = "ABSENT"; // 超过旷工判定门槛（如4小时/240分钟），直接标记为旷工！
+                lateMinutes = 0; // 当天已被记为旷工，迟到时间清零
             } else {
                 status = "LATE";
             }
@@ -127,13 +138,29 @@ public class AttendanceService {
         }
         LocalDate today = LocalDate.now();
         AttendanceRecord existing = attendanceRecordMapper.findByUserIdAndWorkDate(userId, today);
+        if (existing != null) {
+            if ("ON_LEAVE".equals(existing.getStatus())) {
+                throw new BusinessException("您今天在休假中，打卡无效");
+            }
+            if ("ABSENT".equals(existing.getStatus())) {
+                throw new BusinessException("您今天已被记为旷工，打卡无效");
+            }
+        }
+        
+        // 支持跨天打卡：如果今天没找到记录或者今天没有签到记录，往回找昨天
+        if (existing == null || existing.getCheckInTime() == null) {
+            AttendanceRecord yesterdayRecord = attendanceRecordMapper.findByUserIdAndWorkDate(userId, today.minusDays(1));
+            if (yesterdayRecord != null && yesterdayRecord.getCheckInTime() != null && yesterdayRecord.getCheckOutTime() == null) {
+                existing = yesterdayRecord;
+            }
+        }
+        
         if (existing == null || existing.getCheckInTime() == null) {
             throw new BusinessException("请先进行上班打卡再进行下班打卡");
         }
 
         LocalDateTime now = LocalDateTime.now();
-        LocalTime currentTime = now.toLocalTime();
-
+        
         Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
         Map<String, Object> rule = getEffectiveRule(deptId);
         LocationCheck location = validateLocation(rule,
@@ -143,17 +170,26 @@ public class AttendanceService {
 
         LocalTime workEndTime = parseTime(rule.get("workEndTime"), WORK_END_TIME);
         int earlyLeaveThresholdMinutes = parseInt(rule.get("earlyLeaveThresholdMinutes"), EARLY_LEAVE_THRESHOLD_MINUTES);
+        
+        LocalDateTime workEndDateTime = LocalDateTime.of(existing.getWorkDate(), workEndTime);
 
         // 计算工作时长
         int workMinutes = (int) Duration.between(existing.getCheckInTime(), now).toMinutes();
         int earlyLeaveMinutes = 0;
         String status = existing.getStatus();
 
+        // 重新计算并校验已申请的加班时长 (净工时校验)
+        if (existing.getOvertimeMinutes() != null && existing.getOvertimeMinutes() > 0) {
+            int netOvertime = Math.max(0, workMinutes - 480);
+            int validOvertime = Math.min(existing.getOvertimeMinutes(), netOvertime);
+            existing.setOvertimeMinutes(validOvertime);
+        }
+
         // 动态判断早退（若已被判定为旷工，则保持旷工状态）
         if ("ABSENT".equals(status)) {
             // 保持旷工状态
-        } else if (currentTime.isBefore(workEndTime.minusMinutes(earlyLeaveThresholdMinutes))) {
-            earlyLeaveMinutes = (int) Duration.between(currentTime, workEndTime).toMinutes();
+        } else if (now.isBefore(workEndDateTime.minusMinutes(earlyLeaveThresholdMinutes))) {
+            earlyLeaveMinutes = (int) Duration.between(now, workEndDateTime).toMinutes();
             if ("LATE".equals(status)) {
                 status = "LATE_AND_EARLY"; // 既迟到又早退！
             } else if (!"LATE_AND_EARLY".equals(status)) {
@@ -179,13 +215,13 @@ public class AttendanceService {
 
     public TodayAttendanceResponse getTodayStatus(Long userId) {
         if (userId == null) {
-            return new TodayAttendanceResponse(false, null, false, null, 0, 0, 0, "NORMAL");
+            return new TodayAttendanceResponse(false, null, false, null, 0, 0, 0, "NORMAL", "NORMAL");
         }
         LocalDate today = LocalDate.now();
         AttendanceRecord record = attendanceRecordMapper.findByUserIdAndWorkDate(userId, today);
 
         if (record == null) {
-            return new TodayAttendanceResponse(false, null, false, null, 0, 0, 0, "NORMAL");
+            return new TodayAttendanceResponse(false, null, false, null, 0, 0, 0, "NORMAL", "NORMAL");
         }
 
         boolean hasCheckIn = record.getCheckInTime() != null;
@@ -199,7 +235,8 @@ public class AttendanceService {
                 record.getWorkMinutes() != null ? record.getWorkMinutes() : 0,
                 record.getLateMinutes() != null ? record.getLateMinutes() : 0,
                 record.getEarlyLeaveMinutes() != null ? record.getEarlyLeaveMinutes() : 0,
-                record.getStatus()
+                record.getStatus(),
+                record.getExceptionFlag() != null ? record.getExceptionFlag() : "NORMAL"
         );
     }
 
@@ -362,8 +399,8 @@ public class AttendanceService {
 
         if (request.attendanceRecordId() != null) {
             AttendanceRecord record = attendanceRecordMapper.findById(request.attendanceRecordId());
-            if (record != null && ("ABSENT".equals(record.getStatus()) || "ON_LEAVE".equals(record.getStatus()) || "EARLY_LEAVE".equals(record.getStatus()) || "LATE_AND_EARLY".equals(record.getStatus()))) {
-                throw new BusinessException("当前考勤状态（旷工/请假/早退）不支持补卡，补卡仅限纯迟到和缺卡");
+            if (record != null && ("ABSENT".equals(record.getStatus()) || "ON_LEAVE".equals(record.getStatus()))) {
+                throw new BusinessException("当前考勤状态（旷工/请假）不支持补卡");
             }
         }
 
@@ -579,16 +616,82 @@ public class AttendanceService {
             if (updated == 0) {
                 attendanceRecordMapper.insertAttendanceRecordForCorrection(corr.getUserId(), dto.getDeptId(), corr.getCorrectionType(), corr.getCorrectionTime());
             }
-            attendanceRecordMapper.recalculateAttendanceRecordAfterCorrection(corr.getUserId(), corr.getCorrectionTime());
+            recalculateRecordInJava(corr.getUserId(), corr.getCorrectionTime().toLocalDate());
             // 自动重算当月工资
             String settleMonth = corr.getCorrectionTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
             monthlyReportAndSalaryService.recalculateUserSalaryAndReport(corr.getUserId(), settleMonth);
         }
     }
 
+    private void recalculateRecordInJava(Long userId, LocalDate date) {
+        AttendanceRecord record = attendanceRecordMapper.findByUserIdAndWorkDate(userId, date);
+        if (record == null) return;
+
+        Long deptId = attendanceRecordMapper.findDeptIdByUserId(userId);
+        Map<String, Object> rule = getEffectiveRule(deptId);
+
+        LocalTime workStartTime = parseTime(rule.get("workStartTime"), WORK_START_TIME);
+        int lateThresholdMinutes = parseInt(rule.get("lateThresholdMinutes"), LATE_THRESHOLD_MINUTES);
+        int absentThresholdMinutes = parseInt(rule.get("absentThresholdMinutes"), 240);
+        LocalTime workEndTime = parseTime(rule.get("workEndTime"), WORK_END_TIME);
+        int earlyLeaveThresholdMinutes = parseInt(rule.get("earlyLeaveThresholdMinutes"), EARLY_LEAVE_THRESHOLD_MINUTES);
+
+        int workMinutes = 0;
+        int lateMinutes = 0;
+        int earlyLeaveMinutes = 0;
+        int isAbsent = 0;
+        int isMissingCard = 0;
+        String status = "RECHECKED";
+
+        boolean hasCheckIn = record.getCheckInTime() != null;
+        boolean hasCheckOut = record.getCheckOutTime() != null;
+
+        if (!hasCheckIn && !hasCheckOut) {
+            isAbsent = 1;
+            status = "MISSING_CARD"; // Or ABSENT if you want
+        } else if (!hasCheckIn || !hasCheckOut) {
+            isMissingCard = 1;
+            status = "MISSING_CARD";
+        } else {
+            workMinutes = (int) Duration.between(record.getCheckInTime(), record.getCheckOutTime()).toMinutes();
+            if (workMinutes < 0) workMinutes = 0;
+
+            LocalTime checkInTime = record.getCheckInTime().toLocalTime();
+            LocalTime checkOutTime = record.getCheckOutTime().toLocalTime();
+            LocalDateTime workStartDateTime = LocalDateTime.of(date, workStartTime);
+            LocalDateTime workEndDateTime = LocalDateTime.of(date, workEndTime);
+
+            if (record.getCheckInTime().isAfter(workStartDateTime.plusMinutes(lateThresholdMinutes))) {
+                lateMinutes = (int) Duration.between(workStartDateTime, record.getCheckInTime()).toMinutes();
+            }
+
+            if (record.getCheckOutTime().isBefore(workEndDateTime.minusMinutes(earlyLeaveThresholdMinutes))) {
+                earlyLeaveMinutes = (int) Duration.between(record.getCheckOutTime(), workEndDateTime).toMinutes();
+            }
+
+            if (lateMinutes >= absentThresholdMinutes) {
+                status = "ABSENT";
+                lateMinutes = 0;
+                earlyLeaveMinutes = 0;
+            } else if (lateMinutes > 0 && earlyLeaveMinutes > 0) {
+                status = "LATE_AND_EARLY";
+            } else if (lateMinutes > 0) {
+                status = "LATE";
+            } else if (earlyLeaveMinutes > 0) {
+                status = "EARLY_LEAVE";
+            }
+        }
+
+        attendanceRecordMapper.updateAttendanceRecordStats(
+                record.getId(), workMinutes, lateMinutes, earlyLeaveMinutes, isAbsent, isMissingCard, status
+        );
+    }
+
     @Transactional
     public void processLeaveApprove(AttendanceLeaveDTO dto) {
-        attendanceRecordMapper.upsertAttendanceRecordForLeave(dto.getUserId(), dto.getDeptId(), dto.getWorkDate());
+        int minutes = dto.getDurationHours() != null ? dto.getDurationHours().multiply(new java.math.BigDecimal("60")).intValue() : 0;
+        if (minutes <= 0) return;
+        attendanceRecordMapper.upsertAttendanceRecordForLeave(dto.getUserId(), dto.getDeptId(), dto.getWorkDate(), minutes);
         String settleMonth = dto.getWorkDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
         monthlyReportAndSalaryService.recalculateUserSalaryAndReport(dto.getUserId(), settleMonth);
     }
@@ -597,9 +700,21 @@ public class AttendanceService {
     public void processOvertimeApprove(AttendanceOvertimeDTO dto) {
         int minutes = dto.getDurationHours() != null ? dto.getDurationHours().multiply(new java.math.BigDecimal("60")).intValue() : 0;
         if (minutes <= 0) return;
-        int updated = attendanceRecordMapper.addOvertimeMinutes(dto.getUserId(), dto.getWorkDate(), minutes);
+        
+        // 净工时校验逻辑 (企业合规级三重校验)
+        AttendanceRecord record = attendanceRecordMapper.findByUserIdAndWorkDate(dto.getUserId(), dto.getWorkDate());
+        int actualWorkMinutes = record != null && record.getWorkMinutes() != null ? record.getWorkMinutes() : 0;
+        int netOvertime = Math.max(0, actualWorkMinutes - 480);
+        int finalOvertime = Math.min(minutes, netOvertime);
+        
+        // 如果今天还没下班（actualWorkMinutes 为 0），先预设为审批时长，等下班更新时会重新校验。
+        if (actualWorkMinutes == 0) {
+             finalOvertime = minutes;
+        }
+
+        int updated = attendanceRecordMapper.addOvertimeMinutes(dto.getUserId(), dto.getWorkDate(), finalOvertime);
         if (updated == 0) {
-            attendanceRecordMapper.insertAttendanceRecordForOvertime(dto.getUserId(), dto.getDeptId(), dto.getWorkDate(), minutes);
+            attendanceRecordMapper.insertAttendanceRecordForOvertime(dto.getUserId(), dto.getDeptId(), dto.getWorkDate(), finalOvertime);
         }
         String settleMonth = dto.getWorkDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
         monthlyReportAndSalaryService.recalculateUserSalaryAndReport(dto.getUserId(), settleMonth);

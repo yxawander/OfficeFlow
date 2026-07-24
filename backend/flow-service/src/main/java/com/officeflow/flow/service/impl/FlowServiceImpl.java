@@ -340,17 +340,28 @@ public class FlowServiceImpl implements FlowService {
             AttendanceCorrectionDTO dtoCorrection = new AttendanceCorrectionDTO();
             dtoCorrection.setFlowApplyId(id);
             dtoCorrection.setDeptId(apply.getApplicantDeptId());
-            attendanceClient.updateAttendanceForCorrection(dtoCorrection);
+            ApiResponse<Void> res = attendanceClient.updateAttendanceForCorrection(dtoCorrection);
+            if (res != null && res.code() != 200) {
+                throw new BusinessException("考勤服务错误: " + res.message());
+            }
         } else if ("LEAVE".equalsIgnoreCase(apply.getApplyType())) {
-            if (isFullDayLeave(apply) && apply.getStartTime() != null && apply.getEndTime() != null) {
+            if (apply.getStartTime() != null && apply.getEndTime() != null) {
                 java.time.LocalDate cur = apply.getStartTime().toLocalDate();
-                java.time.LocalDate end = apply.getEndTime().toLocalDate();
+                java.time.LocalDateTime endDateTime = apply.getEndTime();
+                if (endDateTime.getHour() == 0 && endDateTime.getMinute() == 0 && endDateTime.getSecond() == 0 && endDateTime.isAfter(apply.getStartTime())) {
+                    endDateTime = endDateTime.minusSeconds(1);
+                }
+                java.time.LocalDate end = endDateTime.toLocalDate();
                 while (!cur.isAfter(end)) {
                     AttendanceLeaveDTO dtoLeave = new AttendanceLeaveDTO();
                     dtoLeave.setUserId(apply.getApplicantId());
                     dtoLeave.setDeptId(apply.getApplicantDeptId());
                     dtoLeave.setWorkDate(cur);
-                    attendanceClient.updateAttendanceForLeave(dtoLeave);
+                    dtoLeave.setDurationHours(BigDecimal.valueOf(8));
+                    ApiResponse<Void> res = attendanceClient.updateAttendanceForLeave(dtoLeave);
+                    if (res != null && res.code() != 200) {
+                        throw new BusinessException("考勤服务错误: " + res.message());
+                    }
                     cur = cur.plusDays(1);
                 }
             }
@@ -360,7 +371,10 @@ public class FlowServiceImpl implements FlowService {
             dtoOvertime.setDeptId(apply.getApplicantDeptId());
             dtoOvertime.setWorkDate(apply.getStartTime() != null ? apply.getStartTime().toLocalDate() : now.toLocalDate());
             dtoOvertime.setDurationHours(apply.getDurationHours());
-            attendanceClient.updateAttendanceForOvertime(dtoOvertime);
+            ApiResponse<Void> res = attendanceClient.updateAttendanceForOvertime(dtoOvertime);
+            if (res != null && res.code() != 200) {
+                throw new BusinessException("考勤服务错误: " + res.message());
+            }
         }
     }
 

@@ -13,7 +13,9 @@ public class SalaryMonthlyStatement {
     private BigDecimal baseSalary;
     private BigDecimal overtimePay;
     private BigDecimal allowance;
+    private BigDecimal performanceBonus;
     private BigDecimal lateDeduction;
+    private BigDecimal missingCardDeduction;
     private BigDecimal absentDeduction;
     private BigDecimal leaveDeduction;
     private BigDecimal actualSalary;

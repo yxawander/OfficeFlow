@@ -602,7 +602,6 @@ const calculateDuration = (val) => {
     applyForm.endTime = val[1]
     const start = new Date(val[0])
     const end = new Date(val[1])
-    
     if (applyForm.applyType === 'LEAVE') {
       let adjustedEnd = new Date(end.getTime())
       if (adjustedEnd.getHours() === 0 && adjustedEnd.getMinutes() === 0 && adjustedEnd.getSeconds() === 0 && end.getTime() > start.getTime()) {

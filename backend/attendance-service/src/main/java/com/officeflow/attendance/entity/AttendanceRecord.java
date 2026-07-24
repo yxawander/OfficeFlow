@@ -31,7 +31,14 @@ public class AttendanceRecord {
     private Integer lateMinutes;
     private Integer earlyLeaveMinutes;
     private Integer overtimeMinutes;
-    private String status; // NORMAL, LATE, EARLY_LEAVE, ABSENT, MISSING_CARD, ON_LEAVE
+    private Integer leaveMinutes;
+    private Integer isMissingCard;
+    private Integer isAbsent;
+    
+    // 状态 (NORMAL, LATE, EARLY_LEAVE, LATE_AND_EARLY, ABSENT, MISSING_CARD, RECHECKED)
+    private String status;
+    /** 异常处理状态(NORMAL, PENDING_APPEAL, LOCKED_ABSENT) */
+    private String exceptionFlag;
     private String source; // USER_CHECK, MANUAL
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

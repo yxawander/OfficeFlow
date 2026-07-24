@@ -10,6 +10,8 @@ public record TodayAttendanceResponse(
         int workMinutes,
         int lateMinutes,
         int earlyLeaveMinutes,
-        String status
+        String status,
+        /** 异常处理状态(NORMAL, PENDING_APPEAL, LOCKED_ABSENT) */
+        String exceptionFlag
 ) {
 }

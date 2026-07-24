@@ -29,9 +29,16 @@
 
       <div class="filter-item dept-filter">
         <span class="filter-label">部门筛选：</span>
-        <el-select v-model="queryForm.deptId" placeholder="全部部门" clearable @change="fetchReports">
-          <el-option v-for="dept in deptList" :key="dept.id" :label="dept.name" :value="dept.id" />
-        </el-select>
+        <el-tree-select
+          v-model="queryForm.deptId"
+          :data="deptList"
+          :props="{ label: 'deptName', children: 'children' }"
+          node-key="id"
+          check-strictly
+          clearable
+          placeholder="全部部门"
+          @change="fetchReports"
+        />
       </div>
 
       <div class="filter-item search-item">
@@ -198,16 +205,7 @@ const fetchDepts = async () => {
   try {
     const res = await getDeptTreeApi()
     if (res.code === 200 && res.data) {
-      // 扁平化部门树用于下拉框
-      const flatDepts = []
-      const flatten = (list) => {
-        list.forEach(dept => {
-          flatDepts.push({ id: dept.id, name: dept.name })
-          if (dept.children && dept.children.length > 0) flatten(dept.children)
-        })
-      }
-      flatten(res.data)
-      deptList.value = flatDepts
+      deptList.value = res.data
     }
   } catch (error) {
     console.error('获取部门失败', error)

@@ -25,6 +25,7 @@ public interface AttendanceRecordMapper {
                    check_out_accuracy_meters AS checkOutAccuracyMeters, check_out_distance_meters AS checkOutDistanceMeters,
                    check_out_location_name AS checkOutLocationName,
                    work_minutes AS workMinutes, late_minutes AS lateMinutes, early_leave_minutes AS earlyLeaveMinutes,
+                   overtime_minutes AS overtimeMinutes, leave_minutes AS leaveMinutes,
                    status, source, created_at AS createdAt, updated_at AS updatedAt
             FROM attendance_record
             WHERE user_id = #{userId} AND work_date = #{workDate}
@@ -45,6 +46,18 @@ public interface AttendanceRecordMapper {
             """)
     int insertCheckIn(AttendanceRecord record);
 
+    @Insert("""
+            INSERT INTO attendance_record (
+                user_id, dept_id, work_date, status, source, is_absent, is_missing_card, 
+                leave_minutes, late_minutes, early_leave_minutes, work_minutes, exception_flag
+            )
+            VALUES (
+                #{userId}, #{deptId}, #{workDate}, #{status}, #{source}, #{isAbsent}, #{isMissingCard},
+                #{leaveMinutes}, #{lateMinutes}, #{earlyLeaveMinutes}, #{workMinutes}, #{exceptionFlag}
+            )
+            """)
+    int insertSystemRecord(AttendanceRecord record);
+
     @Update("""
             UPDATE attendance_record
             SET check_in_time = #{checkInTime},
@@ -56,7 +69,7 @@ public interface AttendanceRecordMapper {
                 check_in_distance_meters = #{checkInDistanceMeters},
                 check_in_location_name = #{checkInLocationName},
                 late_minutes = #{lateMinutes},
-                status = CASE WHEN status = 'ON_LEAVE' THEN 'ON_LEAVE' ELSE #{status} END,
+                status = #{status},
                 source = #{source}
             WHERE id = #{id}
             """)
@@ -74,7 +87,10 @@ public interface AttendanceRecordMapper {
                 check_out_location_name = #{checkOutLocationName},
                 work_minutes = #{workMinutes},
                 early_leave_minutes = #{earlyLeaveMinutes},
-                status = #{status}
+                overtime_minutes = #{overtimeMinutes},
+                status = #{status},
+                is_missing_card = #{isMissingCard},
+                exception_flag = #{exceptionFlag}
             WHERE id = #{id}
             """)
     int updateCheckOut(AttendanceRecord record);
@@ -165,6 +181,7 @@ public interface AttendanceRecordMapper {
                    r.check_out_time AS checkOutTime, r.check_out_remark AS checkOutRemark,
                    r.check_out_distance_meters AS checkOutDistanceMeters, r.check_out_location_name AS checkOutLocationName,
                    r.work_minutes AS workMinutes, r.late_minutes AS lateMinutes, r.early_leave_minutes AS earlyLeaveMinutes,
+                   r.leave_minutes AS leaveMinutes, r.id AS recordId,
                    COALESCE(r.status, 'NOT_CHECKED') AS status
             FROM sys_user u
             LEFT JOIN sys_dept d ON d.id = u.dept_id
@@ -179,11 +196,10 @@ public interface AttendanceRecordMapper {
     @Update("""
             <script>
             UPDATE attendance_record
-            <set>
-                <if test="correctionType == 'CHECK_IN'">check_in_time = #{correctionTime},</if>
-                <if test="correctionType == 'CHECK_OUT'">check_out_time = #{correctionTime},</if>
-                source = 'MANUAL'
-            </set>
+            SET check_in_time = CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE check_in_time END,
+                check_out_time = CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE check_out_time END,
+                source = 'MANUAL',
+                exception_flag = 'NORMAL'
             WHERE 
             <choose>
                 <when test="recordId != null">id = #{recordId}</when>
@@ -197,7 +213,7 @@ public interface AttendanceRecordMapper {
                                              @Param("correctionTime") java.time.LocalDateTime correctionTime);
 
     @Insert("""
-            INSERT INTO attendance_record (user_id, dept_id, work_date, check_in_time, check_out_time, status, source)
+            INSERT INTO attendance_record (user_id, dept_id, work_date, check_in_time, check_out_time, status, exception_flag, source)
             VALUES (
                 #{userId},
                 #{deptId},
@@ -205,12 +221,14 @@ public interface AttendanceRecordMapper {
                 CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE NULL END,
                 CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE NULL END,
                 'MISSING_CARD',
+                'NORMAL',
                 'MANUAL'
             )
             ON DUPLICATE KEY UPDATE
                 check_in_time = CASE WHEN #{correctionType} = 'CHECK_IN' THEN #{correctionTime} ELSE check_in_time END,
                 check_out_time = CASE WHEN #{correctionType} = 'CHECK_OUT' THEN #{correctionTime} ELSE check_out_time END,
-                source = 'MANUAL'
+                source = 'MANUAL',
+                exception_flag = 'NORMAL'
             """)
     int insertAttendanceRecordForCorrection(@Param("userId") Long userId,
                                             @Param("deptId") Long deptId,
@@ -219,43 +237,32 @@ public interface AttendanceRecordMapper {
 
     @Update("""
             UPDATE attendance_record
-            SET work_minutes = CASE
-                    WHEN check_in_time IS NOT NULL AND check_out_time IS NOT NULL
-                    THEN GREATEST(TIMESTAMPDIFF(MINUTE, check_in_time, check_out_time), 0)
-                    ELSE 0
-                END,
-                late_minutes = CASE
-                    WHEN check_in_time IS NOT NULL AND TIME(check_in_time) > '09:10:00'
-                    THEN TIMESTAMPDIFF(MINUTE, CONCAT(work_date, ' 09:00:00'), check_in_time)
-                    ELSE 0
-                END,
-                early_leave_minutes = CASE
-                    WHEN check_out_time IS NOT NULL AND TIME(check_out_time) < '17:50:00'
-                    THEN TIMESTAMPDIFF(MINUTE, check_out_time, CONCAT(work_date, ' 18:00:00'))
-                    ELSE 0
-                END,
-                status = CASE
-                    WHEN check_in_time IS NULL OR check_out_time IS NULL THEN 'MISSING_CARD'
-                    WHEN TIME(check_in_time) > '09:10:00' AND TIME(check_out_time) < '17:50:00' THEN 'LATE_AND_EARLY'
-                    WHEN TIME(check_in_time) > '09:10:00' THEN 'LATE'
-                    WHEN TIME(check_out_time) < '17:50:00' THEN 'EARLY_LEAVE'
-                    ELSE 'RECHECKED'
-                END,
+            SET work_minutes = #{workMinutes},
+                late_minutes = #{lateMinutes},
+                early_leave_minutes = #{earlyLeaveMinutes},
+                is_absent = #{isAbsent},
+                is_missing_card = #{isMissingCard},
+                status = #{status},
                 source = 'MANUAL'
-            WHERE user_id = #{userId}
-              AND work_date = DATE(#{correctionTime})
+            WHERE id = #{recordId}
             """)
-    int recalculateAttendanceRecordAfterCorrection(@Param("userId") Long userId,
-                                                   @Param("correctionTime") java.time.LocalDateTime correctionTime);
+    int updateAttendanceRecordStats(@Param("recordId") Long recordId,
+                                    @Param("workMinutes") int workMinutes,
+                                    @Param("lateMinutes") int lateMinutes,
+                                    @Param("earlyLeaveMinutes") int earlyLeaveMinutes,
+                                    @Param("isAbsent") int isAbsent,
+                                    @Param("isMissingCard") int isMissingCard,
+                                    @Param("status") String status);
 
     @Insert("""
-            INSERT INTO attendance_record (user_id, dept_id, work_date, status, source)
-            VALUES (#{userId}, #{deptId}, #{workDate}, 'ON_LEAVE', 'MANUAL')
-            ON DUPLICATE KEY UPDATE status = 'ON_LEAVE', source = 'MANUAL'
+            INSERT INTO attendance_record (user_id, dept_id, work_date, status, source, leave_minutes, is_absent)
+            VALUES (#{userId}, #{deptId}, #{workDate}, 'ON_LEAVE', 'MANUAL', #{minutes}, 0)
+            ON DUPLICATE KEY UPDATE status = 'ON_LEAVE', leave_minutes = #{minutes}, source = 'MANUAL'
             """)
     int upsertAttendanceRecordForLeave(@Param("userId") Long userId,
                                         @Param("deptId") Long deptId,
-                                        @Param("workDate") java.time.LocalDate workDate);
+                                        @Param("workDate") java.time.LocalDate workDate,
+                                        @Param("minutes") int minutes);
 
     @Update("""
             UPDATE attendance_record

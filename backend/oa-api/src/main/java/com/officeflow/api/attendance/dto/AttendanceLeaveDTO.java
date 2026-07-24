@@ -8,4 +8,5 @@ public class AttendanceLeaveDTO {
     private Long userId;
     private Long deptId;
     private LocalDate workDate;
+    private java.math.BigDecimal durationHours;
 }

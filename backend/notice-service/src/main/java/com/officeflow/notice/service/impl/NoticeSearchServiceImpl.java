@@ -123,6 +123,8 @@ public class NoticeSearchServiceImpl implements NoticeSearchService {
                     .fields("title", "content")
                     .query(keyword)
                     .type(TextQueryType.BestFields))));
+        } else {
+            must.add(Query.of(q -> q.matchAll(m -> m)));
         }
 
         filter.add(Query.of(q -> q.term(t -> t.field("isDeleted").value(0))));
@@ -173,6 +175,8 @@ public class NoticeSearchServiceImpl implements NoticeSearchService {
                     .fields("title", "content")
                     .query(keyword)
                     .type(TextQueryType.BestFields))));
+        } else {
+            must.add(Query.of(q -> q.matchAll(m -> m)));
         }
 
         filter.add(Query.of(q -> q.term(t -> t.field("isDeleted").value(0))));

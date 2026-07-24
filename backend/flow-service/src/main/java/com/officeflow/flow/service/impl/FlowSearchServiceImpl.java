@@ -111,6 +111,9 @@ public class FlowSearchServiceImpl implements FlowSearchService {
                     .fields("title", "reason")
                     .query(keyword)
                     .type(TextQueryType.BestFields))));
+        } else {
+            // 无关键词时用 matchAll 确保纯过滤查询正确执行
+            must.add(Query.of(q -> q.matchAll(m -> m)));
         }
 
         // 过滤已删除

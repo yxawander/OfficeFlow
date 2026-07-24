@@ -53,8 +53,9 @@ public class RagController {
 
         String filename = file.getOriginalFilename();
         if (filename == null || (!filename.toLowerCase().endsWith(".pdf")
-                && !filename.toLowerCase().endsWith(".txt"))) {
-            return Map.of("status", "FAIL", "error", "仅支持 PDF 和 TXT 文件");
+                && !filename.toLowerCase().endsWith(".txt")
+                && !filename.toLowerCase().endsWith(".md"))) {
+            return Map.of("status", "FAIL", "error", "仅支持 PDF、TXT 和 MD 文件");
         }
 
         try {

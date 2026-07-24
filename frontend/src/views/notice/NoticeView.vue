@@ -27,7 +27,7 @@
             <el-form-item>
               <el-button type="primary" @click="loadList">查询</el-button>
               <el-button @click="resetQuery">重置</el-button>
-从            </el-form-item>
+            </el-form-item>
           </el-form>
           <div class="unread-badge">
             未读公告：

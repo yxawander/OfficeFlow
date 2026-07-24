@@ -304,7 +304,26 @@
           <div class="detail-info-line">
             <span class="detail-label">申请类型：</span>
             <el-tag :type="getTypeTagType(currentDetailRow.applyType)" size="small">{{ formatApplyType(currentDetailRow.applyType) }}</el-tag>
-            <el-tag :type="getStatusTagType(currentDetailRow.status)" size="small" style="margin-left:8px">{{ formatStatusText(currentDetailRow.status) }}</el-tag>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">申请人：</span>
+            <span>{{ currentDetailRow.applicantName || '-' }}</span>
+          </div>
+          <div class="detail-info-line" v-if="currentDetailRow.applicantDeptName">
+            <span class="detail-label">所属部门：</span>
+            <span>{{ currentDetailRow.applicantDeptName }}</span>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">状态：</span>
+            <el-tag :type="getStatusTagType(currentDetailRow.status)" size="small">{{ formatStatusText(currentDetailRow.status) }}</el-tag>
+          </div>
+          <div class="detail-info-line" v-if="currentDetailRow.approverName">
+            <span class="detail-label">审批人：</span>
+            <span>{{ currentDetailRow.approverName }}</span>
+          </div>
+          <div class="detail-info-line">
+            <span class="detail-label">提交时间：</span>
+            <span>{{ currentDetailRow.createdAt || '-' }}</span>
           </div>
           <div class="detail-info-line">
             <span class="detail-label">标题：</span>
@@ -315,7 +334,7 @@
             <span>{{ currentDetailRow.reason }}</span>
           </div>
           <div class="detail-info-line" v-if="currentDetailRow.startTime">
-            <span class="detail-label">时间：</span>
+            <span class="detail-label">时间范围：</span>
             <span>{{ currentDetailRow.startTime }} ~ {{ currentDetailRow.endTime }}</span>
           </div>
         </div>
@@ -331,19 +350,20 @@
               :key="idx"
               class="timeline-item"
             >
-              <div class="timeline-node" :class="record.action === 'APPROVE' ? 'node-approve' : 'node-reject'">
+              <div class="timeline-node" :class="record.action === 'APPROVE' ? 'node-approve' : record.action === 'REJECT' ? 'node-reject' : 'node-submit'">
                 <el-icon v-if="record.action === 'APPROVE'"><Check /></el-icon>
-                <el-icon v-else><Close /></el-icon>
+                <el-icon v-else-if="record.action === 'REJECT'"><Close /></el-icon>
+                <el-icon v-else><Edit /></el-icon>
               </div>
               <div class="timeline-content">
                 <div class="timeline-actor">
-                  <strong>{{ record.approverName || '系统' }}</strong>
-                  <el-tag :type="record.action === 'APPROVE' ? 'success' : 'danger'" size="small" effect="light">
-                    {{ record.action === 'APPROVE' ? '审批通过' : '审批驳回' }}
+                  <strong>{{ record.approverName || record.applicantName || '系统' }}</strong>
+                  <el-tag :type="record.action === 'APPROVE' ? 'success' : record.action === 'REJECT' ? 'danger' : 'primary'" size="small" effect="light">
+                    {{ record.action === 'APPROVE' ? '审批通过' : record.action === 'REJECT' ? '审批驳回' : '提交申请' }}
                   </el-tag>
                 </div>
                 <div class="timeline-comment" v-if="record.comment">{{ record.comment }}</div>
-                <div class="timeline-time">{{ record.approvedAt }}</div>
+                <div class="timeline-time">{{ record.approvedAt || record.createdAt }}</div>
               </div>
             </div>
           </div>
@@ -372,7 +392,7 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Check, Close, Link } from '@element-plus/icons-vue'
+import { Upload, Check, Close, Link, Edit } from '@element-plus/icons-vue'
 
 const router = useRouter()
 import {
@@ -890,6 +910,9 @@ onMounted(() => {
 }
 .timeline-node.node-reject {
   background: #f56c6c;
+}
+.timeline-node.node-submit {
+  background: #409eff;
 }
 .timeline-content {
   flex: 1;

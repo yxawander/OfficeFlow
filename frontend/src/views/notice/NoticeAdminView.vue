@@ -121,11 +121,22 @@
                 <el-option v-for="o in NOTICE_SCOPE_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
               <template v-if="s.scopeType === 'ALL'">
-                <el-input v-model="s.scopeName" placeholder="全员" disabled style="width:160px" />
+                <span class="scope-all-hint">所有员工可见</span>
               </template>
-              <template v-else>
-                <el-input v-model="s.scopeId" placeholder="对象ID" style="width:120px" />
-                <el-input v-model="s.scopeName" placeholder="对象名称" style="width:160px" />
+              <template v-else-if="s.scopeType === 'DEPT'">
+                <el-select v-model="s.scopeId" filterable placeholder="请搜索并选择部门" style="width:280px" @change="(val) => onScopeValueSelect(s, 'DEPT', val)">
+                  <el-option v-for="d in deptFlatOptions" :key="d.value" :label="d.label" :value="d.value" />
+                </el-select>
+              </template>
+              <template v-else-if="s.scopeType === 'USER'">
+                <el-select v-model="s.scopeId" filterable placeholder="请搜索并选择人员" style="width:280px" @change="(val) => onScopeValueSelect(s, 'USER', val)">
+                  <el-option v-for="u in userOptions" :key="u.value" :label="u.label" :value="u.value" />
+                </el-select>
+              </template>
+              <template v-else-if="s.scopeType === 'ROLE'">
+                <el-select v-model="s.scopeId" filterable placeholder="请搜索并选择角色" style="width:280px" @change="(val) => onScopeValueSelect(s, 'ROLE', val)">
+                  <el-option v-for="r in roleOptions" :key="r.value" :label="r.label" :value="r.value" />
+                </el-select>
               </template>
               <el-button size="small" type="danger" text @click="removeScope(i)">删除</el-button>
             </div>
@@ -188,6 +199,7 @@ import {
   uploadNoticeAttachmentApi,
   deleteNoticeAttachmentApi
 } from '@/api/notice'
+import { getDeptTreeApi, getUserOptionsApi, getRoleListApi } from '@/api/user'
 import {
   NOTICE_TYPE_OPTIONS,
   NOTICE_PRIORITY_OPTIONS,
@@ -221,6 +233,9 @@ const form = reactive({
   attachmentIds: []
 })
 const fileList = ref([])
+const deptFlatOptions = ref([])
+const userOptions = ref([])
+const roleOptions = ref([])
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   noticeType: [{ required: true, message: '请选择类型', trigger: 'change' }],
@@ -309,11 +324,49 @@ const resetForm = () => {
 const addScope = () => form.scopes.push({ scopeType: 'DEPT', scopeId: null, scopeName: '' })
 const removeScope = (i) => form.scopes.splice(i, 1)
 const onScopeTypeChange = (s) => {
+  s.scopeId = null
+  s.scopeName = ''
   if (s.scopeType === 'ALL') {
-    s.scopeId = null
     s.scopeName = '全员'
-  } else {
-    s.scopeName = ''
+  }
+}
+
+const flattenDeptTree = (tree, prefix = '') => {
+  const result = []
+  for (const node of tree) {
+    const label = prefix + (node.deptName || node.label || '')
+    result.push({ value: node.id, label })
+    if (node.children && node.children.length > 0) {
+      result.push(...flattenDeptTree(node.children, prefix + '　'))
+    }
+  }
+  return result
+}
+
+const onScopeValueSelect = (scope, type, val) => {
+  if (!val) { scope.scopeName = ''; return }
+  if (type === 'DEPT') {
+    const found = deptFlatOptions.value.find(d => d.value === val)
+    scope.scopeName = found ? found.label.replace(/　/g, '').trim() : ''
+  } else if (type === 'USER') {
+    const found = userOptions.value.find(u => u.value === val)
+    scope.scopeName = found ? found.label : ''
+  } else if (type === 'ROLE') {
+    const found = roleOptions.value.find(r => r.value === val)
+    scope.scopeName = found ? found.label : ''
+  }
+}
+
+const loadScopeOptions = async () => {
+  try {
+    const [deptRes, userRes, roleRes] = await Promise.all([
+      getDeptTreeApi(), getUserOptionsApi(), getRoleListApi()
+    ])
+    deptFlatOptions.value = flattenDeptTree(deptRes.data || [])
+    userOptions.value = (userRes.data || []).map(u => ({ value: u.id, label: u.realName || u.username }))
+    roleOptions.value = (roleRes.data || []).map(r => ({ value: r.id, label: r.name || r.roleName }))
+  } catch (e) {
+    // 加载作用域选项失败时静默处理，下拉框为空
   }
 }
 
@@ -413,7 +466,7 @@ const openReadDetail = async (row) => {
   }
 }
 
-onMounted(loadList)
+onMounted(() => { loadScopeOptions(); loadList() })
 </script>
 
 <style scoped>

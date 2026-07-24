@@ -228,7 +228,7 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="handleTime" label="处理时间" width="170" />
+              <el-table-column prop="approvedAt" label="处理时间" width="170" />
               <el-table-column label="操作" width="80" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" size="small" @click="openDetailDialog(row)">详情</el-button>
@@ -1002,6 +1002,7 @@ onMounted(() => {
   loadMyApplies()
   if (canHandleApproval.value) {
     loadPendingApplies()
+    loadProcessedApplies()
   }
 })
 </script>

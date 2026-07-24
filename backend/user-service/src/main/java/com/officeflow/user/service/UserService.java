@@ -25,12 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.AntPathMatcher;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @SuppressWarnings("null")
@@ -45,6 +48,7 @@ public class UserService {
     private final ApiPermissionMapper apiPermissionMapper;
     private final LogMapper logMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    private final UserPermissionCacheService permissionCacheService;
 
     @Value("${officeflow.jwt.secret:officeflow-secret-key-must-be-at-least-32-bytes}")
     private String jwtSecret;
@@ -53,7 +57,8 @@ public class UserService {
     private long jwtExpireSeconds;
 
     public UserService(UserMapper userMapper, DeptMapper deptMapper, PostMapper postMapper, RoleMapper roleMapper,
-                       MenuMapper menuMapper, ApiPermissionMapper apiPermissionMapper, LogMapper logMapper) {
+                       MenuMapper menuMapper, ApiPermissionMapper apiPermissionMapper, LogMapper logMapper,
+                       UserPermissionCacheService permissionCacheService) {
         this.userMapper = userMapper;
         this.deptMapper = deptMapper;
         this.postMapper = postMapper;
@@ -61,6 +66,7 @@ public class UserService {
         this.menuMapper = menuMapper;
         this.apiPermissionMapper = apiPermissionMapper;
         this.logMapper = logMapper;
+        this.permissionCacheService = permissionCacheService;
     }
 
     @Transactional
@@ -95,6 +101,10 @@ public class UserService {
 
         userMapper.updateLastLoginAt(userId);
         logMapper.insertLoginLog(userId, username, clientIp(request), request.getHeader("User-Agent"), "SUCCESS", "登录成功");
+
+        // 缓存用户权限上下文 + 预热全局 API 规则，供网关权限校验使用
+        permissionCacheService.cacheUserPermissions(userId);
+        permissionCacheService.cacheApiRules();
 
         Map<String, Object> profile = profile(userId);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -143,6 +153,12 @@ public class UserService {
         }
         if (userMapper.resetPassword(userId, request.newPassword()) == 0) {
             throw new BusinessException("密码修改失败");
+        }
+    }
+
+    public void logout(Long userId) {
+        if (userId != null) {
+            permissionCacheService.evictUserPermissions(userId);
         }
     }
 
@@ -224,6 +240,7 @@ public class UserService {
         if (userMapper.softDelete(id) == 0) {
             throw new BusinessException("员工不存在或管理员账号不能删除");
         }
+        permissionCacheService.evictUserPermissions(id);
     }
 
     @Transactional
@@ -231,6 +248,7 @@ public class UserService {
         if (userMapper.updateStatus(id, status) == 0) {
             throw new BusinessException("员工不存在");
         }
+        permissionCacheService.evictUserPermissions(id);
     }
 
     @Transactional
@@ -256,6 +274,7 @@ public class UserService {
                 userMapper.updateUserTypeAndManager(userId, "EMPLOYEE", 2L);
             }
         }
+        permissionCacheService.evictUserPermissions(userId);
     }
 
     @Transactional
@@ -309,6 +328,7 @@ public class UserService {
     @Transactional
     public void createRole(RoleRequest request) {
         roleMapper.insert(request, defaultText(request.dataScope(), "SELF"), defaultInt(request.sortOrder(), 0), defaultInt(request.status(), 1));
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -316,6 +336,7 @@ public class UserService {
         if (roleMapper.update(id, request, defaultText(request.dataScope(), "SELF"), defaultInt(request.sortOrder(), 0), defaultInt(request.status(), 1)) == 0) {
             throw new BusinessException("角色不存在");
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -323,6 +344,7 @@ public class UserService {
         if (roleMapper.softDelete(id) == 0) {
             throw new BusinessException("角色不存在");
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -331,6 +353,7 @@ public class UserService {
         if (menuIds != null && !menuIds.isEmpty()) {
             roleMapper.insertRoleMenus(roleId, menuIds);
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -339,6 +362,7 @@ public class UserService {
         if (permissionIds != null && !permissionIds.isEmpty()) {
             roleMapper.insertRoleApiPermissions(roleId, permissionIds);
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     public List<Map<String, Object>> apiPermissionList() {
@@ -350,37 +374,64 @@ public class UserService {
         String safeMethod = defaultText(method, "").toUpperCase();
         String safePath = defaultText(path, "");
 
-        if (hasAdminRole(userId)) {
+        // 优先从 Redis 缓存获取用户权限上下文
+        Map<String, Object> userPerm = permissionCacheService.getCachedUserPermissions(userId);
+        if (userPerm != null && Boolean.TRUE.equals(userPerm.get("admin"))) {
             return permissionResult(true, true, "ADMIN", "系统管理员放行");
         }
 
-        List<Map<String, Object>> matchedPermissions = apiPermissionMapper.listEnabledByMethod(safeMethod).stream()
-                .filter(permission -> pathMatcher.match(String.valueOf(permission.get("requestPath")), safePath))
+        // 获取 API 权限规则（优先缓存）
+        List<Map<String, Object>> allRules = permissionCacheService.getApiRules();
+        List<Map<String, Object>> matchedPermissions = allRules.stream()
+                .filter(rule -> {
+                    String ruleMethod = String.valueOf(rule.get("requestMethod"));
+                    return "ALL".equals(ruleMethod) || safeMethod.equals(ruleMethod);
+                })
+                .filter(rule -> pathMatcher.match(String.valueOf(rule.get("requestPath")), safePath))
                 .toList();
         if (matchedPermissions.isEmpty()) {
             return permissionResult(true, false, null, "未配置接口权限规则，默认放行");
         }
 
         int maxPathLength = matchedPermissions.stream()
-                .map(permission -> String.valueOf(permission.get("requestPath")).length())
+                .map(rule -> String.valueOf(rule.get("requestPath")).length())
                 .max(Integer::compareTo)
                 .orElse(0);
         List<Map<String, Object>> effectivePermissions = matchedPermissions.stream()
-                .filter(permission -> String.valueOf(permission.get("requestPath")).length() == maxPathLength)
+                .filter(rule -> String.valueOf(rule.get("requestPath")).length() == maxPathLength)
                 .toList();
 
-        for (Map<String, Object> permission : effectivePermissions) {
-            Long permissionId = toLong(permission.get("id"));
-            if (apiPermissionMapper.countUserPermission(userId, permissionId) > 0) {
-                return permissionResult(true, true, String.valueOf(permission.get("permissionCode")), "接口权限校验通过");
+        // 从缓存获取用户的 API 权限 ID 集合（HashSet，用 Collection 接收）
+        @SuppressWarnings("unchecked")
+        Collection<Object> cachedPermIds = userPerm != null ? (Collection<Object>) userPerm.get("apiPermIds") : null;
+
+        if (cachedPermIds != null) {
+            Set<Long> permIdSet = cachedPermIds.stream()
+                    .map(this::toLong)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            for (Map<String, Object> permission : effectivePermissions) {
+                if (permIdSet.contains(toLong(permission.get("id")))) {
+                    return permissionResult(true, true, String.valueOf(permission.get("permissionCode")), "接口权限校验通过");
+                }
+            }
+        } else {
+            // 缓存未命中：回退到 DB 查询，并补充缓存
+            permissionCacheService.cacheUserPermissions(userId);
+            for (Map<String, Object> permission : effectivePermissions) {
+                if (apiPermissionMapper.countUserPermission(userId, toLong(permission.get("id"))) > 0) {
+                    return permissionResult(true, true, String.valueOf(permission.get("permissionCode")), "接口权限校验通过");
+                }
             }
         }
+
         return permissionResult(false, true, String.valueOf(effectivePermissions.get(0).get("permissionCode")), "无接口访问权限");
     }
 
     @Transactional
     public void createApiPermission(ApiPermissionRequest request) {
         apiPermissionMapper.insert(request, defaultInt(request.status(), 1));
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -388,6 +439,7 @@ public class UserService {
         if (apiPermissionMapper.update(id, request, defaultInt(request.status(), 1)) == 0) {
             throw new BusinessException("接口权限不存在");
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     @Transactional
@@ -395,6 +447,7 @@ public class UserService {
         if (apiPermissionMapper.disable(id) == 0) {
             throw new BusinessException("接口权限不存在");
         }
+        permissionCacheService.evictAllPermissionCache();
     }
 
     public List<Map<String, Object>> loginLogs(int limit) {

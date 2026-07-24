@@ -48,6 +48,14 @@ public interface ApiPermissionMapper {
     List<Map<String, Object>> listEnabledByMethod(@Param("method") String method);
 
     @Select("""
+            SELECT id, request_method AS requestMethod, request_path AS requestPath, permission_code AS permissionCode
+            FROM sys_api_permission
+            WHERE status = 1
+            ORDER BY service_name ASC, id ASC
+            """)
+    List<Map<String, Object>> listAllEnabled();
+
+    @Select("""
             SELECT COUNT(1)
             FROM sys_user u
             INNER JOIN sys_user_role ur ON ur.user_id = u.id

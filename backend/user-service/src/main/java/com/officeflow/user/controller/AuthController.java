@@ -33,7 +33,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ApiResponse<Void> logout(HttpServletRequest request) {
-        userService.operationLog(RequestUser.userId(request), RequestUser.username(request), "用户认证", "LOGOUT", request);
+        Long userId = RequestUser.userId(request);
+        userService.logout(userId);
+        userService.operationLog(userId, RequestUser.username(request), "用户认证", "LOGOUT", request);
         return ApiResponse.ok();
     }
 

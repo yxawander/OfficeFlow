@@ -54,3 +54,23 @@ export function updateRuleApi(id, data) {
 export function getGroupsApi() {
   return request.get('/attendance/groups')
 }
+
+// 新增考勤组
+export function createGroupApi(data) {
+  return request.post('/attendance/groups', data)
+}
+
+// 修改考勤组（更新部门与规则绑定）
+export function updateGroupApi(id, data) {
+  return request.put(`/attendance/groups/${id}`, data)
+}
+
+// 提交补卡申请
+export function recheckApi(data) {
+  return request.post('/attendance/recheck', data)
+}
+
+// 查询个人补卡申请历史
+export function getMyCorrectionsApi() {
+  return request.get('/attendance/corrections')
+}

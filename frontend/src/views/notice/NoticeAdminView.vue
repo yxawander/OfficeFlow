@@ -145,8 +145,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button type="primary" :loading="submitting" @click="submitForm">保存为草稿</el-button>
         <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">保存为草稿</el-button>
+        <el-button type="success" :loading="submitting" @click="submitAndPublish">保存并发布</el-button>
       </template>
     </el-dialog>
 
@@ -394,6 +395,7 @@ const handleRemove = (file) => {
 }
 
 const buildPayload = () => ({
+  id: form.id,
   title: form.title,
   content: form.content,
   noticeType: form.noticeType,

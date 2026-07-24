@@ -359,15 +359,13 @@ onMounted(async () => {
 .sidebar-head {
   padding: 14px;
   border-bottom: 1px solid #e6eaf0;
+  display: grid;
+  gap: 8px;
 }
 
-.new-chat-btn {
+.sidebar-head :deep(.el-button) {
   width: 100%;
-}
-
-.upload-btn {
-  width: 100%;
-  margin-top: 8px;
+  margin: 0;
 }
 
 .conv-list {

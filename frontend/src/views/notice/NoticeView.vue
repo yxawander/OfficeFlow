@@ -209,7 +209,7 @@ const query = reactive({
   priority: '',
   readStatus: '',
   pageNum: 1,
-  pageSize: 10
+  pageSize: 8
 })
 
 const detailVisible = ref(false)
@@ -404,9 +404,9 @@ onMounted(() => {
 /* ── 卡片网格 ── */
 .notice-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  min-height: 200px;
+  min-height: 380px;
 }
 
 .notice-card {
@@ -555,6 +555,7 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 28px;
+  padding-bottom: 8px;
 }
 
 /* ── 详情抽屉 ── */
@@ -633,6 +634,29 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   border: 1px solid #f1f5f9;
+  overflow: hidden;
+}
+.notice-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+  margin: 12px 0;
+}
+.notice-content :deep(video) {
+  max-width: 100%;
+  height: auto;
+}
+.notice-content :deep(table) {
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+.notice-content :deep(pre) {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .notice-attachments {

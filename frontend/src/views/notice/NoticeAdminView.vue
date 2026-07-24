@@ -77,7 +77,7 @@
     </div>
 
     <!-- 新建 / 编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑公告' : '创建公告'" width="720px" class="admin-form-dialog" destroy-on-close @closed="resetForm">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑公告' : '创建公告'" width="1100px" class="admin-form-dialog" destroy-on-close @closed="resetForm">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="90px" class="admin-form">
         <el-form-item label="公告标题" prop="title">
           <el-input v-model="form.title" maxlength="128" show-word-limit placeholder="请输入标题（最多128字）" />
@@ -113,9 +113,19 @@
             style="width:260px"
           />
         </el-form-item>
-        <el-form-item label="公告内容" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="8" placeholder="请输入公告内容（支持 HTML 富文本）" />
-          <div class="form-hint">提示：内容支持 HTML 标签，如 &lt;b&gt;加粗&lt;/b&gt;、&lt;p&gt;段落&lt;/p&gt; 等</div>
+        <el-form-item label="公告内容" prop="content" class="editor-form-item">
+          <div class="editor-layout">
+            <div class="editor-panel">
+              <div class="editor-wrapper">
+                <Toolbar :editor="editorRef" :defaultConfig="toolbarConfig" mode="default" />
+                <Editor :defaultConfig="editorConfig" mode="default" v-model="form.content" @onCreated="handleEditorCreated" />
+              </div>
+            </div>
+            <div class="preview-panel">
+              <div class="preview-header"><el-icon><View /></el-icon> 预览</div>
+              <div class="preview-content" v-html="form.content || '<p style=color:#94a3b8;text-align:center;padding-top:80px;>请在左侧编辑内容</p>'"></div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="附件">
           <el-upload
@@ -226,7 +236,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, shallowRef, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getAdminNoticeListApi,
@@ -253,16 +263,47 @@ import {
   getNoticePriorityTag,
   getNoticeStatusTag
 } from '@/constants'
+import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import '@wangeditor/editor/dist/css/style.css'
 
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
-const query = reactive({ keyword: '', status: '', dateRange: null, pageNum: 1, pageSize: 10 })
+const query = reactive({ keyword: '', status: '', dateRange: null, pageNum: 1, pageSize: 8 })
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const formRef = ref()
+const editorRef = shallowRef()
+
+const toolbarConfig = {
+  excludeKeys: ['group-video', 'insertTable', 'divider', 'codeBlock', 'emotion']
+}
+
+const editorConfig = {
+  placeholder: '请输入公告内容...',
+  autoFocus: false,
+  MENU_CONF: {
+    uploadImage: {
+      async customUpload(file, insertFn) {
+        try {
+          const res = await uploadNoticeAttachmentApi(file)
+          if (res.code === 200 && res.data) {
+            const url = res.data.fileUrl || res.data.url
+            if (url) insertFn(url, file.name, url)
+          }
+        } catch {
+          ElMessage.error('图片上传失败')
+        }
+      }
+    }
+  }
+}
+
+const handleEditorCreated = (editor) => {
+  editorRef.value = editor
+}
 const form = reactive({
   id: null,
   title: '',
@@ -334,6 +375,12 @@ const resetQuery = () => {
 }
 const handlePageChange = (p) => {
   query.pageNum = p
+  loadList()
+}
+
+const handleSizeChange = (s) => {
+  query.pageSize = s
+  query.pageNum = 1
   loadList()
 }
 
@@ -631,6 +678,7 @@ onMounted(() => { loadScopeOptions(); loadList() })
   display: flex;
   justify-content: center;
   margin-top: 24px;
+  padding-bottom: 8px;
 }
 
 /* ── 空状态 ── */
@@ -671,6 +719,108 @@ onMounted(() => { loadScopeOptions(); loadList() })
   color: #909399;
   font-size: 12px;
   margin-top: 4px;
+}
+
+/* ── 富文本编辑器 + 预览 ── */
+.editor-form-item {
+  display: block;
+}
+.editor-form-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+}
+.editor-layout {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  min-height: 420px;
+}
+.editor-panel {
+  flex: 1;
+  min-width: 0;
+}
+.editor-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.editor-wrapper :deep(.w-e-toolbar) {
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+}
+.editor-wrapper :deep(.w-e-text-container) {
+  border: 0;
+  border-radius: 0;
+}
+.editor-wrapper :deep(.w-e-text-container [data-slate-editor]) {
+  min-height: 340px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #1e293b;
+}
+.editor-wrapper :deep(.w-e-text-container [data-slate-editor] p) {
+  margin: 0 0 8px;
+}
+
+/* ── 预览面板 ── */
+.preview-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.preview-content {
+  flex: 1;
+  padding: 20px 16px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #334155;
+  word-break: break-word;
+}
+.preview-content :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.preview-content :deep(p) {
+  margin: 0 0 8px;
+}
+.preview-content :deep(h1),
+.preview-content :deep(h2),
+.preview-content :deep(h3) {
+  margin: 12px 0 8px;
+}
+.preview-content :deep(blockquote) {
+  border-left: 3px solid #e2e8f0;
+  padding-left: 12px;
+  color: #94a3b8;
+  margin: 8px 0;
+}
+.preview-content :deep(ul),
+.preview-content :deep(ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.preview-content :deep(a) {
+  color: var(--el-color-primary);
 }
 
 /* ── 阅读统计 ── */

@@ -38,7 +38,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/user/logout",
             "/api/user/profile",
             "/api/user/password",
-            "/api/user/menus/current"
+            "/api/user/menus/current",
+            "/api/flow/attachments",
+            "/api/notice/attachments"
     );
 
     @Value("${officeflow.jwt.secret:officeflow-secret-key-must-be-at-least-32-bytes}")

@@ -547,11 +547,12 @@
             <span class="section-title">附件</span>
           </div>
           <div class="attach-list">
-            <div v-for="att in currentDetailRow.attachments" :key="att.id" class="attach-item">
+            <div v-for="att in currentDetailRow.attachments" :key="att.id" class="attach-item" @click="downloadFile('/flow/attachments/' + att.id + '/download', att.fileName)">
               <div class="attach-icon">
                 <el-icon size="20"><Document /></el-icon>
               </div>
               <span class="attach-name">{{ att.fileName }}</span>
+              <el-icon class="attach-download-icon"><Download /></el-icon>
             </div>
           </div>
         </div>
@@ -586,6 +587,7 @@ import {
 } from '@/api/flow'
 import { recheckApi } from '@/api/attendance'
 import { useUserStore } from '@/stores/user'
+import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
 const activeTab = ref('my')
@@ -1666,6 +1668,13 @@ onMounted(() => {
   justify-content: center;
   flex-shrink: 0;
 }
+.attach-download-icon {
+  margin-left: auto;
+  color: #94a3b8;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.attach-item:hover .attach-download-icon { color: #3b82f6; }
 .attach-name {
   font-size: 13px;
   color: #334155;

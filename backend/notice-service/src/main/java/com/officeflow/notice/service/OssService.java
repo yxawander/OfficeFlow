@@ -29,4 +29,11 @@ public interface OssService {
      * 获取文件访问URL（公开Bucket）
      */
     String getFileUrl(String objectKey);
+
+    /**
+     * 从OSS下载文件并写入输出流
+     * @param objectKey    OSS对象Key
+     * @param outputStream 目标输出流
+     */
+    void downloadToStream(String objectKey, java.io.OutputStream outputStream);
 }

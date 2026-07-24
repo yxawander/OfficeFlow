@@ -19,11 +19,17 @@ import com.officeflow.flow.vo.FlowApplyListVO;
 import com.officeflow.flow.vo.FlowPendingVO;
 import com.officeflow.flow.vo.FlowProcessedVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @RestController
@@ -178,5 +184,23 @@ public class FlowController {
         }
         flowAttachmentMapper.deleteById(id);
         return ApiResponse.ok();
+    }
+
+    @GetMapping("/attachments/{id}/download")
+    public void downloadAttachment(@PathVariable Long id, HttpServletResponse response) {
+        FlowAttachment attachment = flowAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        String fileName = attachment.getFileName() != null ? attachment.getFileName() : "file";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        response.setContentType(attachment.getFileType() != null ? attachment.getFileType() : "application/octet-stream");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded);
+        response.setContentLengthLong(attachment.getFileSize());
+        try {
+            ossService.downloadToStream(attachment.getOssKey(), response.getOutputStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

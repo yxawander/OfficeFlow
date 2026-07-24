@@ -132,6 +132,7 @@
             :http-request="customUpload"
             :file-list="fileList"
             :on-remove="handleRemove"
+            :on-preview="handlePreview"
             list-type="text"
             multiple
           >
@@ -266,6 +267,7 @@ import {
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { useUserStore } from '@/stores/user'
+import { downloadFile } from '@/utils/download'
 
 const userStore = useUserStore()
 const props = defineProps({
@@ -422,8 +424,8 @@ const openEdit = async (row) => {
         : props.restrictScope
           ? [{ scopeType: 'DEPT', scopeId: userStore.profile?.deptId || null, scopeName: userStore.profile?.deptName || '' }]
           : [{ scopeType: 'ALL', scopeId: null, scopeName: '全员' }]
-    form.attachmentIds = (d.attachmentList || []).map((a) => a.id)
-    fileList.value = (d.attachmentList || []).map((a) => ({ name: a.fileName, url: a.fileUrl, id: a.id }))
+    form.attachmentIds = (d.attachments || []).map((a) => a.id)
+    fileList.value = (d.attachments || []).map((a) => ({ name: a.fileName, url: a.fileUrl, id: a.id }))
   }
   dialogVisible.value = true
 }
@@ -516,6 +518,12 @@ const handleRemove = (file) => {
     deleteNoticeAttachmentApi(file.id).catch(() => {})
     const idx = form.attachmentIds.indexOf(file.id)
     if (idx > -1) form.attachmentIds.splice(idx, 1)
+  }
+}
+
+const handlePreview = (file) => {
+  if (file.id) {
+    downloadFile('/notice/admin/attachments/' + file.id + '/download', file.name)
   }
 }
 

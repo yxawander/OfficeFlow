@@ -147,15 +147,15 @@
         </div>
         <div class="notice-content" v-html="currentDetail.content"></div>
 
-        <div v-if="(currentDetail.attachmentList || []).length" class="notice-attachments">
+        <div v-if="(currentDetail.attachments || []).length" class="notice-attachments">
           <div class="detail-divider">
             <span>附件列表</span>
           </div>
           <div
-            v-for="a in currentDetail.attachmentList"
+            v-for="a in currentDetail.attachments"
             :key="a.id"
             class="attachment-item"
-            @click="window.open(a.fileUrl, '_blank')"
+            @click="downloadFile('/notice/attachments/' + a.id + '/download', a.fileName)"
           >
             <div class="attachment-icon">
               <el-icon size="24"><Document /></el-icon>
@@ -176,6 +176,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { downloadFile } from '@/utils/download'
 import NoticeAdminView from './NoticeAdminView.vue'
 import {
   getNoticeListApi,

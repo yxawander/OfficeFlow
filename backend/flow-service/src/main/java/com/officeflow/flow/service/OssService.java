@@ -11,4 +11,6 @@ public interface OssService {
     String getPresignedUrl(String objectKey, long expireSeconds);
 
     String getFileUrl(String objectKey);
+
+    void downloadToStream(String objectKey, java.io.OutputStream outputStream);
 }

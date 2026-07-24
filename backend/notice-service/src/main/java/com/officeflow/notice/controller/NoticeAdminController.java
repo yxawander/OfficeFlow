@@ -3,6 +3,7 @@ package com.officeflow.notice.controller;
 import com.officeflow.common.api.ApiResponse;
 import com.officeflow.common.api.PageResult;
 import com.officeflow.common.constant.CommonConstants;
+import com.officeflow.common.exception.BusinessException;
 import com.officeflow.notice.dto.NoticeCreateDTO;
 import com.officeflow.notice.dto.NoticeQueryDTO;
 import com.officeflow.notice.dto.NoticeUpdateDTO;
@@ -16,11 +17,17 @@ import com.officeflow.notice.vo.AdminNoticeListVO;
 import com.officeflow.notice.vo.AttachmentVO;
 import com.officeflow.notice.vo.NoticeReadDetailVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @RestController
@@ -126,6 +133,24 @@ public class NoticeAdminController {
         }
         noticeAttachmentMapper.deleteById(id);
         return ApiResponse.ok(true);
+    }
+
+    @GetMapping("/attachments/{id}/download")
+    public void downloadAttachment(@PathVariable Long id, HttpServletResponse response) {
+        NoticeAttachment attachment = noticeAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            throw new BusinessException("附件不存在");
+        }
+        String fileName = attachment.getFileName() != null ? attachment.getFileName() : "file";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        response.setContentType(attachment.getFileType() != null ? attachment.getFileType() : "application/octet-stream");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded);
+        response.setContentLengthLong(attachment.getFileSize());
+        try {
+            ossService.downloadToStream(attachment.getOssKey(), response.getOutputStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Long getUserId(HttpServletRequest request) {

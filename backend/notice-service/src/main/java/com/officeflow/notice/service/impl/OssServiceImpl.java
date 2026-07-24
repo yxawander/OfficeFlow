@@ -2,6 +2,7 @@ package com.officeflow.notice.service.impl;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.officeflow.common.exception.BusinessException;
@@ -118,6 +119,28 @@ public class OssServiceImpl implements OssService {
             return baseUrl.endsWith("/") ? baseUrl + objectKey : baseUrl + "/" + objectKey;
         }
         return String.format("https://%s.%s/%s", ossProperties.getBucketName(), ossProperties.getEndpoint(), objectKey);
+    }
+
+    @Override
+    public void downloadToStream(String objectKey, java.io.OutputStream outputStream) {
+        ensureClient();
+        OSSObject ossObject = null;
+        try {
+            ossObject = ossClient.getObject(ossProperties.getBucketName(), objectKey);
+            try (java.io.InputStream in = ossObject.getObjectContent()) {
+                in.transferTo(outputStream);
+            }
+        } catch (Exception e) {
+            log.error("Failed to download file from OSS: key={}", objectKey, e);
+            throw new BusinessException("文件下载失败");
+        } finally {
+            if (ossObject != null) {
+                try {
+                    ossObject.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 
     public static String generateObjectKey(String originalFileName) {

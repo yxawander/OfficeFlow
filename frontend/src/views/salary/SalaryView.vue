@@ -306,7 +306,7 @@
               </div>
               <div class="item-row">
                 <div class="flex-col">
-                  <span>迟到早退/缺卡扣款 (仅扣绩效)</span>
+                  <span>迟到早退扣款 (仅扣绩效)</span>
                   <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.offWorkHours }}小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时)</span>
                 </div>
                 <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.lateDeduction) }}</span>
@@ -314,6 +314,7 @@
               <div class="item-row">
                 <div class="flex-col">
                   <span>缺卡扣款 (仅扣绩效)</span>
+                  <span class="sub-text" v-if="detailSalary?.hourlyWage">({{ detailSalary.missingCardDeduction > 0 ? Math.round(detailSalary.missingCardDeduction / (detailSalary.hourlyWage * 4)) : 0 }}次 × 4.0小时 × ￥{{ formatMoney(detailSalary.hourlyWage) }}/时)</span>
                 </div>
                 <span class="amount text-danger">- ￥{{ formatMoney(detailSalary?.missingCardDeduction) }}</span>
               </div>

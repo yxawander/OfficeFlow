@@ -219,62 +219,10 @@ body {
   gap: 12px;
 }
 
+/* login page styles now in LoginView.vue scoped <style> */
 .login-page {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: #eef3f8;
-}
-
-.login-panel {
-  display: grid;
-  grid-template-columns: 1.1fr 420px;
-  width: min(980px, 100%);
-  min-height: 520px;
-  background: #ffffff;
-  border: 1px solid #dfe6ee;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.login-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 56px;
-  background: #12355b;
-  color: #ffffff;
-}
-
-.brand-line {
-  font-weight: 700;
-  color: #8bd3ff;
-}
-
-.login-copy h1 {
-  margin: 16px 0;
-  font-size: 36px;
-  line-height: 1.2;
-}
-
-.login-copy p {
-  margin: 0;
-  max-width: 420px;
-  color: #d7e5f4;
-  line-height: 1.8;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px;
-}
-
-.login-form h2 {
-  margin: 0 0 28px;
-  font-size: 24px;
+  background: #0a1628;
 }
 
 .login-button {
@@ -283,18 +231,6 @@ body {
 }
 
 @media (max-width: 820px) {
-  .login-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .login-copy {
-    padding: 36px;
-  }
-
-  .login-copy h1 {
-    font-size: 28px;
-  }
-
   .action-panel {
     align-items: stretch;
     flex-direction: column;
